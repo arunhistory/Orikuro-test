@@ -4,15 +4,19 @@ const mobileMenu=document.querySelector('[data-mobile-menu]');
 const toast=document.querySelector('[data-toast]');
 
 /*
-  Intro direction:
-  - short scene, high information density
-  - words intentionally overlap a little
-  - irregular size / depth / position
-  - final anxiety words stay clearly readable in front
-  - spacing belongs BETWEEN scenes, not inside the text storm
+  Current layout + faster motion.
+  Keep the scene spacing, but remove sluggish reveal timing.
 */
 const pacingStyle=document.createElement('style');
 pacingStyle.textContent=`
+  .reveal{
+    opacity:0;
+    transform:translateY(12px)!important;
+    transition:opacity .22s ease-out,transform .22s ease-out!important;
+  }
+  .reveal.is-visible{opacity:1;transform:none!important}
+  .site-header,.menu-button span,.desktop-nav a,.round-link,.route-card,.route-card:before,.service-cloud span{transition-duration:.16s!important}
+
   .hero{min-height:106svh!important}
   .hero-content{min-height:106svh!important;padding-bottom:8svh!important}
 
@@ -49,7 +53,6 @@ pacingStyle.textContent=`
     pointer-events:none!important;
     z-index:0!important;
   }
-
   .g1{top:17%!important;left:-3%!important;font-size:clamp(90px,16vw,240px)!important;transform:rotate(-4deg)!important}
   .g2{top:44%!important;right:-9%!important;font-size:clamp(110px,19vw,290px)!important;transform:rotate(3deg)!important}
   .g3{top:68%!important;left:12%!important;font-size:clamp(100px,18vw,270px)!important;transform:rotate(-2deg)!important}
@@ -80,74 +83,16 @@ pacingStyle.textContent=`
   .p24{top:87%!important;left:7%!important;font-size:clamp(42px,6.8vw,102px)!important;z-index:8!important;transform:rotate(-.5deg)!important}
   .p25{top:91%!important;right:4%!important;font-size:clamp(46px,7.4vw,112px)!important;z-index:9!important;transform:rotate(.5deg)!important}
 
-  .pressure-question{
-    min-height:112svh!important;
-    display:flex!important;
-    flex-direction:column!important;
-    justify-content:center!important;
-    padding-top:24svh!important;
-    padding-bottom:24svh!important;
-  }
+  .pressure-question{min-height:112svh!important;display:flex!important;flex-direction:column!important;justify-content:center!important;padding-top:24svh!important;padding-bottom:24svh!important}
 
-  /* Services: list + note are one compact block. */
-  .service-rush{
-    min-height:auto!important;
-    display:flex!important;
-    flex-direction:column!important;
-    justify-content:flex-start!important;
-    padding:7svh var(--pad) 13svh!important;
-    overflow:visible!important;
-  }
-  .service-rush-line{
-    display:flex!important;
-    align-items:center!important;
-    flex-wrap:wrap!important;
-    width:auto!important;
-    max-width:100%!important;
-    white-space:normal!important;
-    gap:6px 0!important;
-    padding:0!important;
-    animation:none!important;
-    transform:none!important;
-  }
+  .service-rush{min-height:auto!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;padding:7svh var(--pad) 13svh!important;overflow:visible!important}
+  .service-rush-line{display:flex!important;align-items:center!important;flex-wrap:wrap!important;width:auto!important;max-width:100%!important;white-space:normal!important;gap:6px 0!important;padding:0!important;animation:none!important;transform:none!important}
   .service-rush-line + .service-rush-line{margin-top:7px!important}
-  .service-rush-line span{
-    font-size:clamp(28px,4.7vw,68px)!important;
-    line-height:1.08!important;
-    white-space:nowrap!important;
-  }
-  .service-rush-line i{
-    display:inline!important;
-    width:auto!important;
-    height:auto!important;
-    margin:0 clamp(8px,1.4vw,18px)!important;
-    padding:0!important;
-    overflow:visible!important;
-    font-size:clamp(20px,3vw,40px)!important;
-    line-height:1!important;
-    font-style:normal!important;
-    font-weight:300!important;
-    background:none!important;
-    color:rgba(255,255,255,.38)!important;
-  }
-  .service-rush .service-note{
-    order:99!important;
-    margin:10px 0 0!important;
-    padding:0!important;
-    font-size:clamp(11px,1.05vw,14px)!important;
-    line-height:1.5!important;
-    color:rgba(255,255,255,.52)!important;
-  }
+  .service-rush-line span{font-size:clamp(28px,4.7vw,68px)!important;line-height:1.08!important;white-space:nowrap!important}
+  .service-rush-line i{display:inline!important;width:auto!important;height:auto!important;margin:0 clamp(8px,1.4vw,18px)!important;padding:0!important;overflow:visible!important;font-size:clamp(20px,3vw,40px)!important;line-height:1!important;font-style:normal!important;font-weight:300!important;background:none!important;color:rgba(255,255,255,.38)!important}
+  .service-rush .service-note{order:99!important;margin:10px 0 0!important;padding:0!important;font-size:clamp(11px,1.05vw,14px)!important;line-height:1.5!important;color:rgba(255,255,255,.52)!important}
 
-  .pressure-close{
-    min-height:118svh!important;
-    margin-top:0!important;
-    padding-top:24svh!important;
-    padding-bottom:22svh!important;
-    display:flex!important;
-    flex-direction:column!important;
-    justify-content:center!important;
-  }
+  .pressure-close{min-height:118svh!important;margin-top:0!important;padding-top:24svh!important;padding-bottom:22svh!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
   .pressure-fact{margin-bottom:14svh!important}
   .answer-line{margin-top:11svh!important}
   .launch{min-height:116svh!important}
@@ -158,11 +103,9 @@ pacingStyle.textContent=`
   @media(max-width:820px){
     .hero{min-height:108svh!important}
     .hero-content{min-height:108svh!important}
-
     .pressure-wall{height:100svh!important;min-height:650px!important}
     .pressure-wall .pressure-word{max-width:94vw!important;line-height:.9!important}
     .pressure-ghost{font-size:clamp(76px,24vw,145px)!important}
-
     .g1{top:18%!important;left:-7%!important}.g2{top:46%!important;right:-18%!important}.g3{top:70%!important;left:-5%!important}
 
     .p1{top:8%!important;left:5%!important;font-size:clamp(31px,9vw,44px)!important}
@@ -192,29 +135,12 @@ pacingStyle.textContent=`
     .p25{top:92.5%!important;right:4%!important;font-size:clamp(32px,9.2vw,45px)!important}
 
     .pressure-question{min-height:112svh!important;padding-top:25svh!important;padding-bottom:25svh!important}
-
-    .service-rush{
-      min-height:auto!important;
-      padding:6svh 20px 12svh!important;
-    }
+    .service-rush{min-height:auto!important;padding:6svh 20px 12svh!important}
     .service-rush-line{gap:5px 0!important}
     .service-rush-line + .service-rush-line{margin-top:6px!important}
-    .service-rush-line span{
-      font-size:clamp(22px,6.2vw,31px)!important;
-      line-height:1.08!important;
-    }
-    .service-rush-line i{
-      margin:0 7px!important;
-      font-size:clamp(17px,4.7vw,24px)!important;
-      color:rgba(255,255,255,.42)!important;
-    }
-    .service-rush .service-note{
-      margin-top:8px!important;
-      padding:0!important;
-      font-size:12px!important;
-      line-height:1.45!important;
-    }
-
+    .service-rush-line span{font-size:clamp(22px,6.2vw,31px)!important;line-height:1.08!important}
+    .service-rush-line i{margin:0 7px!important;font-size:clamp(17px,4.7vw,24px)!important;color:rgba(255,255,255,.42)!important}
+    .service-rush .service-note{margin-top:8px!important;padding:0!important;font-size:12px!important;line-height:1.45!important}
     .pressure-close{min-height:120svh!important;padding-top:25svh!important;padding-bottom:23svh!important}
     .pressure-fact{margin-bottom:15svh!important}
     .answer-line{margin-top:12svh!important}
@@ -226,16 +152,14 @@ pacingStyle.textContent=`
 `;
 document.head.appendChild(pacingStyle);
 
-/* Make the service examples a single structural block. */
+/* Keep service examples as one block. */
 const serviceRush=document.querySelector('.service-rush');
 const serviceNote=document.querySelector('.service-note');
 if(serviceRush&&serviceNote){
   serviceNote.textContent='※YouTube、IRIAM、REALITY、17LIVE、TikTok LIVE等があります。';
   serviceRush.appendChild(serviceNote);
 }
-document.querySelectorAll('.service-rush-line i').forEach(separator=>{
-  separator.textContent='｜';
-});
+document.querySelectorAll('.service-rush-line i').forEach(separator=>separator.textContent='｜');
 
 const setHeaderState=()=>header?.classList.toggle('is-scrolled',window.scrollY>24);
 setHeaderState();
@@ -254,6 +178,7 @@ mobileMenu?.querySelectorAll('a').forEach(link=>link.addEventListener('click',()
   menuButton?.setAttribute('aria-expanded','false');
 }));
 
+/* Earlier trigger + much faster appearance. */
 const observer=new IntersectionObserver(entries=>{
   entries.forEach(entry=>{
     if(entry.isIntersecting){
@@ -261,21 +186,21 @@ const observer=new IntersectionObserver(entries=>{
       observer.unobserve(entry.target);
     }
   });
-},{threshold:.08,rootMargin:'0px 0px -58% 0px'});
+},{threshold:.03,rootMargin:'0px 0px -32% 0px'});
 
 document.querySelectorAll('.reveal').forEach(item=>{
   item.style.transitionDelay='0ms';
   observer.observe(item);
 });
 
-/* Rapid accumulation: the screen gets noisy in a short burst. */
+/* The text storm should hit quickly, not crawl in. */
 document.querySelectorAll('.pressure-wall .pressure-word.reveal').forEach((item,index)=>{
-  item.style.transitionDelay=`${Math.min(index*18,300)}ms`;
+  item.style.transitionDelay=`${Math.min(index*6,90)}ms`;
 });
 
 document.querySelectorAll('[data-placeholder-link]').forEach(link=>link.addEventListener('click',event=>{
   event.preventDefault();
   toast?.classList.add('is-visible');
   clearTimeout(window.__ocToastTimer);
-  window.__ocToastTimer=setTimeout(()=>toast?.classList.remove('is-visible'),1800);
+  window.__ocToastTimer=setTimeout(()=>toast?.classList.remove('is-visible'),900);
 }));
