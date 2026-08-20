@@ -89,13 +89,13 @@ pacingStyle.textContent=`
     padding-bottom:24svh!important;
   }
 
-  /* Services are one information block: list + note stay visually attached. */
+  /* Services: list + note are one compact block. */
   .service-rush{
     min-height:auto!important;
     display:flex!important;
     flex-direction:column!important;
     justify-content:flex-start!important;
-    padding:13svh var(--pad) 14px!important;
+    padding:7svh var(--pad) 13svh!important;
     overflow:visible!important;
   }
   .service-rush-line{
@@ -105,34 +105,38 @@ pacingStyle.textContent=`
     width:auto!important;
     max-width:100%!important;
     white-space:normal!important;
-    gap:10px 0!important;
+    gap:6px 0!important;
     padding:0!important;
     animation:none!important;
     transform:none!important;
   }
-  .service-rush-line + .service-rush-line{margin-top:16px!important}
+  .service-rush-line + .service-rush-line{margin-top:7px!important}
   .service-rush-line span{
     font-size:clamp(28px,4.7vw,68px)!important;
-    line-height:1.15!important;
+    line-height:1.08!important;
     white-space:nowrap!important;
   }
   .service-rush-line i{
-    display:inline-block!important;
-    flex:0 0 1px!important;
-    width:1px!important;
-    height:1.05em!important;
-    margin:0 clamp(12px,2vw,26px)!important;
+    display:inline!important;
+    width:auto!important;
+    height:auto!important;
+    margin:0 clamp(8px,1.4vw,18px)!important;
     padding:0!important;
-    overflow:hidden!important;
-    font-size:0!important;
-    background:rgba(255,255,255,.38)!important;
-    color:transparent!important;
+    overflow:visible!important;
+    font-size:clamp(20px,3vw,40px)!important;
+    line-height:1!important;
+    font-style:normal!important;
+    font-weight:300!important;
+    background:none!important;
+    color:rgba(255,255,255,.38)!important;
   }
-  .service-note{
-    margin:0!important;
-    padding:0 var(--pad) 15svh!important;
+  .service-rush .service-note{
+    order:99!important;
+    margin:10px 0 0!important;
+    padding:0!important;
     font-size:clamp(11px,1.05vw,14px)!important;
-    line-height:1.65!important;
+    line-height:1.5!important;
+    color:rgba(255,255,255,.52)!important;
   }
 
   .pressure-close{
@@ -191,25 +195,24 @@ pacingStyle.textContent=`
 
     .service-rush{
       min-height:auto!important;
-      padding:11svh 20px 12px!important;
+      padding:6svh 20px 12svh!important;
     }
-    .service-rush-line{
-      gap:10px 0!important;
-    }
-    .service-rush-line + .service-rush-line{margin-top:14px!important}
+    .service-rush-line{gap:5px 0!important}
+    .service-rush-line + .service-rush-line{margin-top:6px!important}
     .service-rush-line span{
       font-size:clamp(22px,6.2vw,31px)!important;
-      line-height:1.18!important;
+      line-height:1.08!important;
     }
     .service-rush-line i{
-      height:1em!important;
-      margin:0 10px!important;
-      background:rgba(255,255,255,.42)!important;
+      margin:0 7px!important;
+      font-size:clamp(17px,4.7vw,24px)!important;
+      color:rgba(255,255,255,.42)!important;
     }
-    .service-note{
-      padding:0 20px 13svh!important;
+    .service-rush .service-note{
+      margin-top:8px!important;
+      padding:0!important;
       font-size:12px!important;
-      line-height:1.6!important;
+      line-height:1.45!important;
     }
 
     .pressure-close{min-height:120svh!important;padding-top:25svh!important;padding-bottom:23svh!important}
@@ -223,9 +226,16 @@ pacingStyle.textContent=`
 `;
 document.head.appendChild(pacingStyle);
 
-/* Keep the note concrete and directly tied to 配信媒体(※). */
+/* Make the service examples a single structural block. */
+const serviceRush=document.querySelector('.service-rush');
 const serviceNote=document.querySelector('.service-note');
-if(serviceNote){serviceNote.textContent='※YouTube、IRIAM、REALITY、17LIVE、TikTok LIVE等があります。';}
+if(serviceRush&&serviceNote){
+  serviceNote.textContent='※YouTube、IRIAM、REALITY、17LIVE、TikTok LIVE等があります。';
+  serviceRush.appendChild(serviceNote);
+}
+document.querySelectorAll('.service-rush-line i').forEach(separator=>{
+  separator.textContent='｜';
+});
 
 const setHeaderState=()=>header?.classList.toggle('is-scrolled',window.scrollY>24);
 setHeaderState();
