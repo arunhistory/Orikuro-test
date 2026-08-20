@@ -3,10 +3,6 @@ const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const toast=document.querySelector('[data-toast]');
 
-/*
-  Current layout + faster motion.
-  Keep the scene spacing, but remove sluggish reveal timing.
-*/
 const pacingStyle=document.createElement('style');
 pacingStyle.textContent=`
   .reveal{
@@ -15,6 +11,12 @@ pacingStyle.textContent=`
     transition:opacity .22s ease-out,transform .22s ease-out!important;
   }
   .reveal.is-visible{opacity:1;transform:none!important}
+  .hero .reveal{opacity:1!important;transform:none!important;transition:none!important}
+  .pressure-wall .pressure-word.reveal{opacity:0!important}
+  .pressure-wall .pressure-word.reveal.is-visible{opacity:1!important}
+  .pressure-wall .p22.reveal.is-visible,.pressure-wall .p23.reveal.is-visible{opacity:.72!important}
+  .pressure-ghost{opacity:0!important;transition:opacity .16s ease-out!important}
+  .pressure-wall.is-active .pressure-ghost{opacity:1!important}
   .site-header,.menu-button span,.desktop-nav a,.round-link,.route-card,.route-card:before,.service-cloud span{transition-duration:.16s!important}
 
   .hero{min-height:106svh!important}
@@ -39,7 +41,6 @@ pacingStyle.textContent=`
     line-height:.88!important;
     letter-spacing:-.07em!important;
     font-weight:950!important;
-    opacity:1;
     transform-origin:center!important;
   }
   .pressure-ghost{
@@ -78,8 +79,8 @@ pacingStyle.textContent=`
   .p19{top:84%!important;left:4%!important;font-size:clamp(28px,4.5vw,68px)!important;z-index:2!important}
   .p20{top:82%!important;right:5%!important;font-size:clamp(26px,4.1vw,62px)!important;z-index:3!important}
   .p21{top:88%!important;left:38%!important;font-size:clamp(25px,4vw,60px)!important;z-index:2!important}
-  .p22{top:12%!important;left:48%!important;font-size:clamp(22px,3.5vw,54px)!important;z-index:1!important;opacity:.72!important}
-  .p23{top:32%!important;left:16%!important;font-size:clamp(24px,3.8vw,58px)!important;z-index:1!important;opacity:.72!important}
+  .p22{top:12%!important;left:48%!important;font-size:clamp(22px,3.5vw,54px)!important;z-index:1!important}
+  .p23{top:32%!important;left:16%!important;font-size:clamp(24px,3.8vw,58px)!important;z-index:1!important}
   .p24{top:87%!important;left:7%!important;font-size:clamp(42px,6.8vw,102px)!important;z-index:8!important;transform:rotate(-.5deg)!important}
   .p25{top:91%!important;right:4%!important;font-size:clamp(46px,7.4vw,112px)!important;z-index:9!important;transform:rotate(.5deg)!important}
 
@@ -152,7 +153,6 @@ pacingStyle.textContent=`
 `;
 document.head.appendChild(pacingStyle);
 
-/* Keep service examples as one block. */
 const serviceRush=document.querySelector('.service-rush');
 const serviceNote=document.querySelector('.service-note');
 if(serviceRush&&serviceNote){
@@ -178,7 +178,8 @@ mobileMenu?.querySelectorAll('a').forEach(link=>link.addEventListener('click',()
   menuButton?.setAttribute('aria-expanded','false');
 }));
 
-/* Earlier trigger + much faster appearance. */
+const revealOptions={threshold:0,rootMargin:'0px 0px -20% 0px'};
+
 const observer=new IntersectionObserver(entries=>{
   entries.forEach(entry=>{
     if(entry.isIntersecting){
@@ -186,17 +187,30 @@ const observer=new IntersectionObserver(entries=>{
       observer.unobserve(entry.target);
     }
   });
-},{threshold:.03,rootMargin:'0px 0px -32% 0px'});
+},revealOptions);
 
 document.querySelectorAll('.reveal').forEach(item=>{
+  if(item.closest('.hero')||item.closest('.pressure-wall')) return;
   item.style.transitionDelay='0ms';
   observer.observe(item);
 });
 
-/* The text storm should hit quickly, not crawl in. */
-document.querySelectorAll('.pressure-wall .pressure-word.reveal').forEach((item,index)=>{
-  item.style.transitionDelay=`${Math.min(index*6,90)}ms`;
-});
+const pressureWall=document.querySelector('.pressure-wall');
+const stormWords=[...document.querySelectorAll('.pressure-wall .pressure-word.reveal')];
+if(pressureWall){
+  const stormObserver=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting) return;
+      pressureWall.classList.add('is-active');
+      stormWords.forEach((item,index)=>{
+        item.style.transitionDelay=`${Math.min(index*6,90)}ms`;
+        item.classList.add('is-visible');
+      });
+      stormObserver.unobserve(pressureWall);
+    });
+  },revealOptions);
+  stormObserver.observe(pressureWall);
+}
 
 document.querySelectorAll('[data-placeholder-link]').forEach(link=>link.addEventListener('click',event=>{
   event.preventDefault();
