@@ -88,15 +88,53 @@ pacingStyle.textContent=`
     padding-top:24svh!important;
     padding-bottom:24svh!important;
   }
+
+  /* Services are one information block: list + note stay visually attached. */
   .service-rush{
-    min-height:104svh!important;
+    min-height:auto!important;
     display:flex!important;
     flex-direction:column!important;
-    justify-content:center!important;
-    padding-top:17svh!important;
-    padding-bottom:17svh!important;
+    justify-content:flex-start!important;
+    padding:13svh var(--pad) 14px!important;
+    overflow:visible!important;
   }
-  .service-note{padding-bottom:12svh!important}
+  .service-rush-line{
+    display:flex!important;
+    align-items:center!important;
+    flex-wrap:wrap!important;
+    width:auto!important;
+    max-width:100%!important;
+    white-space:normal!important;
+    gap:10px 0!important;
+    padding:0!important;
+    animation:none!important;
+    transform:none!important;
+  }
+  .service-rush-line + .service-rush-line{margin-top:16px!important}
+  .service-rush-line span{
+    font-size:clamp(28px,4.7vw,68px)!important;
+    line-height:1.15!important;
+    white-space:nowrap!important;
+  }
+  .service-rush-line i{
+    display:inline-block!important;
+    flex:0 0 1px!important;
+    width:1px!important;
+    height:1.05em!important;
+    margin:0 clamp(12px,2vw,26px)!important;
+    padding:0!important;
+    overflow:hidden!important;
+    font-size:0!important;
+    background:rgba(255,255,255,.38)!important;
+    color:transparent!important;
+  }
+  .service-note{
+    margin:0!important;
+    padding:0 var(--pad) 15svh!important;
+    font-size:clamp(11px,1.05vw,14px)!important;
+    line-height:1.65!important;
+  }
+
   .pressure-close{
     min-height:118svh!important;
     margin-top:0!important;
@@ -150,12 +188,29 @@ pacingStyle.textContent=`
     .p25{top:92.5%!important;right:4%!important;font-size:clamp(32px,9.2vw,45px)!important}
 
     .pressure-question{min-height:112svh!important;padding-top:25svh!important;padding-bottom:25svh!important}
-    .service-rush{min-height:104svh!important;padding:18svh var(--pad)!important}
-    .service-rush-line{width:auto!important;max-width:100%!important;white-space:normal!important;flex-wrap:wrap!important;gap:11px 13px!important;padding:0!important;animation:none!important;transform:none!important}
-    .service-rush-line span{font-size:clamp(25px,6.8vw,38px)!important}
-    .service-rush-line i{font-size:clamp(17px,4.7vw,25px)!important}
-    .rush-b{margin-top:25px!important}
-    .service-note{padding:26px var(--pad) 12svh!important}
+
+    .service-rush{
+      min-height:auto!important;
+      padding:11svh 20px 12px!important;
+    }
+    .service-rush-line{
+      gap:10px 0!important;
+    }
+    .service-rush-line + .service-rush-line{margin-top:14px!important}
+    .service-rush-line span{
+      font-size:clamp(22px,6.2vw,31px)!important;
+      line-height:1.18!important;
+    }
+    .service-rush-line i{
+      height:1em!important;
+      margin:0 10px!important;
+      background:rgba(255,255,255,.42)!important;
+    }
+    .service-note{
+      padding:0 20px 13svh!important;
+      font-size:12px!important;
+      line-height:1.6!important;
+    }
 
     .pressure-close{min-height:120svh!important;padding-top:25svh!important;padding-bottom:23svh!important}
     .pressure-fact{margin-bottom:15svh!important}
@@ -167,6 +222,10 @@ pacingStyle.textContent=`
   }
 `;
 document.head.appendChild(pacingStyle);
+
+/* Keep the note concrete and directly tied to 配信媒体(※). */
+const serviceNote=document.querySelector('.service-note');
+if(serviceNote){serviceNote.textContent='※YouTube、IRIAM、REALITY、17LIVE、TikTok LIVE等があります。';}
 
 const setHeaderState=()=>header?.classList.toggle('is-scrolled',window.scrollY>24);
 setHeaderState();
