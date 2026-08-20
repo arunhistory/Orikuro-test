@@ -7,6 +7,69 @@
   <meta name="theme-color" content="#09090b" />
   <title>Original Create Project</title>
   <link rel="stylesheet" href="./style.css" />
+  <style>
+    /* Pacing override: one idea per viewport, next scene appears late. */
+    .hero{min-height:125svh}.hero-content{min-height:125svh;padding-bottom:12svh}
+    .pressure-wall{height:235svh;min-height:1900px}
+    .pressure-word{max-width:92vw;white-space:normal;z-index:2}
+    .pressure-ghost{position:absolute;margin:0;font-weight:950;line-height:.8;letter-spacing:-.085em;white-space:nowrap;color:rgba(0,0,0,.035);font-size:clamp(90px,18vw,280px);z-index:1;pointer-events:none}
+    .g1{top:17%;left:20%;transform:rotate(-4deg)}.g2{top:48%;right:-10%;transform:rotate(5deg)}.g3{top:76%;left:-8%;transform:rotate(-3deg)}
+
+    .p1{top:3%;left:5%;right:auto;font-size:clamp(48px,8vw,118px)}
+    .p2{top:7%;right:6%;left:auto;font-size:clamp(36px,6.2vw,88px)}
+    .p3{top:11%;left:9%;right:auto;font-size:clamp(52px,9vw,132px)}
+    .p4{top:15%;right:12%;left:auto;font-size:clamp(40px,6.8vw,96px)}
+    .p5{top:19%;left:4%;right:auto;font-size:clamp(50px,8.6vw,126px)}
+    .p6{top:23%;right:8%;left:auto;font-size:clamp(38px,6.4vw,92px)}
+    .p7{top:27%;left:14%;right:auto;font-size:clamp(46px,7.7vw,112px)}
+    .p8{top:31%;right:5%;left:auto;font-size:clamp(42px,7.2vw,102px);opacity:1}
+    .p9{top:35%;left:5%;right:auto;font-size:clamp(50px,8.3vw,120px);opacity:1;transform:none}
+    .p10{top:39%;right:9%;left:auto;font-size:clamp(34px,5.8vw,82px);opacity:1;transform:none}
+    .p11{top:43%;left:10%;right:auto;font-size:clamp(40px,6.7vw,96px);opacity:1;transform:none}
+    .p12{top:47%;right:5%;left:auto;font-size:clamp(46px,7.8vw,112px)}
+    .p13{top:51%;left:4%;right:auto;font-size:clamp(36px,6vw,86px)}
+    .p14{top:55%;right:10%;left:auto;font-size:clamp(38px,6.3vw,90px)}
+    .p15{top:59%;left:7%;right:auto;font-size:clamp(46px,7.7vw,110px)}
+    .p16{top:63%;right:5%;left:auto;font-size:clamp(38px,6.3vw,90px)}
+    .p17{top:67%;left:10%;right:auto;font-size:clamp(42px,7vw,100px)}
+    .p18{top:71%;right:9%;left:auto;font-size:clamp(34px,5.8vw,82px)}
+    .p19{top:75%;left:4%;right:auto;font-size:clamp(42px,7.1vw,102px)}
+    .p20{top:79%;right:7%;left:auto;font-size:clamp(36px,6vw,86px)}
+    .p21{top:83%;left:9%;right:auto;font-size:clamp(40px,6.6vw,94px)}
+    .p22{top:87%;right:5%;left:auto;font-size:clamp(46px,7.8vw,112px)}
+    .p23{top:91%;left:6%;right:auto;font-size:clamp(40px,6.7vw,96px)}
+    .p24{top:94.5%;right:8%;left:auto;font-size:clamp(48px,8vw,116px)}
+    .p25{top:98%;left:7%;right:auto;font-size:clamp(50px,8.4vw,122px)}
+
+    .pressure-question{min-height:120svh;display:flex;flex-direction:column;justify-content:center;padding-top:20svh;padding-bottom:20svh}
+    .service-rush{min-height:95svh;display:flex;flex-direction:column;justify-content:center;padding-top:14svh;padding-bottom:14svh}
+    .service-note{padding-top:24px;padding-bottom:12svh}
+    .pressure-close{min-height:165svh;margin-top:0;padding-top:30svh;padding-bottom:28svh;display:flex;flex-direction:column;justify-content:center}
+    .pressure-fact{margin-bottom:24svh}.answer-line{margin-top:16svh!important}
+    .launch{min-height:135svh}.launch-space{height:55vh}
+    .link-zone-head{min-height:100svh;display:flex;flex-direction:column;justify-content:center}
+    .route-card{min-height:58svh}
+
+    @media(max-width:820px){
+      .hero{min-height:135svh}.hero-content{min-height:135svh}
+      .pressure-wall{height:300svh;min-height:2350px}
+      .pressure-word{line-height:.88;letter-spacing:-.065em}
+      .pressure-ghost{font-size:clamp(82px,25vw,170px)}
+      .p1{top:2.5%;font-size:clamp(48px,14vw,82px)}.p2{top:6.5%;font-size:clamp(36px,10.5vw,62px)}.p3{top:10.5%;font-size:clamp(48px,13.5vw,78px)}.p4{top:14.5%;font-size:clamp(38px,11vw,64px)}.p5{top:18.5%;font-size:clamp(46px,13vw,76px)}
+      .p6{top:22.5%;font-size:clamp(36px,10vw,60px)}.p7{top:26.5%;font-size:clamp(42px,12vw,70px)}.p8{top:30.5%;font-size:clamp(38px,11vw,64px)}.p9{top:34.5%;font-size:clamp(44px,12.5vw,74px)}.p10{top:38.5%;font-size:clamp(32px,9.3vw,54px)}
+      .p11{top:42.5%;font-size:clamp(36px,10.4vw,60px)}.p12{top:46.5%;font-size:clamp(42px,12vw,70px)}.p13{top:50.5%;font-size:clamp(34px,9.8vw,58px)}.p14{top:54.5%;font-size:clamp(36px,10.4vw,60px)}.p15{top:58.5%;font-size:clamp(42px,12vw,70px)}
+      .p16{top:62.5%;font-size:clamp(34px,9.8vw,58px)}.p17{top:66.5%;font-size:clamp(38px,11vw,64px)}.p18{top:70.5%;font-size:clamp(32px,9.3vw,54px)}.p19{top:74.5%;font-size:clamp(40px,11.4vw,66px)}.p20{top:78.5%;font-size:clamp(34px,9.8vw,58px)}
+      .p21{top:82.5%;font-size:clamp(36px,10.4vw,60px)}.p22{top:86.5%;font-size:clamp(42px,12vw,70px)}.p23{top:90.5%;font-size:clamp(36px,10.4vw,60px)}.p24{top:94.5%;font-size:clamp(44px,12.5vw,74px)}.p25{top:98%;font-size:clamp(46px,13vw,76px)}
+      .pressure-question{min-height:135svh;padding-top:25svh;padding-bottom:25svh}
+      .service-rush{min-height:110svh;padding:20svh var(--pad)}
+      .service-rush-line{width:auto;max-width:100%;white-space:normal;flex-wrap:wrap;justify-content:flex-start;gap:12px 14px;padding:0!important;animation:none!important;transform:none!important}
+      .service-rush-line span{font-size:clamp(26px,7vw,42px)}.service-rush-line i{font-size:clamp(18px,5vw,28px)}.rush-b{margin-top:28px}
+      .service-note{padding:28px var(--pad) 16svh}
+      .pressure-close{min-height:185svh;padding-top:35svh;padding-bottom:30svh}.pressure-fact{margin-bottom:30svh}.answer-line{margin-top:20svh!important}
+      .launch{min-height:150svh}.launch-space{height:70vh}
+      .link-zone-head{min-height:115svh}.route-card{min-height:72svh}
+    }
+  </style>
 </head>
 <body>
   <div class="page-noise" aria-hidden="true"></div>
@@ -51,17 +114,34 @@
 
     <section class="pressure" id="question">
       <div class="pressure-wall" aria-label="創作活動で増えていく行動">
+        <p class="pressure-ghost g1" aria-hidden="true">アカウント。</p>
+        <p class="pressure-ghost g2" aria-hidden="true">アカウント。</p>
+        <p class="pressure-ghost g3" aria-hidden="true">アカウント。</p>
         <p class="pressure-word p1 reveal">作品を作る。</p>
         <p class="pressure-word p2 reveal">投稿する。</p>
         <p class="pressure-word p3 reveal">配信する。</p>
         <p class="pressure-word p4 reveal">売る。</p>
-        <p class="pressure-word p5 reveal">交流する。</p>
-        <p class="pressure-word p6 reveal">ログインする。</p>
-        <p class="pressure-word p7 reveal">切り替える。</p>
-        <p class="pressure-word p8 reveal">また、ログインする。</p>
-        <p class="pressure-word p9 reveal" aria-hidden="true">アカウント。</p>
-        <p class="pressure-word p10 reveal" aria-hidden="true">アカウント。</p>
-        <p class="pressure-word p11 reveal" aria-hidden="true">アカウント。</p>
+        <p class="pressure-word p5 reveal">買う。</p>
+        <p class="pressure-word p6 reveal">交流する。</p>
+        <p class="pressure-word p7 reveal">依頼する。</p>
+        <p class="pressure-word p8 reveal">受注する。</p>
+        <p class="pressure-word p9 reveal">発送する。</p>
+        <p class="pressure-word p10 reveal">匿名発送する。</p>
+        <p class="pressure-word p11 reveal">告知する。</p>
+        <p class="pressure-word p12 reveal">宣伝する。</p>
+        <p class="pressure-word p13 reveal">プロフィールを書く。</p>
+        <p class="pressure-word p14 reveal">リンクを貼る。</p>
+        <p class="pressure-word p15 reveal">アカウントを作る。</p>
+        <p class="pressure-word p16 reveal">ログインする。</p>
+        <p class="pressure-word p17 reveal">切り替える。</p>
+        <p class="pressure-word p18 reveal">また、ログインする。</p>
+        <p class="pressure-word p19 reveal">登録する。</p>
+        <p class="pressure-word p20 reveal">認証する。</p>
+        <p class="pressure-word p21 reveal">確認する。</p>
+        <p class="pressure-word p22 reveal">更新する。</p>
+        <p class="pressure-word p23 reveal">管理する。</p>
+        <p class="pressure-word p24 reveal">分からない。</p>
+        <p class="pressure-word p25 reveal">上手くいかない。</p>
       </div>
 
       <div class="pressure-question section-pad">
@@ -71,7 +151,7 @@
 
       <div class="service-rush" aria-label="活動で利用されるサービスの例">
         <div class="service-rush-line rush-a reveal">
-          <span>X</span><i>/</i><span>Discord</span><i>/</i><span>配信媒体</span><i>/</i><span>pixiv</span>
+          <span>X</span><i>/</i><span>Discord</span><i>/</i><span>配信媒体(※)</span><i>/</i><span>pixiv</span>
         </div>
         <div class="service-rush-line rush-b reveal">
           <span>note</span><i>/</i><span>アイビスペイント</span><i>/</i><span>ココナラ</span><i>/</i><span>その他サイト</span>
@@ -111,7 +191,6 @@
             <p>なぜOriginal Createを始めるのか。<br />代表自身の言葉で、始める理由と考えをお話しします。</p>
           </div>
         </a>
-
         <a class="route-card route-left reveal" href="#" data-placeholder-link>
           <div class="route-inner">
             <div class="route-topline"><span>02</span><span>BUSINESS ↗</span></div>
@@ -119,7 +198,6 @@
             <p>Original Createは何を作ろうとしているのか。<br />事業の全体像と、これから実現しようとしている内容をご紹介します。</p>
           </div>
         </a>
-
         <a class="route-card route-right reveal" href="#" data-placeholder-link>
           <div class="route-inner">
             <div class="route-topline"><span>03</span><span>STREAM / TEST ↗</span></div>
@@ -127,7 +205,6 @@
             <p>Original Createで予定している配信機能。<br />実際に映像を送り、配信できるかを試します。</p>
           </div>
         </a>
-
         <a class="route-card route-left reveal" href="#" data-placeholder-link>
           <div class="route-inner">
             <div class="route-topline"><span>04</span><span>WATCH / TEST ↗</span></div>
@@ -135,7 +212,6 @@
             <p>送られた映像を、実際に受け取って視聴できるのか。<br />配信を見る側の動作を試します。</p>
           </div>
         </a>
-
         <a class="route-card route-right reveal" href="#" data-placeholder-link>
           <div class="route-inner">
             <div class="route-topline"><span>05</span><span>ALGORITHM / TEST ↗</span></div>
@@ -143,7 +219,6 @@
             <p>作品やクリエイターは、どのように見つかるのか。<br />Original Createで検討している仕組みの一部を、実際に試せます。</p>
           </div>
         </a>
-
         <a class="route-card route-left reveal" href="#" data-placeholder-link>
           <div class="route-inner">
             <div class="route-topline"><span>06</span><span>PRE-REGISTER ↗</span></div>
@@ -151,7 +226,6 @@
             <p>2027年の事業開始に向けて、準備を進めています。<br />開始時の案内を受け取りたい方はこちらから登録できます。</p>
           </div>
         </a>
-
         <a class="route-card route-right reveal" href="#" data-placeholder-link>
           <div class="route-inner">
             <div class="route-topline"><span>07</span><span>CROWDFUNDING ↗</span></div>
