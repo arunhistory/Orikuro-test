@@ -16,7 +16,7 @@ document.head.appendChild(launchLink);
 
 const electronicLink=document.createElement('link');
 electronicLink.rel='stylesheet';
-electronicLink.href='./electronic.css?v=20260821-1929';
+electronicLink.href='./electronic.css?v=20260821-2024';
 document.head.appendChild(electronicLink);
 
 /* Keep the hero slogan exactly as specified. */
