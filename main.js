@@ -6,7 +6,7 @@ const toast=document.querySelector('[data-toast]');
 /* Load the current visual overrides with a cache-busting URL. */
 const overrideLink=document.createElement('link');
 overrideLink.rel='stylesheet';
-overrideLink.href='./override.css?v=20260821-1047';
+overrideLink.href='./override.css?v=20260821-1601';
 document.head.appendChild(overrideLink);
 
 /* Normal reloads always start from the hero instead of Safari restoring the last scroll position. */
