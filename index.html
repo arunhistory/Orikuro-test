@@ -6,7 +6,29 @@
   <meta name="description" content="Original Create Project — 2027年事業開始予定。" />
   <meta name="theme-color" content="#09090b" />
   <title>Original Create Project</title>
-  <link rel="stylesheet" href="./style.css?v=20260821-0750" />
+  <script>
+    (()=>{
+      if('scrollRestoration' in history) history.scrollRestoration='manual';
+      if(location.hash){
+        history.replaceState(null,'',location.pathname+location.search);
+      }
+      const forceTop=()=>window.scrollTo(0,0);
+      forceTop();
+      document.addEventListener('DOMContentLoaded',forceTop,{once:true});
+      window.addEventListener('load',()=>{
+        forceTop();
+        requestAnimationFrame(forceTop);
+        setTimeout(forceTop,60);
+        setTimeout(forceTop,220);
+      },{once:true});
+      window.addEventListener('pageshow',()=>{
+        forceTop();
+        requestAnimationFrame(forceTop);
+        setTimeout(forceTop,100);
+      });
+    })();
+  </script>
+  <link rel="stylesheet" href="./style.css?v=20260821-1822" />
 </head>
 <body>
   <div class="page-noise" aria-hidden="true"></div>
@@ -180,6 +202,6 @@
   </footer>
 
   <div class="toast" role="status" aria-live="polite" data-toast>このリンクは仮設置です。</div>
-  <script src="./main.js?v=20260821-0750"></script>
+  <script src="./main.js?v=20260821-1822"></script>
 </body>
 </html>
