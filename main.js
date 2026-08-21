@@ -9,6 +9,11 @@ overrideLink.rel='stylesheet';
 overrideLink.href='./override.css?v=20260821-1601';
 document.head.appendChild(overrideLink);
 
+/* Keep the hero slogan exactly as specified and remove the grey guide labels. */
+const heroMessage=document.querySelector('.hero-bottom p');
+if(heroMessage) heroMessage.textContent='自由をカタチに未来をつくる';
+document.querySelectorAll('.route-topline span:last-child').forEach(label=>label.remove());
+
 /* Normal reloads always start from the hero instead of Safari restoring the last scroll position. */
 if('scrollRestoration' in history) history.scrollRestoration='manual';
 const forceTop=()=>{
