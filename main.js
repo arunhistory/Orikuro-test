@@ -11,7 +11,7 @@ document.head.appendChild(overrideLink);
 
 const launchLink=document.createElement('link');
 launchLink.rel='stylesheet';
-launchLink.href='./launch.css?v=20260821-1902';
+launchLink.href='./launch.css?v=20260821-1907';
 document.head.appendChild(launchLink);
 
 /* Keep the hero slogan exactly as specified. */
