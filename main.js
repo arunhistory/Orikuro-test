@@ -14,6 +14,11 @@ launchLink.rel='stylesheet';
 launchLink.href='./launch.css?v=20260821-1907';
 document.head.appendChild(launchLink);
 
+const electronicLink=document.createElement('link');
+electronicLink.rel='stylesheet';
+electronicLink.href='./electronic.css?v=20260821-1929';
+document.head.appendChild(electronicLink);
+
 /* Keep the hero slogan exactly as specified. */
 const heroMessage=document.querySelector('.hero-bottom p');
 if(heroMessage) heroMessage.textContent='自由をカタチに未来をつくる';
