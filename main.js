@@ -3,18 +3,40 @@ const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const toast=document.querySelector('[data-toast]');
 
-/* Load the current visual overrides with a cache-busting URL. */
+/* Load current visual layers with cache-busting URLs. */
 const overrideLink=document.createElement('link');
 overrideLink.rel='stylesheet';
 overrideLink.href='./override.css?v=20260821-1601';
 document.head.appendChild(overrideLink);
 
-/* Keep the hero slogan exactly as specified and remove the grey guide labels. */
+const launchLink=document.createElement('link');
+launchLink.rel='stylesheet';
+launchLink.href='./launch.css?v=20260821-1853';
+document.head.appendChild(launchLink);
+
+/* Keep the hero slogan exactly as specified. */
 const heroMessage=document.querySelector('.hero-bottom p');
 if(heroMessage) heroMessage.textContent='自由をカタチに未来をつくる';
-document.querySelectorAll('.route-topline span:last-child').forEach(label=>label.remove());
 
-/* Normal reloads always start from the hero instead of Safari restoring the last scroll position. */
+/* Build the 2027 launch scene as separate moving pieces. */
+const launch=document.querySelector('.launch');
+if(launch){
+  launch.innerHTML=`
+    <div class="launch-core" aria-label="2027年 始動">
+      <h2 class="launch-year-lock">
+        <span class="launch-year-num">2027</span><span class="launch-year-unit">年</span>
+      </h2>
+      <div class="launch-storm" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <p class="launch-start" data-text="始動" aria-label="始動">
+        <span class="launch-start-char launch-start-left">始</span>
+        <span class="launch-start-char launch-start-right">動</span>
+      </p>
+    </div>`;
+}
+
+/* Normal reloads always start from the hero instead of restoring the last scroll position. */
 if('scrollRestoration' in history) history.scrollRestoration='manual';
 const forceTop=()=>{
   if(location.hash) return;
@@ -77,6 +99,18 @@ if(pressureWall){
     });
   },revealOptions);
   stormObserver.observe(pressureWall);
+}
+
+/* 2027 launch: trigger the impact scene once it reaches the lower 20%. */
+if(launch){
+  const launchObserver=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting) return;
+      launch.classList.add('is-launch-visible');
+      launchObserver.unobserve(launch);
+    });
+  },revealOptions);
+  launchObserver.observe(launch);
 }
 
 document.querySelectorAll('[data-placeholder-link]').forEach(link=>link.addEventListener('click',event=>{
