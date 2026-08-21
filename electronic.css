@@ -1,4 +1,4 @@
-/* Original Create — electronic freedom theme */
+/* Original Create — continuous electronic freedom theme */
 :root{
   --oc-bg:#06101d;
   --oc-bg2:#09182a;
@@ -11,12 +11,15 @@
   --oc-pink:#ff6fc8;
 }
 
-html,body{background:var(--oc-bg)!important;color:var(--oc-text)!important}
+html,body{background:#06101d!important;color:var(--oc-text)!important}
 body{
   background:
-    radial-gradient(circle at 14% 12%,rgba(46,219,255,.08),transparent 28%),
-    radial-gradient(circle at 86% 20%,rgba(164,91,255,.08),transparent 30%),
-    linear-gradient(180deg,#06101d 0%,#081523 46%,#060d18 100%)!important;
+    radial-gradient(circle at 15% 10%,rgba(50,220,255,.10),transparent 25%),
+    radial-gradient(circle at 85% 24%,rgba(163,92,255,.09),transparent 28%),
+    radial-gradient(circle at 22% 62%,rgba(255,91,187,.055),transparent 27%),
+    radial-gradient(circle at 78% 84%,rgba(66,154,255,.065),transparent 30%),
+    linear-gradient(180deg,#06101d 0%,#081626 38%,#071321 72%,#050d18 100%)!important;
+  background-attachment:fixed!important;
 }
 .page-noise{opacity:.045!important;mix-blend-mode:screen!important}
 .site-header{border-bottom-color:rgba(92,236,255,.12)!important}
@@ -28,13 +31,25 @@ body{
 }
 .menu-button span{background:#eafaff!important;box-shadow:0 0 12px rgba(92,236,255,.22)!important}
 
-/* HERO — restrained rainbow on an electronic field */
+/* Keep the whole page on one electronic canvas */
+.hero,
+.pressure,
+.pressure-wall,
+.pressure-question,
+.service-rush,
+.pressure-close,
+.launch,
+.link-zone,
+.link-zone-head{
+  background-color:transparent!important;
+}
+
+/* HERO — rainbow remains the main brand burst */
 .hero{
   background:
     radial-gradient(circle at 82% 12%,rgba(255,103,190,.16),transparent 28%),
     radial-gradient(circle at 12% 86%,rgba(56,221,255,.15),transparent 32%),
-    radial-gradient(circle at 55% 44%,rgba(117,89,255,.08),transparent 38%),
-    linear-gradient(155deg,#071321 0%,#0a1930 50%,#07111f 100%)!important;
+    radial-gradient(circle at 55% 44%,rgba(117,89,255,.08),transparent 38%)!important;
 }
 .hero-grid{
   opacity:.72!important;
@@ -45,9 +60,7 @@ body{
 .hero-orb{opacity:.52!important;filter:saturate(1.05) blur(.2px)!important;animation:ocOrbFloat 9s ease-in-out infinite alternate!important}
 .orb-a{background:radial-gradient(circle at 34% 32%,rgba(255,222,90,.92),rgba(255,92,154,.48) 33%,rgba(152,94,255,.17) 58%,transparent 74%)!important}
 .orb-b{background:radial-gradient(circle at 58% 42%,rgba(72,237,255,.76),rgba(73,132,255,.34) 38%,rgba(154,93,255,.12) 60%,transparent 74%)!important;animation-delay:-3.6s!important}
-.hero-title .hero-word{
-  filter:drop-shadow(0 0 16px rgba(91,225,255,.10))!important;
-}
+.hero-title .hero-word{filter:drop-shadow(0 0 16px rgba(91,225,255,.10))!important}
 .hero-bottom p{color:#edfaff!important;text-shadow:0 0 18px rgba(92,236,255,.08)!important}
 .round-link{
   border-color:rgba(92,236,255,.55)!important;
@@ -56,74 +69,49 @@ body{
 }
 .round-link:hover{background:rgba(92,236,255,.08)!important}
 
-/* TEXT STORM — digital pressure, not paper */
-.pressure,
-.pressure-wall,
-.pressure-question,
-.pressure-close{
-  background-color:#071321!important;
-  color:var(--oc-text)!important;
-}
+/* TEXT STORM — one visual language, no arbitrary warning colors */
+.pressure{color:var(--oc-text)!important}
 .pressure-wall{
-  background:
-    radial-gradient(circle at 16% 18%,rgba(47,216,255,.10),transparent 28%),
-    radial-gradient(circle at 86% 74%,rgba(255,74,181,.08),transparent 30%),
+  background-image:
     linear-gradient(rgba(92,236,255,.026) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(92,236,255,.026) 1px,transparent 1px),
-    linear-gradient(155deg,#071321 0%,#09192b 58%,#08111d 100%)!important;
-  background-size:auto,auto,56px 56px,56px 56px,auto!important;
+    linear-gradient(90deg,rgba(92,236,255,.026) 1px,transparent 1px)!important;
+  background-size:56px 56px!important;
 }
 .pressure-wall .pressure-word{
   color:#f5fbff!important;
   text-shadow:0 0 18px rgba(79,225,255,.07)!important;
 }
 .pressure-wall .p22.reveal.is-visible,.pressure-wall .p23.reveal.is-visible{opacity:.58!important;color:#adc8d9!important}
-.pressure-wall .p24{color:#72efff!important;text-shadow:0 0 22px rgba(92,236,255,.25)!important}
-.pressure-wall .p25{color:#ff7dcc!important;text-shadow:0 0 22px rgba(255,111,200,.19)!important}
-.pressure-ghost{color:rgba(92,236,255,.052)!important;text-shadow:0 0 28px rgba(92,236,255,.08)!important}
-.pressure-question{
-  background:
-    radial-gradient(circle at 76% 22%,rgba(91,110,255,.11),transparent 30%),
-    radial-gradient(circle at 18% 78%,rgba(50,223,255,.08),transparent 32%),
-    linear-gradient(160deg,#081727 0%,#0a1930 56%,#071321 100%)!important;
+.pressure-wall .p24,
+.pressure-wall .p25{
+  color:#f5fbff!important;
+  text-shadow:0 0 22px rgba(92,236,255,.10)!important;
 }
+.pressure-ghost{color:rgba(92,236,255,.052)!important;text-shadow:0 0 28px rgba(92,236,255,.08)!important}
+.pressure-question{color:var(--oc-text)!important}
 .pressure-lead{color:#7eefff!important;text-shadow:0 0 14px rgba(92,236,255,.18)!important}
 .pressure-question h2{color:#f5fbff!important;text-shadow:0 0 28px rgba(84,160,255,.08)!important}
 
+/* Service area changes density, not world */
 .service-rush{
-  background:
-    radial-gradient(circle at 12% 40%,rgba(92,236,255,.08),transparent 28%),
-    linear-gradient(110deg,#050c16 0%,#071321 52%,#09172a 100%)!important;
   color:#f4fbff!important;
-  box-shadow:inset 0 1px rgba(92,236,255,.18),inset 0 -1px rgba(154,114,255,.12)!important;
+  box-shadow:inset 0 1px rgba(92,236,255,.12),inset 0 -1px rgba(154,114,255,.08)!important;
 }
 .service-rush-line span{text-shadow:0 0 18px rgba(92,236,255,.08)!important}
 .service-rush-line i{color:rgba(92,236,255,.50)!important;text-shadow:0 0 12px rgba(92,236,255,.14)!important}
 .service-rush .service-note{color:#8daec3!important}
 
-.pressure-close{
-  background:
-    radial-gradient(circle at 84% 20%,rgba(151,89,255,.10),transparent 31%),
-    radial-gradient(circle at 18% 80%,rgba(46,221,255,.08),transparent 30%),
-    linear-gradient(150deg,#081321 0%,#0b182b 52%,#07111e 100%)!important;
-}
+.pressure-close{color:var(--oc-text)!important}
 .pressure-fact{color:#8eaabd!important}
 .pressure-close h3{color:#f5fbff!important;text-shadow:0 0 26px rgba(92,236,255,.07)!important}
 .answer-line{
-  color:#8ff5ff!important;
-  text-shadow:0 0 20px rgba(92,236,255,.18)!important;
+  color:#bff9ff!important;
+  text-shadow:0 0 20px rgba(92,236,255,.14)!important;
   font-weight:800!important;
 }
 
-/* 2027 scene — cold white body, cyan/magenta electronic residue */
-.launch{
-  background:
-    radial-gradient(circle at 22% 28%,rgba(55,224,255,.10),transparent 30%),
-    radial-gradient(circle at 82% 68%,rgba(255,88,196,.08),transparent 28%),
-    repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 5px),
-    linear-gradient(155deg,#06101c 0%,#091a2d 54%,#07111f 100%)!important;
-  color:#f6fcff!important;
-}
+/* 2027 scene stays inside the same world */
+.launch{color:#f6fcff!important}
 .launch-year-lock,
 .launch-year-num{color:#f7fcff!important;text-shadow:0 0 30px rgba(92,236,255,.13)!important}
 .launch-year-unit{color:#65efff!important;text-shadow:0 0 18px rgba(92,236,255,.30)!important}
@@ -135,46 +123,31 @@ body{
 .launch-storm i:nth-child(2),.launch-storm i:nth-child(6){background:#f5fbff!important;color:#f5fbff!important}
 .launch-storm i:nth-child(4){background:#ff6fc8!important;color:#ff6fc8!important}
 
-/* GUIDE — dark electronic cards with one clean neon accent each */
-.link-zone{
-  background:
-    radial-gradient(circle at 12% 6%,rgba(69,217,255,.08),transparent 24%),
-    radial-gradient(circle at 88% 24%,rgba(145,89,255,.07),transparent 28%),
-    linear-gradient(180deg,#06101c 0%,#081523 100%)!important;
-  color:#f5fbff!important;
-}
-.link-zone-head{
-  background:
-    radial-gradient(circle at 80% 28%,rgba(255,91,190,.08),transparent 28%),
-    radial-gradient(circle at 16% 76%,rgba(56,220,255,.09),transparent 30%),
-    linear-gradient(150deg,#071321 0%,#0a1930 56%,#07111f 100%)!important;
-  color:#f5fbff!important;
-}
+/* GUIDE — cards are objects floating in the same canvas */
+.link-zone{color:#f5fbff!important}
+.link-zone-head{color:#f5fbff!important}
 .link-zone-head .section-index{color:#6fdfee!important;text-shadow:0 0 12px rgba(92,236,255,.16)!important}
 .link-zone-title{color:#f6fcff!important;text-shadow:0 0 24px rgba(92,236,255,.07)!important}
 .route-card{
   background:
     linear-gradient(115deg,rgba(255,255,255,.025),transparent 38%),
-    linear-gradient(135deg,#0a1624 0%,#091321 100%)!important;
+    linear-gradient(135deg,rgba(10,22,36,.90) 0%,rgba(9,19,33,.88) 100%)!important;
   border-top:2px solid var(--accent,#5cecff)!important;
   border-bottom:1px solid rgba(92,236,255,.10)!important;
   color:#f5fbff!important;
   box-shadow:inset 0 1px rgba(255,255,255,.025),0 -12px 42px rgba(0,0,0,.08)!important;
 }
 .route-card:nth-child(1){--accent:#ff6f93!important}.route-card:nth-child(2){--accent:#ffad52!important}.route-card:nth-child(3){--accent:#e7df58!important}.route-card:nth-child(4){--accent:#72e96d!important}.route-card:nth-child(5){--accent:#5cecff!important}.route-card:nth-child(6){--accent:#5797ff!important}.route-card:nth-child(7){--accent:#a477ff!important}
-.route-card:before{
-  opacity:.22!important;
-  background:linear-gradient(90deg,var(--accent),transparent 32%)!important;
-}
+.route-card:before{opacity:.22!important;background:linear-gradient(90deg,var(--accent),transparent 32%)!important}
 .route-card h3{text-shadow:0 0 18px color-mix(in srgb,var(--accent) 20%,transparent)!important}
 .route-card p,.route-topline{color:#9db5c7!important}
 .route-card:hover{
-  background:linear-gradient(135deg,#0d2031,#0b1828)!important;
+  background:linear-gradient(135deg,rgba(13,32,49,.94),rgba(11,24,40,.94))!important;
   color:#fff!important;
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 28%,transparent),0 0 34px color-mix(in srgb,var(--accent) 9%,transparent)!important;
 }
 .route-card:hover .route-topline,.route-card:hover p{color:#c0d2df!important}
-.site-footer{background:#040a12!important;border-top-color:rgba(92,236,255,.12)!important;color:#a9bdca!important}
+.site-footer{background:rgba(4,10,18,.76)!important;border-top-color:rgba(92,236,255,.12)!important;color:#a9bdca!important}
 .footer-brand{color:#f4fbff!important}
 
 @keyframes ocOrbFloat{
@@ -184,7 +157,7 @@ body{
 
 @media(max-width:820px){
   .hero-orb{opacity:.46!important}
-  .pressure-wall{background-size:auto,auto,42px 42px,42px 42px,auto!important}
+  .pressure-wall{background-size:42px 42px!important}
   .route-card{box-shadow:inset 0 1px rgba(255,255,255,.025)!important}
 }
 
