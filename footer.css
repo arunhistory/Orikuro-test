@@ -1,0 +1,24 @@
+/* Final copyright line */
+.site-footer{
+  flex-wrap:wrap!important;
+}
+.footer-license{
+  flex:0 0 100%;
+  width:100%;
+  margin:24px 0 0!important;
+  padding-top:18px;
+  border-top:1px solid rgba(62,88,120,.12);
+  text-align:center;
+  color:#10182a!important;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  line-height:1.4;
+}
+@media(max-width:820px){
+  .footer-license{
+    margin-top:18px!important;
+    padding-top:16px;
+    text-align:left;
+  }
+}
