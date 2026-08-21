@@ -19,6 +19,11 @@ electronicLink.rel='stylesheet';
 electronicLink.href='./electronic.css?v=20260821-2024';
 document.head.appendChild(electronicLink);
 
+const spectrumLink=document.createElement('link');
+spectrumLink.rel='stylesheet';
+spectrumLink.href='./spectrum.css?v=20260821-2031';
+document.head.appendChild(spectrumLink);
+
 /* Keep the hero slogan exactly as specified. */
 const heroMessage=document.querySelector('.hero-bottom p');
 if(heroMessage) heroMessage.textContent='自由をカタチに未来をつくる';
