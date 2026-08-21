@@ -1,0 +1,199 @@
+/* 2027 launch impact scene */
+.launch{
+  min-height:112svh!important;
+  padding:var(--header) 20px 8svh!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  position:relative!important;
+  background:#f7f5ef!important;
+  color:#111216!important;
+}
+.launch:before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  width:auto!important;
+  height:auto!important;
+  transform:none!important;
+  background:
+    linear-gradient(90deg,transparent 0 48%,rgba(17,18,22,.055) 48% 48.35%,transparent 48.35% 100%),
+    linear-gradient(0deg,transparent 0 49%,rgba(17,18,22,.04) 49% 49.3%,transparent 49.3% 100%)!important;
+  pointer-events:none!important;
+}
+.launch-core{
+  position:relative;
+  width:min(1200px,100%);
+  min-height:78svh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  isolation:isolate;
+}
+.launch-year-lock{
+  position:relative;
+  z-index:3;
+  display:inline-flex;
+  align-items:flex-start;
+  justify-content:center;
+  margin:0;
+  padding:0;
+  line-height:.72;
+  letter-spacing:-.09em;
+  font-weight:950;
+  color:#111216;
+  opacity:0;
+  transform:scale(.92) translateY(22px);
+  transform-origin:center;
+}
+.launch-year-num{
+  display:block;
+  font-size:clamp(150px,28vw,430px);
+}
+.launch-year-unit{
+  display:block;
+  margin:.13em 0 0 .07em;
+  font-size:clamp(28px,5.2vw,74px);
+  line-height:1;
+  letter-spacing:-.06em;
+  font-weight:900;
+}
+.launch-start{
+  position:relative;
+  z-index:5;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.02em;
+  width:100%;
+  margin:clamp(34px,5svh,64px) 0 0;
+  font-size:clamp(112px,22vw,330px);
+  line-height:.76;
+  letter-spacing:-.12em;
+  font-weight:1000;
+  white-space:nowrap;
+  color:#111216;
+}
+.launch-start-char{
+  display:block;
+  opacity:0;
+  will-change:transform,opacity,filter;
+}
+.launch-start-left{transform:translateX(-72vw) rotate(-10deg) skewX(-8deg);filter:blur(8px)}
+.launch-start-right{transform:translateX(72vw) rotate(10deg) skewX(8deg);filter:blur(8px)}
+.launch-start:before,.launch-start:after{
+  content:attr(data-text);
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  opacity:0;
+  color:#111216;
+  letter-spacing:-.12em;
+}
+.launch-start:before{clip-path:inset(14% 0 58% 0)}
+.launch-start:after{clip-path:inset(58% 0 12% 0)}
+.launch-storm{
+  position:absolute;
+  z-index:4;
+  inset:34% -10% auto;
+  height:34%;
+  pointer-events:none;
+  overflow:hidden;
+}
+.launch-storm i{
+  position:absolute;
+  left:50%;
+  top:var(--y);
+  width:var(--w);
+  height:var(--h);
+  background:#111216;
+  opacity:0;
+  transform:translateX(var(--from)) skewX(-22deg);
+  transform-origin:center;
+}
+.launch-storm i:nth-child(1){--y:7%;--w:48%;--h:3px;--from:-120vw}
+.launch-storm i:nth-child(2){--y:21%;--w:31%;--h:8px;--from:110vw}
+.launch-storm i:nth-child(3){--y:43%;--w:63%;--h:2px;--from:-130vw}
+.launch-storm i:nth-child(4){--y:57%;--w:42%;--h:5px;--from:120vw}
+.launch-storm i:nth-child(5){--y:76%;--w:55%;--h:2px;--from:-125vw}
+.launch-storm i:nth-child(6){--y:89%;--w:35%;--h:7px;--from:115vw}
+
+.launch.is-launch-visible .launch-year-lock{
+  animation:launchYearHit .46s cubic-bezier(.16,.9,.2,1) forwards;
+}
+.launch.is-launch-visible .launch-start-left{
+  animation:launchLeftHit .72s .28s cubic-bezier(.12,.93,.18,1.08) forwards;
+}
+.launch.is-launch-visible .launch-start-right{
+  animation:launchRightHit .72s .28s cubic-bezier(.12,.93,.18,1.08) forwards;
+}
+.launch.is-launch-visible .launch-start:before{
+  animation:launchGhostA .48s .34s steps(2,end) both;
+}
+.launch.is-launch-visible .launch-start:after{
+  animation:launchGhostB .48s .36s steps(2,end) both;
+}
+.launch.is-launch-visible .launch-storm i:nth-child(1){animation:stormSlash .36s .25s ease-out both}
+.launch.is-launch-visible .launch-storm i:nth-child(2){animation:stormSlash .31s .30s ease-out both}
+.launch.is-launch-visible .launch-storm i:nth-child(3){animation:stormSlash .40s .33s ease-out both}
+.launch.is-launch-visible .launch-storm i:nth-child(4){animation:stormSlash .34s .37s ease-out both}
+.launch.is-launch-visible .launch-storm i:nth-child(5){animation:stormSlash .37s .41s ease-out both}
+.launch.is-launch-visible .launch-storm i:nth-child(6){animation:stormSlash .30s .44s ease-out both}
+
+@keyframes launchYearHit{
+  0%{opacity:0;transform:scale(.92) translateY(22px)}
+  72%{opacity:1;transform:scale(1.025) translateY(-3px)}
+  100%{opacity:1;transform:scale(1) translateY(0)}
+}
+@keyframes launchLeftHit{
+  0%{opacity:0;transform:translateX(-72vw) rotate(-10deg) skewX(-8deg);filter:blur(8px)}
+  58%{opacity:1;filter:blur(1px)}
+  76%{transform:translateX(2.8vw) rotate(1deg) skewX(0);filter:blur(0)}
+  90%{transform:translateX(-.7vw) rotate(-.4deg)}
+  100%{opacity:1;transform:translateX(0) rotate(0) skewX(0);filter:blur(0)}
+}
+@keyframes launchRightHit{
+  0%{opacity:0;transform:translateX(72vw) rotate(10deg) skewX(8deg);filter:blur(8px)}
+  58%{opacity:1;filter:blur(1px)}
+  76%{transform:translateX(-2.8vw) rotate(-1deg) skewX(0);filter:blur(0)}
+  90%{transform:translateX(.7vw) rotate(.4deg)}
+  100%{opacity:1;transform:translateX(0) rotate(0) skewX(0);filter:blur(0)}
+}
+@keyframes stormSlash{
+  0%{opacity:0;transform:translateX(var(--from)) skewX(-22deg) scaleX(.7)}
+  20%{opacity:.5}
+  64%{opacity:.16;transform:translateX(-50%) skewX(-22deg) scaleX(1)}
+  100%{opacity:0;transform:translateX(calc(-50% + (var(--from) * -.08))) skewX(-22deg) scaleX(.45)}
+}
+@keyframes launchGhostA{
+  0%,100%{opacity:0;transform:translateX(0)}
+  18%{opacity:.16;transform:translateX(-18px)}
+  42%{opacity:.10;transform:translateX(13px)}
+  66%{opacity:.08;transform:translateX(-7px)}
+}
+@keyframes launchGhostB{
+  0%,100%{opacity:0;transform:translateX(0)}
+  14%{opacity:.12;transform:translateX(16px)}
+  46%{opacity:.16;transform:translateX(-12px)}
+  70%{opacity:.07;transform:translateX(8px)}
+}
+
+@media(max-width:820px){
+  .launch{min-height:108svh!important;padding:var(--header) 12px 6svh!important}
+  .launch-core{min-height:80svh}
+  .launch-year-num{font-size:clamp(138px,42vw,260px)}
+  .launch-year-unit{font-size:clamp(26px,8vw,48px);margin-top:.11em}
+  .launch-start{font-size:clamp(108px,34vw,210px);margin-top:44px}
+  .launch-storm{inset:36% -22% auto;height:32%}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .launch-year-lock,.launch-start-char{opacity:1!important;transform:none!important;filter:none!important;animation:none!important}
+  .launch-storm,.launch-start:before,.launch-start:after{display:none!important}
+}
