@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Kosugi+Maru&family=M+PLUS+1p:wght@500;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700&family=Noto+Serif+JP:wght@500;600;700&family=Zen+Maru+Gothic:wght@500;700&display=swap');
+
+:root{
+  --font-important-heading:'Dela Gothic One','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  --font-large-heading:'M PLUS 1p','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  --font-medium-heading:'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif;
+  --font-small-heading:'Kosugi Maru','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif;
+  --font-body:'Noto Sans JP','Yu Gothic','Hiragino Kaku Gothic ProN',sans-serif;
+  --font-important-text:'Noto Serif JP','Yu Mincho','Hiragino Mincho ProN',serif;
+}
+
+html,body,button,input,textarea,select{
+  font-family:var(--font-body)!important;
+}
+
+/* 重要見出し：角を立てて最も強く見せる */
+.hero-title,
+.pressure-question h2,
+.pressure-close h3,
+.launch-year-lock,
+.launch-start{
+  font-family:var(--font-important-heading)!important;
+  font-weight:400!important;
+}
+
+/* 大見出し：太く、丸くしすぎない */
+.link-zone-title,
+.route-card h3,
+.message-wrap>h1,
+.about-wrap>h1,
+.business-wrap>h1{
+  font-family:var(--font-large-heading)!important;
+  font-weight:900!important;
+}
+
+/* 中見出し：ここだけ柔らかい丸みを入れる */
+.representative-head h2,
+.updates-stream-head h2,
+.footer-brand,
+.mobile-menu .menu-group a{
+  font-family:var(--font-medium-heading)!important;
+  font-weight:700!important;
+}
+
+/* 小見出し・ラベル：軽い丸みでUIを固くしすぎない */
+.eyebrow,
+.section-index,
+.route-topline,
+.menu-group-label,
+.brand-name,
+.page-brand,
+.desktop-nav,
+.footer-meta,
+.footer-links,
+.updates-label,
+.round-link{
+  font-family:var(--font-small-heading)!important;
+  font-weight:400!important;
+}
+
+/* 本文：長文の可読性を優先 */
+.pressure-wall,
+.pressure-lead,
+.pressure-fact,
+.service-rush,
+.service-note,
+.route-card p,
+.about-body,
+.business-body,
+.representative-head p,
+.site-footer,
+.updates-post,
+.x-awaiting{
+  font-family:var(--font-body)!important;
+}
+
+/* 重要文：見出しではなく、読ませる文章だけ明朝 */
+.hero-bottom p,
+.answer-line,
+.message-body,
+.about-body strong,
+.business-body strong{
+  font-family:var(--font-important-text)!important;
+  font-weight:600!important;
+}
+
+/* 英数字を含む小要素の字面を揃える */
+.footer-license,
+.footer-meta,
+.route-topline,
+.eyebrow,
+.section-index,
+.round-link{
+  font-feature-settings:'palt' 1;
+}
