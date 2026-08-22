@@ -28,9 +28,17 @@
       });
     })();
   </script>
-  <link rel="stylesheet" href="./style.css?v=20260821-1822" />
-  <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
-  <link rel="stylesheet" href="./hero-title.css?v=20260823-0034" />
+
+  <!-- Homepage visual layers: fixed order, no dynamic CSS injection. -->
+  <link rel="stylesheet" href="./style.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./override.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./launch.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./electronic.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./spectrum.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./footer.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./navigation.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./typography.css?v=20260823-0040" />
+  <link rel="stylesheet" href="./hero-title.css?v=20260823-0040" />
   <style>
     .site-header .brand-name{display:inline!important}
     .mobile-menu .menu-group a::after{content:none!important;display:none!important}
@@ -209,6 +217,43 @@
     </section>
   </main>
 
+  <section class="home-updates" aria-label="お知らせと公式X">
+    <div class="updates-inner">
+      <section class="updates-stream updates-news" aria-label="お知らせ">
+        <div class="updates-stream-head">
+          <p class="updates-label">INFORMATION</p>
+          <h2>お知らせ</h2>
+        </div>
+        <div class="updates-post-list">
+          <article class="updates-post">
+            <time datetime="2026-08-22">2026.08.22</time>
+            <div>
+              <strong>ホームページを更新しました</strong>
+              <p>Original Create Project</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="updates-stream updates-x-stream" aria-label="公式Xの投稿">
+        <div class="updates-stream-head updates-x-head">
+          <p class="updates-label">OFFICIAL X</p>
+          <h2>公式 X</h2>
+        </div>
+        <div class="x-timeline-slot">
+          <iframe
+            class="x-timeline-frame"
+            src="https://syndication.twitter.com/srv/timeline-profile/screen-name/orikuro_2027"
+            title="Original Create 公式 X タイムライン"
+            loading="eager"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </div>
+        <a class="x-profile-link" href="https://x.com/orikuro_2027" target="_blank" rel="noopener noreferrer">Xで見る ↗</a>
+      </section>
+    </div>
+  </section>
+
   <footer class="site-footer">
     <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
     <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
@@ -223,11 +268,6 @@
   </footer>
 
   <div class="toast" role="status" aria-live="polite" data-toast>このリンクは仮設置です</div>
-  <script src="./main.js?v=20260822-2359"></script>
-  <style>
-    html body .hero .hero-title{line-height:.86!important;gap:.06em!important}
-    @media(max-width:820px){html body .hero .hero-title{line-height:.90!important;gap:.08em!important}}
-  </style>
-  <script src="./x-feed.js?v=20260823-0006"></script>
+  <script src="./main.js?v=20260823-0040"></script>
 </body>
 </html>
