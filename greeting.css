@@ -209,25 +209,43 @@ button{font:inherit}
 .message-body{font-size:clamp(16px,1.7vw,19px);line-height:2;letter-spacing:.01em}
 .message-body p{margin:0 0 clamp(30px,4vw,46px)}
 .message-body p:last-child{margin-bottom:0}
-.page-footer{
-  padding:38px var(--pad) 44px;
+
+.site-footer{
+  padding:50px var(--pad);
   border-top:1px solid rgba(62,88,120,.10);
   display:flex;
-  align-items:center;
   justify-content:space-between;
-  gap:28px;
-  color:#68778a;
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:.05em;
+  gap:36px;
   background:rgba(247,250,254,.80);
+  color:#68778a;
   backdrop-filter:blur(18px);
 }
-.page-footer p{margin:0;color:var(--ink)}
+.site-footer p{margin:5px 0}
+.footer-brand{
+  color:var(--ink);
+  font-size:clamp(24px,3vw,40px);
+  font-weight:850;
+  letter-spacing:-.04em;
+}
+.footer-meta{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:flex-end;
+  gap:8px;
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:.14em;
+}
 
 @keyframes spSpectrumDrift{
   0%{transform:scale(1.08) rotate(-1.2deg)}
   100%{transform:scale(1.13) rotate(1.4deg)}
+}
+
+@media(max-width:820px){
+  .site-footer{flex-direction:column}
+  .footer-meta{align-items:flex-start}
 }
 
 @media(max-width:760px){
@@ -242,7 +260,6 @@ button{font:inherit}
   .message-wrap>h1{margin-bottom:42px}
   .message-body{line-height:1.9}
   .message-body p br{display:none}
-  .page-footer{align-items:flex-start;flex-direction:column;gap:14px}
 }
 
 @media(prefers-reduced-motion:reduce){
