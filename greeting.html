@@ -6,16 +6,48 @@
   <meta name="theme-color" content="#ffffff" />
   <meta name="description" content="Original Create Project 代表挨拶" />
   <title>代表挨拶 | Original Create Project</title>
-  <link rel="stylesheet" href="./greeting.css?v=20260822-2112" />
+  <link rel="stylesheet" href="./greeting.css?v=20260822-2118" />
 </head>
 <body>
   <header class="page-header">
-    <a class="page-brand" href="./index.html" aria-label="Original Create Project ホームへ戻る">
-      <img src="./assets/oc-symbol-user.jpg" alt="" />
-      <span>Original Create Project</span>
-    </a>
-    <a class="back-home" href="./index.html">ホームへ</a>
+    <a class="page-brand" href="./index.html" aria-label="Original Create ホームページへ戻る">Original Create</a>
+
+    <button class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false" data-menu-button>
+      <span></span><span></span>
+    </button>
   </header>
+
+  <aside class="menu-panel" data-menu-panel aria-label="サイトメニュー">
+    <div class="menu-map">
+      <section class="menu-group">
+        <p>知る</p>
+        <a href="#" data-placeholder-link>Original Createとは</a>
+        <a href="./greeting.html" aria-current="page">代表挨拶</a>
+        <a href="#" data-placeholder-link>事業説明</a>
+        <a href="#" data-placeholder-link>サービス一覧</a>
+        <a href="#" data-placeholder-link>ロードマップ</a>
+      </section>
+
+      <section class="menu-group">
+        <p>試す</p>
+        <a href="#" data-placeholder-link>配信テスト</a>
+        <a href="#" data-placeholder-link>視聴テスト</a>
+        <a href="#" data-placeholder-link>アルゴリズムテスト</a>
+      </section>
+
+      <section class="menu-group">
+        <p>参加する</p>
+        <a href="#" data-placeholder-link>事前登録</a>
+        <a href="#" data-placeholder-link>クラウドファンディング</a>
+      </section>
+
+      <section class="menu-group">
+        <p>サポート</p>
+        <a href="#" data-placeholder-link>FAQ</a>
+        <a href="#" data-placeholder-link>お問い合わせ</a>
+      </section>
+    </div>
+  </aside>
 
   <main class="greeting-main">
     <figure class="representative-visual">
@@ -54,5 +86,7 @@
     <a href="./index.html">Original Create Project</a>
     <p>©Original Create</p>
   </footer>
+
+  <script src="./greeting.js?v=20260822-2118"></script>
 </body>
 </html>
