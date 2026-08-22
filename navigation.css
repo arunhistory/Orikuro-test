@@ -3,6 +3,9 @@
 .menu-button{display:block!important;cursor:pointer}
 body.menu-open{overflow:hidden!important}
 
+/* Keep the home header brand visible on every screen size. */
+.site-header .brand-name{display:inline!important}
+
 .mobile-menu{
   position:fixed!important;
   inset:var(--header) 0 0 0!important;
