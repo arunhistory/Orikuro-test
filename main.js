@@ -31,7 +31,7 @@ document.head.appendChild(footerLink);
 
 const navigationLink=document.createElement('link');
 navigationLink.rel='stylesheet';
-navigationLink.href='./navigation.css?v=20260822-2122';
+navigationLink.href='./navigation.css?v=20260822-2219';
 document.head.appendChild(navigationLink);
 
 /* Turn the right-side menu into the site map. */
