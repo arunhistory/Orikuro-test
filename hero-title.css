@@ -1,5 +1,5 @@
 /* Home hero and homepage readability overrides. */
-body .hero .hero-title{
+html body .hero .hero-title{
   display:flex!important;
   flex-direction:column!important;
   align-items:flex-start!important;
@@ -14,9 +14,9 @@ body .hero .hero-title{
   z-index:3!important;
 }
 
-body .hero .hero-title .hero-word,
-body .hero .hero-title .hero-word-2,
-body .hero .hero-title .hero-word-3{
+html body .hero .hero-title .hero-word,
+html body .hero .hero-title .hero-word-2,
+html body .hero .hero-title .hero-word-3{
   display:block!important;
   width:max-content!important;
   max-width:none!important;
@@ -36,32 +36,32 @@ body .hero .hero-title .hero-word-3{
     0 14px 38px rgba(18,36,62,.18)!important;
 }
 
-body .hero .hero-title .hero-word-1{
+html body .hero .hero-title .hero-word-1{
   transform:scaleX(1.015)!important;
   transform-origin:left center!important;
 }
 
-body .hero .hero-title .hero-word-2{
+html body .hero .hero-title .hero-word-2{
   margin-left:clamp(8px,3.8vw,72px)!important;
   transform:scaleX(1.025)!important;
   transform-origin:left center!important;
 }
 
-body .hero .hero-title .hero-word-3{
+html body .hero .hero-title .hero-word-3{
   margin-left:0!important;
   font-size:.86em!important;
   letter-spacing:-.065em!important;
 }
 
 /* Keep the supporting copy readable against the spectrum background. */
-body .pressure-close .pressure-fact{
+html body .pressure-close .pressure-fact{
   color:#26364b!important;
   opacity:1!important;
   font-weight:600!important;
   text-shadow:0 1px 0 rgba(255,255,255,.72)!important;
 }
 
-body .pressure-close .answer-line{
+html body .pressure-close .answer-line{
   color:#10182a!important;
   background:none!important;
   -webkit-background-clip:border-box!important;
@@ -73,17 +73,17 @@ body .pressure-close .answer-line{
 }
 
 /* The guide heading is intentionally minimal. */
-body .link-zone-head .section-index{
+html body .link-zone-head .section-index{
   display:none!important;
 }
 
-body .link-zone-head .link-zone-title{
+html body .link-zone-head .link-zone-title{
   color:#10182a!important;
   text-shadow:none!important;
 }
 
 /* Exactly one trailing separator after pixiv. */
-body .service-rush .rush-a span:last-of-type::after{
+html body .service-rush .rush-a span:last-of-type::after{
   content:'｜';
   display:inline-block;
   margin-left:.28em;
@@ -93,17 +93,17 @@ body .service-rush .rush-a span:last-of-type::after{
 }
 
 @media(max-width:820px){
-  body .hero .hero-title{
+  html body .hero .hero-title{
     font-size:clamp(56px,17vw,120px)!important;
     line-height:.84!important;
     letter-spacing:-.068em!important;
   }
 
-  body .hero .hero-title .hero-word-2{
+  html body .hero .hero-title .hero-word-2{
     margin-left:2vw!important;
   }
 
-  body .hero .hero-title .hero-word-3{
+  html body .hero .hero-title .hero-word-3{
     margin-left:0!important;
     font-size:.80em!important;
     letter-spacing:-.055em!important;
