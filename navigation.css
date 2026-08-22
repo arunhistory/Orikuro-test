@@ -1,6 +1,3 @@
-@import url('./typography.css?v=20260822-2331');
-@import url('./hero-title.css?v=20260822-2331');
-
 /* Original Create — site map menu and bottom post streams */
 .desktop-nav{display:none!important}
 .menu-button{display:block!important;cursor:pointer}
@@ -73,7 +70,7 @@ body.menu-open{overflow:hidden!important}
   background:linear-gradient(90deg,rgba(74,141,255,.045),transparent 70%);
 }
 
-/* Bottom of home: two real post streams, then the footer */
+/* Bottom of home: notice stream and official X timeline */
 .home-updates{
   position:relative;
   z-index:2;
@@ -138,9 +135,7 @@ body.menu-open{overflow:hidden!important}
   font-weight:850;
   letter-spacing:.18em;
 }
-.updates-post-list{
-  display:block;
-}
+.updates-post-list{display:block}
 .updates-post{
   display:grid;
   grid-template-columns:92px minmax(0,1fr);
@@ -173,43 +168,34 @@ body.menu-open{overflow:hidden!important}
   letter-spacing:.10em;
 }
 
-.updates-x-stream{
-  min-height:100%;
-}
+.updates-x-stream{min-height:100%}
 .updates-x-head h2{
   position:relative;
-  padding-left:35px;
+  padding-left:0!important;
 }
-.updates-x-head h2::before{
-  content:"X";
-  position:absolute;
-  left:0;
-  bottom:.02em;
-  font-size:.54em;
-  font-weight:950;
-  letter-spacing:0;
-}
+.updates-x-head h2::before{content:none!important;display:none!important}
 .x-timeline-slot{
   min-height:420px;
   max-height:560px;
-  overflow:auto;
-  padding:16px;
+  overflow:hidden;
+  padding:0;
   background:rgba(255,255,255,.30);
 }
-.x-timeline-slot .twitter-timeline{
-  width:100%!important;
+.x-timeline-frame{
+  display:block;
+  width:100%;
+  height:520px;
+  border:0;
+  background:#fff;
 }
-.x-awaiting{
-  min-height:388px;
-  margin:0;
-  display:grid;
-  place-items:center;
-  padding:30px;
-  text-align:center;
-  color:#758396;
-  font-size:13px;
+.x-profile-link{
+  display:block;
+  padding:14px 18px;
+  border-top:1px solid rgba(47,72,104,.10);
+  color:#536275!important;
+  font-size:12px;
   font-weight:700;
-  letter-spacing:.04em;
+  text-align:right;
 }
 
 @media(max-width:920px){
@@ -227,6 +213,6 @@ body.menu-open{overflow:hidden!important}
   .updates-stream-head{align-items:flex-start;flex-direction:column-reverse;gap:10px}
   .updates-post{grid-template-columns:1fr;gap:10px}
   .updates-post time{padding-top:0}
-  .x-timeline-slot{min-height:390px;max-height:500px;padding:10px}
-  .x-awaiting{min-height:360px}
+  .x-timeline-slot{min-height:390px;max-height:500px}
+  .x-timeline-frame{height:500px}
 }
