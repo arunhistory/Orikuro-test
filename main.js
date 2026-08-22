@@ -26,7 +26,7 @@ document.head.appendChild(spectrumLink);
 
 const footerLink=document.createElement('link');
 footerLink.rel='stylesheet';
-footerLink.href='./footer.css?v=20260821-2141';
+footerLink.href='./footer.css?v=20260822-1005';
 document.head.appendChild(footerLink);
 
 /* Keep the hero slogan exactly as specified. */
