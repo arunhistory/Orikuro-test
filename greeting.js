@@ -1,6 +1,12 @@
 const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 
+const businessLink=[...(mobileMenu?.querySelectorAll('a')||[])].find(link=>link.textContent.trim()==='事業説明');
+if(businessLink){
+  businessLink.href='./business.html';
+  businessLink.removeAttribute('data-placeholder-link');
+}
+
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
