@@ -1,3 +1,8 @@
+const latestTypography=document.createElement('link');
+latestTypography.rel='stylesheet';
+latestTypography.href='./typography.css?v=20260822-2331';
+document.head.appendChild(latestTypography);
+
 const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 
