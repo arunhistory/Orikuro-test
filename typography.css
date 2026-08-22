@@ -1,48 +1,51 @@
-@import url('https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=Shippori+Mincho+B1:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;600;700;900&display=swap');
 
 :root{
-  --font-important-heading:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
-  --font-large-heading:'IBM Plex Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
-  --font-medium-heading:'BIZ UDPGothic','Yu Gothic UI','Yu Gothic',sans-serif;
-  --font-small-heading:'IBM Plex Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
-  --font-body:'BIZ UDPGothic','Yu Gothic UI','Yu Gothic',Meiryo,sans-serif;
-  --font-important-text:'Shippori Mincho B1','Yu Mincho','Hiragino Mincho ProN',serif;
+  --oc-font-sans:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;
+  --oc-font-serif:'Noto Serif JP','Yu Mincho','Hiragino Mincho ProN',serif;
 }
 
-html,body,button,input,textarea,select{
-  font-family:var(--font-body)!important;
+html,
+body,
+button,
+input,
+textarea,
+select{
+  font-family:var(--oc-font-sans)!important;
 }
 
-/* 重要見出し — 強いが装飾的にしすぎない */
+body{
+  font-weight:400;
+  font-feature-settings:'palt' 1;
+}
+
+/* Site-wide hierarchy is made with weight and scale, not different typefaces. */
 .hero-title,
 .pressure-question h2,
 .pressure-close h3,
 .launch-year-lock,
 .launch-start{
-  font-family:var(--font-important-heading)!important;
+  font-family:var(--oc-font-sans)!important;
   font-weight:900!important;
 }
 
-/* 大見出し — 端正で現代的 */
 .link-zone-title,
 .route-card h3,
-.message-wrap>h1,
 .about-wrap>h1,
 .business-wrap>h1{
-  font-family:var(--font-large-heading)!important;
+  font-family:var(--oc-font-sans)!important;
   font-weight:700!important;
+  letter-spacing:-.045em!important;
 }
 
-/* 中見出し — 読みやすく安定 */
 .representative-head h2,
 .updates-stream-head h2,
 .footer-brand,
 .mobile-menu .menu-group a{
-  font-family:var(--font-medium-heading)!important;
-  font-weight:700!important;
+  font-family:var(--oc-font-sans)!important;
+  font-weight:600!important;
 }
 
-/* 小見出し・UIラベル */
 .eyebrow,
 .section-index,
 .route-topline,
@@ -54,11 +57,10 @@ html,body,button,input,textarea,select{
 .footer-links,
 .updates-label,
 .round-link{
-  font-family:var(--font-small-heading)!important;
+  font-family:var(--oc-font-sans)!important;
   font-weight:500!important;
 }
 
-/* 本文 */
 .pressure-wall,
 .pressure-lead,
 .pressure-fact,
@@ -70,26 +72,43 @@ html,body,button,input,textarea,select{
 .representative-head p,
 .site-footer,
 .updates-post,
-.x-awaiting{
-  font-family:var(--font-body)!important;
-  font-weight:400;
-}
-
-/* 重要文 — 見出しではなく文章にだけ明朝 */
+.x-awaiting,
 .hero-bottom p,
 .answer-line,
-.message-body,
 .about-body strong,
 .business-body strong{
-  font-family:var(--font-important-text)!important;
-  font-weight:600!important;
+  font-family:var(--oc-font-sans)!important;
 }
 
-.footer-license,
-.footer-meta,
-.route-topline,
-.eyebrow,
-.section-index,
-.round-link{
-  font-feature-settings:'palt' 1;
+.about-body strong,
+.business-body strong,
+.answer-line{
+  font-weight:700!important;
+}
+
+/* Representative greeting is the single intentional Mincho exception. */
+.greeting-main,
+.greeting-main .message-wrap,
+.greeting-main .message-wrap>h1,
+.greeting-main .representative-head,
+.greeting-main .representative-head p,
+.greeting-main .representative-head h2,
+.greeting-main .message-body,
+.greeting-main .message-body p{
+  font-family:var(--oc-font-serif)!important;
+}
+
+.greeting-main .message-wrap>h1{
+  font-weight:700!important;
+  letter-spacing:.01em!important;
+}
+
+.greeting-main .representative-head h2{
+  font-weight:600!important;
+  letter-spacing:.01em!important;
+}
+
+.greeting-main .message-body{
+  font-weight:400!important;
+  letter-spacing:.02em!important;
 }
