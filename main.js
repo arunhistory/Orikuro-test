@@ -26,7 +26,7 @@ document.head.appendChild(spectrumLink);
 
 const footerLink=document.createElement('link');
 footerLink.rel='stylesheet';
-footerLink.href='./footer.css?v=20260822-1005';
+footerLink.href='./footer.css?v=20260822-2126';
 document.head.appendChild(footerLink);
 
 const navigationLink=document.createElement('link');
@@ -74,6 +74,16 @@ if(greetingCard){
 
 /* Bottom information streams: Original Create notices and the official X post timeline. */
 const footer=document.querySelector('.site-footer');
+const footerNav=footer?.querySelector('.footer-links');
+if(footerNav && ![...footerNav.querySelectorAll('a')].some(link=>link.textContent.trim()==='プライバシーポリシー')){
+  const privacyLink=document.createElement('a');
+  privacyLink.href='#';
+  privacyLink.dataset.placeholderLink='';
+  privacyLink.textContent='プライバシーポリシー';
+  const cookieLink=[...footerNav.querySelectorAll('a')].find(link=>link.textContent.trim()==='Cookieポリシー');
+  footerNav.insertBefore(privacyLink,cookieLink||footerNav.firstChild);
+}
+
 if(footer && !document.querySelector('.home-updates')){
   const updates=document.createElement('section');
   updates.className='home-updates';
