@@ -31,7 +31,7 @@ document.head.appendChild(footerLink);
 
 const navigationLink=document.createElement('link');
 navigationLink.rel='stylesheet';
-navigationLink.href='./navigation.css?v=20260822-1807';
+navigationLink.href='./navigation.css?v=20260822-1828';
 document.head.appendChild(navigationLink);
 
 /* Turn the right-side menu into the site map. */
@@ -65,28 +65,65 @@ if(mobileMenu){
     </div>`;
 }
 
-/* Add a compact home information area instead of a separate news page. */
-const hero=document.querySelector('.hero');
-if(hero && !document.querySelector('.home-updates')){
+/* Bottom information streams: Original Create notices and the official X post timeline. */
+const footer=document.querySelector('.site-footer');
+if(footer && !document.querySelector('.home-updates')){
   const updates=document.createElement('section');
   updates.className='home-updates';
-  updates.setAttribute('aria-label','お知らせ');
+  updates.setAttribute('aria-label','お知らせと公式X');
   updates.innerHTML=`
     <div class="updates-inner">
-      <div class="updates-feed">
-        <p class="updates-label">お知らせ</p>
-        <div class="updates-item">
-          <strong>2027年始動予定</strong>
-          <span>最新情報</span>
+      <section class="updates-stream updates-news" aria-label="お知らせ">
+        <div class="updates-stream-head">
+          <p class="updates-label">INFORMATION</p>
+          <h2>お知らせ</h2>
         </div>
-      </div>
-      <a class="updates-x" href="#" data-placeholder-link aria-label="Original Create公式X">
-        <span>X</span>
-        <strong>公式X</strong>
-        <small>Original Create</small>
-      </a>
+        <div class="updates-post-list">
+          <article class="updates-post">
+            <time datetime="2026-08-22">2026.08.22</time>
+            <div>
+              <strong>ホームページを更新しました</strong>
+              <p>Original Create Project</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="updates-stream updates-x-stream" aria-label="公式Xの投稿">
+        <div class="updates-stream-head updates-x-head">
+          <p class="updates-label">OFFICIAL X</p>
+          <h2>公式X</h2>
+        </div>
+        <div class="x-timeline-slot" data-x-timeline>
+          <p class="x-awaiting">公式Xの投稿をここに表示します</p>
+        </div>
+      </section>
     </div>`;
-  hero.insertAdjacentElement('afterend',updates);
+  footer.insertAdjacentElement('beforebegin',updates);
+}
+
+/* Set this to the public Original Create X profile URL when the account is fixed. */
+const OC_X_PROFILE='';
+const xTimelineSlot=document.querySelector('[data-x-timeline]');
+if(xTimelineSlot && OC_X_PROFILE){
+  const timeline=document.createElement('a');
+  timeline.className='twitter-timeline';
+  timeline.href=OC_X_PROFILE;
+  timeline.dataset.theme='light';
+  timeline.dataset.chrome='noheader nofooter transparent';
+  timeline.dataset.dnt='true';
+  timeline.dataset.height='520';
+  timeline.textContent='Original Create 公式X';
+  xTimelineSlot.replaceChildren(timeline);
+
+  if(!document.querySelector('script[data-x-widgets]')){
+    const xScript=document.createElement('script');
+    xScript.src='https://platform.twitter.com/widgets.js';
+    xScript.async=true;
+    xScript.charset='utf-8';
+    xScript.dataset.xWidgets='true';
+    document.body.appendChild(xScript);
+  }
 }
 
 /* Keep the hero slogan exactly as specified. */
