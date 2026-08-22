@@ -8,6 +8,15 @@
   <title>代表挨拶 | Original Create Project</title>
   <link rel="stylesheet" href="./greeting.css?v=20260822-2126" />
   <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
+  <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
+  <style>
+    :root{--header:74px}
+    .page-header{z-index:50!important}
+    .mobile-menu .menu-group{display:block!important;gap:0!important}
+    .mobile-menu .menu-group .menu-group-label{margin:0 0 12px!important;color:#66758a!important;font-size:10px!important;font-weight:850!important;letter-spacing:.18em!important}
+    .mobile-menu .menu-group a::after{content:none!important;display:none!important}
+    @media(max-width:760px){:root{--header:66px}}
+  </style>
 </head>
 <body>
   <header class="page-header">
@@ -21,10 +30,10 @@
     </button>
   </header>
 
-  <aside class="menu-panel" data-menu-panel aria-label="サイトメニュー">
+  <div class="mobile-menu" data-mobile-menu aria-label="サイトメニュー">
     <div class="menu-map">
       <section class="menu-group">
-        <p>知る</p>
+        <p class="menu-group-label">知る</p>
         <a href="./about.html">Original Createとは</a>
         <a href="./greeting.html" aria-current="page">代表挨拶</a>
         <a href="#" data-placeholder-link>事業説明</a>
@@ -33,25 +42,25 @@
       </section>
 
       <section class="menu-group">
-        <p>試す</p>
+        <p class="menu-group-label">試す</p>
         <a href="#" data-placeholder-link>配信テスト</a>
         <a href="#" data-placeholder-link>視聴テスト</a>
         <a href="#" data-placeholder-link>アルゴリズムテスト</a>
       </section>
 
       <section class="menu-group">
-        <p>参加する</p>
+        <p class="menu-group-label">参加する</p>
         <a href="#" data-placeholder-link>事前登録</a>
         <a href="#" data-placeholder-link>クラウドファンディング</a>
       </section>
 
       <section class="menu-group">
-        <p>サポート</p>
+        <p class="menu-group-label">サポート</p>
         <a href="#" data-placeholder-link>FAQ</a>
         <a href="#" data-placeholder-link>お問い合わせ</a>
       </section>
     </div>
-  </aside>
+  </div>
 
   <main class="greeting-main">
     <figure class="representative-visual">
@@ -99,6 +108,6 @@
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./greeting.js?v=20260822-2126"></script>
+  <script src="./greeting.js?v=20260822-2223"></script>
 </body>
 </html>
