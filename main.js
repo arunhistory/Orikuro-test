@@ -41,7 +41,7 @@ if(mobileMenu){
       <section class="menu-group">
         <p class="menu-group-label">知る</p>
         <a href="#" data-placeholder-link>Original Createとは</a>
-        <a href="#" data-placeholder-link>代表挨拶</a>
+        <a href="./greeting.html">代表挨拶</a>
         <a href="#" data-placeholder-link>事業説明</a>
         <a href="#" data-placeholder-link>サービス一覧</a>
         <a href="#" data-placeholder-link>ロードマップ</a>
@@ -63,6 +63,13 @@ if(mobileMenu){
         <a href="#" data-placeholder-link>お問い合わせ</a>
       </section>
     </div>`;
+}
+
+/* Make the first project card the live representative greeting page. */
+const greetingCard=[...document.querySelectorAll('.route-card')].find(card=>card.querySelector('h3')?.textContent.trim()==='代表挨拶');
+if(greetingCard){
+  greetingCard.href='./greeting.html';
+  greetingCard.removeAttribute('data-placeholder-link');
 }
 
 /* Bottom information streams: Original Create notices and the official X post timeline. */
