@@ -31,7 +31,7 @@ document.head.appendChild(footerLink);
 
 const navigationLink=document.createElement('link');
 navigationLink.rel='stylesheet';
-navigationLink.href='./navigation.css?v=20260822-2219';
+navigationLink.href='./navigation.css?v=20260822-2223';
 document.head.appendChild(navigationLink);
 
 /* Turn the right-side menu into the site map. */
@@ -42,7 +42,7 @@ if(mobileMenu){
         <p class="menu-group-label">知る</p>
         <a href="./about.html">Original Createとは</a>
         <a href="./greeting.html">代表挨拶</a>
-        <a href="#" data-placeholder-link>事業説明</a>
+        <a href="./business.html">事業説明</a>
         <a href="#" data-placeholder-link>サービス一覧</a>
         <a href="#" data-placeholder-link>ロードマップ</a>
       </section>
@@ -65,11 +65,17 @@ if(mobileMenu){
     </div>`;
 }
 
-/* Make the first project card the live representative greeting page. */
+/* Make the live project pages available from the project cards. */
 const greetingCard=[...document.querySelectorAll('.route-card')].find(card=>card.querySelector('h3')?.textContent.trim()==='代表挨拶');
 if(greetingCard){
   greetingCard.href='./greeting.html';
   greetingCard.removeAttribute('data-placeholder-link');
+}
+
+const businessCard=[...document.querySelectorAll('.route-card')].find(card=>card.querySelector('h3')?.textContent.trim()==='事業説明');
+if(businessCard){
+  businessCard.href='./business.html';
+  businessCard.removeAttribute('data-placeholder-link');
 }
 
 /* Bottom information streams: Original Create notices and the official X post timeline. */
