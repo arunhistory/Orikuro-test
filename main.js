@@ -3,48 +3,6 @@ const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const toast=document.querySelector('[data-toast]');
 
-/* Load current visual layers with cache-busting URLs. */
-const overrideLink=document.createElement('link');
-overrideLink.rel='stylesheet';
-overrideLink.href='./override.css?v=20260821-1601';
-document.head.appendChild(overrideLink);
-
-const launchLink=document.createElement('link');
-launchLink.rel='stylesheet';
-launchLink.href='./launch.css?v=20260821-1907';
-document.head.appendChild(launchLink);
-
-const electronicLink=document.createElement('link');
-electronicLink.rel='stylesheet';
-electronicLink.href='./electronic.css?v=20260821-2024';
-document.head.appendChild(electronicLink);
-
-const spectrumLink=document.createElement('link');
-spectrumLink.rel='stylesheet';
-spectrumLink.href='./spectrum.css?v=20260821-2031';
-document.head.appendChild(spectrumLink);
-
-const footerLink=document.createElement('link');
-footerLink.rel='stylesheet';
-footerLink.href='./footer.css?v=20260822-2126';
-document.head.appendChild(footerLink);
-
-const navigationLink=document.createElement('link');
-navigationLink.rel='stylesheet';
-navigationLink.href='./navigation.css?v=20260822-2359';
-document.head.appendChild(navigationLink);
-
-/* navigation.css still imports an older hero layer, so force the current homepage layer last. */
-const currentHeroLink=document.createElement('link');
-currentHeroLink.rel='stylesheet';
-currentHeroLink.href='./hero-title.css?v=20260822-2359';
-document.head.appendChild(currentHeroLink);
-
-/* Remove the decorative X prefix from the heading. */
-const xHeadingStyle=document.createElement('style');
-xHeadingStyle.textContent='.updates-x-head h2{padding-left:0!important}.updates-x-head h2::before{content:none!important;display:none!important}';
-document.head.appendChild(xHeadingStyle);
-
 /* Turn the right-side menu into the site map. */
 if(mobileMenu){
   mobileMenu.innerHTML=`
@@ -87,76 +45,6 @@ const businessCard=[...document.querySelectorAll('.route-card')].find(card=>card
 if(businessCard){
   businessCard.href='./business.html';
   businessCard.removeAttribute('data-placeholder-link');
-}
-
-/* Bottom information streams: Original Create notices and the official X post timeline. */
-const footer=document.querySelector('.site-footer');
-const footerNav=footer?.querySelector('.footer-links');
-if(footerNav && ![...footerNav.querySelectorAll('a')].some(link=>link.textContent.trim()==='プライバシーポリシー')){
-  const privacyLink=document.createElement('a');
-  privacyLink.href='#';
-  privacyLink.dataset.placeholderLink='';
-  privacyLink.textContent='プライバシーポリシー';
-  const cookieLink=[...footerNav.querySelectorAll('a')].find(link=>link.textContent.trim()==='Cookieポリシー');
-  footerNav.insertBefore(privacyLink,cookieLink||footerNav.firstChild);
-}
-
-if(footer && !document.querySelector('.home-updates')){
-  const updates=document.createElement('section');
-  updates.className='home-updates';
-  updates.setAttribute('aria-label','お知らせと公式X');
-  updates.innerHTML=`
-    <div class="updates-inner">
-      <section class="updates-stream updates-news" aria-label="お知らせ">
-        <div class="updates-stream-head">
-          <p class="updates-label">INFORMATION</p>
-          <h2>お知らせ</h2>
-        </div>
-        <div class="updates-post-list">
-          <article class="updates-post">
-            <time datetime="2026-08-22">2026.08.22</time>
-            <div>
-              <strong>ホームページを更新しました</strong>
-              <p>Original Create Project</p>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="updates-stream updates-x-stream" aria-label="公式Xの投稿">
-        <div class="updates-stream-head updates-x-head">
-          <p class="updates-label">OFFICIAL X</p>
-          <h2>公式 X</h2>
-        </div>
-        <div class="x-timeline-slot" data-x-timeline>
-          <p class="x-awaiting">公式Xの投稿をここに表示します</p>
-        </div>
-      </section>
-    </div>`;
-  footer.insertAdjacentElement('beforebegin',updates);
-}
-
-const OC_X_PROFILE='https://x.com/orikuro_2027';
-const xTimelineSlot=document.querySelector('[data-x-timeline]');
-if(xTimelineSlot && OC_X_PROFILE){
-  const timeline=document.createElement('a');
-  timeline.className='twitter-timeline';
-  timeline.href=OC_X_PROFILE;
-  timeline.dataset.theme='light';
-  timeline.dataset.chrome='noheader nofooter transparent';
-  timeline.dataset.dnt='true';
-  timeline.dataset.height='520';
-  timeline.textContent='Original Create 公式 X';
-  xTimelineSlot.replaceChildren(timeline);
-
-  if(!document.querySelector('script[data-x-widgets]')){
-    const xScript=document.createElement('script');
-    xScript.src='https://platform.twitter.com/widgets.js';
-    xScript.async=true;
-    xScript.charset='utf-8';
-    xScript.dataset.xWidgets='true';
-    document.body.appendChild(xScript);
-  }
 }
 
 /* Keep the hero slogan exactly as specified. */
