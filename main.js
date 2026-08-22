@@ -31,8 +31,19 @@ document.head.appendChild(footerLink);
 
 const navigationLink=document.createElement('link');
 navigationLink.rel='stylesheet';
-navigationLink.href='./navigation.css?v=20260822-2223';
+navigationLink.href='./navigation.css?v=20260822-2359';
 document.head.appendChild(navigationLink);
+
+/* navigation.css still imports an older hero layer, so force the current homepage layer last. */
+const currentHeroLink=document.createElement('link');
+currentHeroLink.rel='stylesheet';
+currentHeroLink.href='./hero-title.css?v=20260822-2359';
+document.head.appendChild(currentHeroLink);
+
+/* Remove the decorative X prefix from the heading. */
+const xHeadingStyle=document.createElement('style');
+xHeadingStyle.textContent='.updates-x-head h2{padding-left:0!important}.updates-x-head h2::before{content:none!important;display:none!important}';
+document.head.appendChild(xHeadingStyle);
 
 /* Turn the right-side menu into the site map. */
 if(mobileMenu){
@@ -115,7 +126,7 @@ if(footer && !document.querySelector('.home-updates')){
       <section class="updates-stream updates-x-stream" aria-label="公式Xの投稿">
         <div class="updates-stream-head updates-x-head">
           <p class="updates-label">OFFICIAL X</p>
-          <h2>公式X</h2>
+          <h2>公式 X</h2>
         </div>
         <div class="x-timeline-slot" data-x-timeline>
           <p class="x-awaiting">公式Xの投稿をここに表示します</p>
@@ -125,8 +136,7 @@ if(footer && !document.querySelector('.home-updates')){
   footer.insertAdjacentElement('beforebegin',updates);
 }
 
-/* Set this to the public Original Create X profile URL when the account is fixed. */
-const OC_X_PROFILE='';
+const OC_X_PROFILE='https://x.com/orikuro_2027';
 const xTimelineSlot=document.querySelector('[data-x-timeline]');
 if(xTimelineSlot && OC_X_PROFILE){
   const timeline=document.createElement('a');
@@ -136,7 +146,7 @@ if(xTimelineSlot && OC_X_PROFILE){
   timeline.dataset.chrome='noheader nofooter transparent';
   timeline.dataset.dnt='true';
   timeline.dataset.height='520';
-  timeline.textContent='Original Create 公式X';
+  timeline.textContent='Original Create 公式 X';
   xTimelineSlot.replaceChildren(timeline);
 
   if(!document.querySelector('script[data-x-widgets]')){
