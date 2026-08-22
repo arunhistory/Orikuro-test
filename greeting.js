@@ -25,6 +25,11 @@ menuPanel?.querySelectorAll('a').forEach(link=>{
   });
 });
 
+document.querySelectorAll('[data-placeholder-link]').forEach(link=>{
+  if(link.closest('[data-menu-panel]')) return;
+  link.addEventListener('click',event=>event.preventDefault());
+});
+
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape') closeMenu();
 });
