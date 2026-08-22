@@ -29,6 +29,66 @@ footerLink.rel='stylesheet';
 footerLink.href='./footer.css?v=20260822-1005';
 document.head.appendChild(footerLink);
 
+const navigationLink=document.createElement('link');
+navigationLink.rel='stylesheet';
+navigationLink.href='./navigation.css?v=20260822-1807';
+document.head.appendChild(navigationLink);
+
+/* Turn the right-side menu into the site map. */
+if(mobileMenu){
+  mobileMenu.innerHTML=`
+    <div class="menu-map">
+      <section class="menu-group">
+        <p class="menu-group-label">知る</p>
+        <a href="#" data-placeholder-link>Original Createとは</a>
+        <a href="#" data-placeholder-link>代表挨拶</a>
+        <a href="#" data-placeholder-link>事業説明</a>
+        <a href="#" data-placeholder-link>サービス一覧</a>
+        <a href="#" data-placeholder-link>ロードマップ</a>
+      </section>
+      <section class="menu-group">
+        <p class="menu-group-label">試す</p>
+        <a href="#" data-placeholder-link>配信テスト</a>
+        <a href="#" data-placeholder-link>視聴テスト</a>
+        <a href="#" data-placeholder-link>アルゴリズムテスト</a>
+      </section>
+      <section class="menu-group">
+        <p class="menu-group-label">参加する</p>
+        <a href="#" data-placeholder-link>事前登録</a>
+        <a href="#" data-placeholder-link>クラウドファンディング</a>
+      </section>
+      <section class="menu-group">
+        <p class="menu-group-label">サポート</p>
+        <a href="#" data-placeholder-link>FAQ</a>
+        <a href="#" data-placeholder-link>お問い合わせ</a>
+      </section>
+    </div>`;
+}
+
+/* Add a compact home information area instead of a separate news page. */
+const hero=document.querySelector('.hero');
+if(hero && !document.querySelector('.home-updates')){
+  const updates=document.createElement('section');
+  updates.className='home-updates';
+  updates.setAttribute('aria-label','お知らせ');
+  updates.innerHTML=`
+    <div class="updates-inner">
+      <div class="updates-feed">
+        <p class="updates-label">お知らせ</p>
+        <div class="updates-item">
+          <strong>2027年始動予定</strong>
+          <span>最新情報</span>
+        </div>
+      </div>
+      <a class="updates-x" href="#" data-placeholder-link aria-label="Original Create公式X">
+        <span>X</span>
+        <strong>公式X</strong>
+        <small>Original Create</small>
+      </a>
+    </div>`;
+  hero.insertAdjacentElement('afterend',updates);
+}
+
 /* Keep the hero slogan exactly as specified. */
 const heroMessage=document.querySelector('.hero-bottom p');
 if(heroMessage) heroMessage.textContent='自由をカタチに未来をつくる';
@@ -72,6 +132,7 @@ window.addEventListener('scroll',setHeaderState,{passive:true});
 menuButton?.addEventListener('click',()=>{
   const open=menuButton.classList.toggle('is-open');
   mobileMenu?.classList.toggle('is-open',open);
+  document.body.classList.toggle('menu-open',open);
   menuButton.setAttribute('aria-expanded',String(open));
   menuButton.setAttribute('aria-label',open?'メニューを閉じる':'メニューを開く');
 });
@@ -79,6 +140,7 @@ menuButton?.addEventListener('click',()=>{
 mobileMenu?.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
+  document.body.classList.remove('menu-open');
   menuButton?.setAttribute('aria-expanded','false');
 }));
 
