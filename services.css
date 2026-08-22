@@ -1,0 +1,58 @@
+.services-list{
+  width:min(860px,100%);
+  margin:clamp(88px,11vw,140px) auto 0;
+}
+
+.service-section{
+  position:relative;
+  padding:clamp(62px,8vw,96px) 0;
+  border-top:1px solid rgba(54,80,113,.16);
+}
+
+.service-section:last-child{
+  border-bottom:1px solid rgba(54,80,113,.16);
+}
+
+.service-section::before{
+  content:"";
+  position:absolute;
+  top:-1px;
+  left:0;
+  width:clamp(72px,12vw,138px);
+  height:3px;
+  background:#10182a;
+}
+
+.service-section h2{
+  margin:0 0 24px;
+  font-size:clamp(40px,5.7vw,70px);
+  line-height:1;
+  letter-spacing:-.06em;
+  font-weight:900;
+}
+
+.service-section h3{
+  margin:0 0 28px;
+  font-size:clamp(24px,3.1vw,38px);
+  line-height:1.25;
+  letter-spacing:-.04em;
+  font-weight:850;
+}
+
+.service-section p{
+  margin:0 0 14px;
+  font-size:clamp(16px,1.65vw,19px);
+  line-height:1.9;
+  letter-spacing:.01em;
+}
+
+.service-section p:last-child{margin-bottom:0}
+.service-section strong{font-weight:900}
+
+@media(max-width:760px){
+  .services-list{margin-top:78px}
+  .service-section{padding:58px 0}
+  .service-section h2{margin-bottom:20px}
+  .service-section h3{margin-bottom:24px}
+  .service-section p{line-height:1.82}
+}
