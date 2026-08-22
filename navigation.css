@@ -55,7 +55,7 @@ body.menu-open{overflow:hidden!important}
 .mobile-menu .menu-group a{
   position:relative;
   display:block;
-  padding:13px 28px 13px 0!important;
+  padding:13px 0!important;
   border-bottom:1px solid rgba(38,61,91,.10)!important;
   color:#10182a!important;
   font-size:clamp(17px,1.55vw,24px)!important;
@@ -63,16 +63,6 @@ body.menu-open{overflow:hidden!important}
   line-height:1.25;
   letter-spacing:-.035em!important;
   transition:padding .2s ease,color .2s ease,background .2s ease;
-}
-.mobile-menu .menu-group a::after{
-  content:"↗";
-  position:absolute;
-  right:2px;
-  top:50%;
-  transform:translateY(-50%);
-  color:#718196;
-  font-size:.72em;
-  font-weight:700;
 }
 .mobile-menu .menu-group a:hover{
   padding-left:8px!important;
