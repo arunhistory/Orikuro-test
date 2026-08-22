@@ -12,7 +12,7 @@ if(mobileMenu){
         <a href="./about.html">Original Createとは</a>
         <a href="./greeting.html">代表挨拶</a>
         <a href="./business.html">事業説明</a>
-        <a href="#" data-placeholder-link>サービス一覧</a>
+        <a href="./services.html">サービス一覧</a>
         <a href="#" data-placeholder-link>ロードマップ</a>
       </section>
       <section class="menu-group">
