@@ -40,7 +40,7 @@ if(mobileMenu){
     <div class="menu-map">
       <section class="menu-group">
         <p class="menu-group-label">知る</p>
-        <a href="#" data-placeholder-link>Original Createとは</a>
+        <a href="./about.html">Original Createとは</a>
         <a href="./greeting.html">代表挨拶</a>
         <a href="#" data-placeholder-link>事業説明</a>
         <a href="#" data-placeholder-link>サービス一覧</a>
