@@ -35,34 +35,20 @@ document.addEventListener('keydown',event=>{
 });
 
 /*
-  Backend-ready roadmap data contract.
-  Later, the admin site can save roadmap content and expose it here.
+  Backend-ready data contract for the lower "現在の状況" box only.
+  Later, the admin site can save this content and expose it here.
 
   GET /api/roadmap
   {
-    "items": [
-      {"position":1,"title":"..."},
-      ...
-    ],
     "status":"...",
-    "updatedAt":"2026-08-23T12:54:00+09:00"
+    "updatedAt":"2026-08-23T12:57:00+09:00"
   }
 */
 const ROADMAP_ENDPOINT='/api/roadmap';
-const roadmapItems=[...document.querySelectorAll('[data-roadmap-item]')];
 const roadmapStatus=document.querySelector('[data-roadmap-status]');
 const roadmapUpdated=document.querySelector('[data-roadmap-updated]');
 
 const renderRoadmap=data=>{
-  if(Array.isArray(data?.items)){
-    roadmapItems.forEach(item=>{
-      const position=Number(item.dataset.roadmapItem);
-      const entry=data.items.find(row=>Number(row?.position)===position);
-      const title=item.querySelector('[data-roadmap-title]');
-      if(title && typeof entry?.title==='string' && entry.title.trim()) title.textContent=entry.title.trim();
-    });
-  }
-
   if(roadmapStatus && typeof data?.status==='string' && data.status.trim()){
     roadmapStatus.textContent=data.status.trim();
   }
@@ -83,7 +69,7 @@ const loadRoadmap=async()=>{
     const data=await response.json();
     renderRoadmap(data);
   }catch(_error){
-    /* 未接続時はHTML側の「未接続」をそのまま表示する。 */
+    /* 未接続時は下の箱の「未接続」をそのまま表示する。 */
   }
 };
 
