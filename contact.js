@@ -32,6 +32,12 @@ preregisterLinks.forEach(link=>{
   link.removeAttribute('data-placeholder-link');
 });
 
+const crowdfundingLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='クラウドファンディング');
+crowdfundingLinks.forEach(link=>{
+  link.href='./crowdfunding.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
