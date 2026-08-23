@@ -34,11 +34,18 @@ if(mobileMenu){
     </div>`;
 }
 
-/* Connect footer contact link too. */
+/* Connect footer legal and contact links. */
 document.querySelectorAll('a[data-placeholder-link]').forEach(link=>{
-  if(link.textContent.trim()!=='お問い合わせ') return;
-  link.href='./contact.html';
-  link.removeAttribute('data-placeholder-link');
+  const label=link.textContent.trim();
+  if(label==='利用規約'){
+    link.href='./terms.html';
+    link.removeAttribute('data-placeholder-link');
+    return;
+  }
+  if(label==='お問い合わせ'){
+    link.href='./contact.html';
+    link.removeAttribute('data-placeholder-link');
+  }
 });
 
 /* Make the live project pages available from the project cards. */
