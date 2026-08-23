@@ -162,10 +162,16 @@ form?.addEventListener('submit',event=>{
   requireText(subject);
   requireText(message);
 
+  if(!termsConsent?.checked || !privacyConsent?.checked){
+    status.textContent='利用規約とプライバシーポリシーの両方への同意が必要です。';
+    form.reportValidity();
+    return;
+  }
+
   if(!form.checkValidity()){
     form.reportValidity();
     return;
   }
 
-  status.textContent='送信機能は現在準備中です。';
+  window.location.href='./contact-complete.html';
 });
