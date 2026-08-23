@@ -18,6 +18,12 @@ preregisterLinks.forEach(link=>{
   link.removeAttribute('data-placeholder-link');
 });
 
+const crowdfundingLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='クラウドファンディング');
+crowdfundingLinks.forEach(link=>{
+  link.href='./crowdfunding.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const contactLinks=[...document.querySelectorAll('a[data-placeholder-link]')].filter(link=>link.textContent.trim()==='お問い合わせ');
 contactLinks.forEach(link=>{
   link.href='./contact.html';
