@@ -52,6 +52,13 @@
   box-shadow:0 0 0 3px rgba(16,24,42,.06);
 }
 
+.contact-field-note{
+  margin:0;
+  color:#617084;
+  font-size:12px;
+  line-height:1.6;
+}
+
 .contact-field-meta{
   display:flex;
   justify-content:flex-end;
@@ -83,14 +90,50 @@
 }
 
 .contact-x{
-  display:inline-flex;
-  align-items:center;
+  display:grid;
+  gap:14px;
+  width:100%;
   margin-top:clamp(52px,7vw,80px);
-  padding-bottom:5px;
-  border-bottom:1px solid currentColor;
+  padding:20px 22px;
+  border:1px solid rgba(54,80,113,.22);
+  border-radius:12px;
+  background:rgba(255,255,255,.72);
+  color:#10182a;
+  text-decoration:none;
+}
+
+.contact-x-row{
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
+
+.contact-x-icon{
+  display:grid;
+  place-items:center;
+  width:46px;
+  height:46px;
+  flex:0 0 46px;
+  border-radius:10px;
+  background:#050505;
+  color:#fff;
+  font-size:24px;
+  font-weight:500;
+  line-height:1;
+}
+
+.contact-x-title{
   font-size:17px;
   font-weight:850;
   letter-spacing:-.01em;
+}
+
+.contact-x-note{
+  padding-top:12px;
+  border-top:1px solid rgba(54,80,113,.12);
+  color:#617084;
+  font-size:13px;
+  line-height:1.5;
 }
 
 @media(max-width:760px){
@@ -98,4 +141,5 @@
   .contact-wrap>h1{margin-bottom:40px}
   .contact-form{gap:26px}
   .contact-field textarea{min-height:190px}
+  .contact-x{padding:18px}
 }
