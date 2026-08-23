@@ -19,6 +19,12 @@ privacyLinks.forEach(link=>{
   link.removeAttribute('data-placeholder-link');
 });
 
+const cookieLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='Cookieポリシー');
+cookieLinks.forEach(link=>{
+  link.href='./cookie.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
