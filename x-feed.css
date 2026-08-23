@@ -1,4 +1,4 @@
-/* Native OC rendering for the official X feed. */
+/* Official X posts: URLs are managed separately and rendered as individual X embeds. */
 .x-timeline-slot{
   min-height:420px;
   max-height:560px;
@@ -8,116 +8,55 @@
   background:rgba(255,255,255,.30);
   scrollbar-width:thin;
 }
-.x-feed-loading,
-.x-feed-fallback{
+.x-feed-state{
   min-height:420px;
   display:flex;
   flex-direction:column;
   align-items:flex-start;
   justify-content:center;
-  gap:10px;
-  margin:0;
+  gap:9px;
   padding:28px;
-  color:#647489;
+  color:#6b798c;
 }
-.x-feed-loading{
-  font-size:12px;
-  font-weight:750;
-  letter-spacing:.04em;
-}
-.x-feed-fallback-title{
+.x-feed-state-title{
   margin:0;
   color:#10182a;
   font-size:18px;
-  font-weight:800;
+  font-weight:850;
   line-height:1.4;
+  letter-spacing:-.02em;
 }
-.x-feed-fallback-text{
+.x-feed-state-text{
   margin:0;
-  font-size:12px;
+  color:#738195;
+  font-size:11px;
+  font-weight:650;
   line-height:1.7;
 }
-.x-feed-fallback-link{
-  margin-top:8px;
-  color:#33445a!important;
-  font-size:12px;
-  font-weight:800;
-  text-decoration:none;
-}
-.x-feed-list{display:block}
-.x-feed-post{
-  display:block;
-  padding:22px clamp(18px,2.5vw,26px);
-  border-bottom:1px solid rgba(47,72,104,.10);
-  color:#10182a!important;
-  text-decoration:none;
-  transition:background .18s ease;
-}
-.x-feed-post:last-child{border-bottom:0}
-.x-feed-post:hover{background:rgba(255,255,255,.58)}
-.x-feed-post-meta{
+.x-embed-list{
   display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
+  flex-direction:column;
+  align-items:stretch;
+  gap:0;
 }
-.x-feed-identity{
+.x-embed-item{
   min-width:0;
-  display:flex;
-  align-items:center;
-  gap:10px;
+  padding:18px clamp(14px,2vw,20px);
+  border-bottom:1px solid rgba(47,72,104,.10);
 }
-.x-feed-avatar{
-  width:36px;
-  height:36px;
-  flex:none;
-  border-radius:50%;
-  object-fit:cover;
-  background:#eef2f7;
+.x-embed-item:last-child{border-bottom:0}
+.x-embed-item .twitter-tweet{
+  margin:0 auto!important;
+  width:100%!important;
+  max-width:550px!important;
 }
-.x-feed-names{min-width:0;display:flex;flex-direction:column;gap:1px}
-.x-feed-name{
-  overflow:hidden;
-  color:#10182a;
-  font-size:13px;
-  font-weight:850;
-  line-height:1.2;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.x-feed-handle,
-.x-feed-time{
-  color:#7a8798;
-  font-size:9px;
-  font-weight:700;
-  line-height:1.35;
-}
-.x-feed-time{flex:none;text-align:right}
-.x-feed-text{
-  margin:15px 0 0;
-  color:#1b2738;
-  font-size:13px;
-  line-height:1.75;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-}
-.x-feed-media{
-  margin-top:15px;
-  overflow:hidden;
-  border:1px solid rgba(47,72,104,.10);
-  border-radius:10px;
-  background:#eef2f7;
-}
-.x-feed-media img{
-  display:block;
-  width:100%;
-  max-height:260px;
-  object-fit:cover;
+.x-embed-item>iframe,
+.x-embed-item .twitter-tweet-rendered{
+  margin-left:auto!important;
+  margin-right:auto!important;
 }
 @media(max-width:620px){
   .x-timeline-slot{min-height:390px;max-height:500px}
-  .x-feed-loading,.x-feed-fallback{min-height:390px;padding:24px 20px}
-  .x-feed-post{padding:20px}
-  .x-feed-post-meta{align-items:flex-start}
-  .x-feed-time{max-width:90px}
+  .x-feed-state{min-height:390px;padding:24px 20px}
+  .x-embed-item{padding:14px 10px}
 }
