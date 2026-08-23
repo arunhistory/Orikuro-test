@@ -26,6 +26,12 @@ const junkLocalParts=new Set([
   'aaa','aaaa','aaaaa','test','testtest','dummy','sample','qwerty','asdf','asdfgh','zxcv','zxcvbn'
 ]);
 
+const roadmapLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='ロードマップ');
+roadmapLinks.forEach(link=>{
+  link.href='./index.html#links';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const preregisterLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='事前登録');
 preregisterLinks.forEach(link=>{
   link.href='./preregister.html';
