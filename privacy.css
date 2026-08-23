@@ -87,6 +87,30 @@
   text-underline-offset:.2em;
 }
 
+.privacy-section .privacy-contact-link{
+  display:inline-flex;
+  align-items:center;
+  gap:.28em;
+  padding:.08em .48em .12em;
+  border:1px solid currentColor;
+  border-radius:999px;
+  font-weight:700;
+  text-decoration:none;
+  line-height:1.45;
+}
+
+.privacy-section .privacy-contact-link::after{
+  content:"↗";
+  font-size:.82em;
+  line-height:1;
+}
+
+.privacy-section .privacy-contact-link:hover,
+.privacy-section .privacy-contact-link:focus-visible{
+  text-decoration:underline;
+  text-underline-offset:.2em;
+}
+
 @media(max-width:760px){
   .privacy-main{padding-top:54px}
   .privacy-document{padding:32px 20px 38px}
