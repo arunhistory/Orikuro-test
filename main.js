@@ -13,7 +13,7 @@ if(mobileMenu){
         <a href="./greeting.html">代表挨拶</a>
         <a href="./business.html">事業説明</a>
         <a href="./services.html">サービス一覧</a>
-        <a href="#" data-placeholder-link>ロードマップ</a>
+        <a href="./roadmap.html">ロードマップ</a>
       </section>
       <section class="menu-group">
         <p class="menu-group-label">試す</p>
@@ -33,13 +33,6 @@ if(mobileMenu){
       </section>
     </div>`;
 }
-
-/* Connect roadmap menu to the project list on the homepage. */
-const roadmapLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='ロードマップ');
-roadmapLinks.forEach(link=>{
-  link.href='#links';
-  link.removeAttribute('data-placeholder-link');
-});
 
 /* Connect footer contact link too. */
 document.querySelectorAll('a[data-placeholder-link]').forEach(link=>{
