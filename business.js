@@ -6,6 +6,12 @@ document.head.appendChild(latestTypography);
 const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 
+const roadmapLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='ロードマップ');
+roadmapLinks.forEach(link=>{
+  link.href='./index.html#links';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const preregisterLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='事前登録');
 preregisterLinks.forEach(link=>{
   link.href='./preregister.html';
