@@ -29,10 +29,17 @@ if(mobileMenu){
       <section class="menu-group">
         <p class="menu-group-label">サポート</p>
         <a href="#" data-placeholder-link>FAQ</a>
-        <a href="#" data-placeholder-link>お問い合わせ</a>
+        <a href="./contact.html">お問い合わせ</a>
       </section>
     </div>`;
 }
+
+/* Connect footer contact link too. */
+document.querySelectorAll('a[data-placeholder-link]').forEach(link=>{
+  if(link.textContent.trim()!=='お問い合わせ') return;
+  link.href='./contact.html';
+  link.removeAttribute('data-placeholder-link');
+});
 
 /* Make the live project pages available from the project cards. */
 const greetingCard=[...document.querySelectorAll('.route-card')].find(card=>card.querySelector('h3')?.textContent.trim()==='代表挨拶');
