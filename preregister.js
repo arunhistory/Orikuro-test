@@ -11,6 +11,12 @@ const disposableDomains=new Set([
 ]);
 const junkLocalParts=new Set(['aaa','aaaa','aaaaa','test','testtest','dummy','sample','qwerty','asdf','asdfgh','zxcv','zxcvbn']);
 
+const roadmapLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='ロードマップ');
+roadmapLinks.forEach(link=>{
+  link.href='./index.html#links';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const crowdfundingLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='クラウドファンディング');
 crowdfundingLinks.forEach(link=>{
   link.href='./crowdfunding.html';
