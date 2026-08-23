@@ -199,29 +199,3 @@ document.querySelectorAll('[data-placeholder-link]').forEach(link=>link.addEvent
   clearTimeout(window.__ocToastTimer);
   window.__ocToastTimer=setTimeout(()=>toast?.classList.remove('is-visible'),900);
 }));
-
-/* Use X's current official widget endpoint and re-render the profile timeline. */
-const xTimeline=document.querySelector('.twitter-timeline');
-if(xTimeline){
-  xTimeline.href='https://x.com/orikuro_2027?ref_src=twsrc%5Etfw';
-  const xSlot=xTimeline.closest('.x-timeline-slot')||xTimeline.parentElement;
-  const renderXTimeline=()=>{
-    if(window.twttr?.widgets?.load){
-      window.twttr.widgets.load(xSlot);
-    }
-  };
-
-  if(window.twttr?.widgets?.load){
-    renderXTimeline();
-  }else{
-    let xWidgetScript=document.querySelector('script[src="https://platform.x.com/widgets.js"]');
-    if(!xWidgetScript){
-      xWidgetScript=document.createElement('script');
-      xWidgetScript.src='https://platform.x.com/widgets.js';
-      xWidgetScript.async=true;
-      xWidgetScript.charset='utf-8';
-      document.body.appendChild(xWidgetScript);
-    }
-    xWidgetScript.addEventListener('load',renderXTimeline,{once:true});
-  }
-}
