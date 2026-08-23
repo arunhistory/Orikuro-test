@@ -17,7 +17,8 @@
     .mobile-menu .menu-group{display:block!important;gap:0!important}
     .mobile-menu .menu-group .menu-group-label{margin:0 0 12px!important;color:#66758a!important;font-size:10px!important;font-weight:850!important;letter-spacing:.18em!important}
     .mobile-menu .menu-group a::after{content:none!important;display:none!important}
-    .preregister-check a{color:inherit;text-underline-offset:.18em}
+    .preregister-check a{color:#0000ee!important;text-decoration:underline!important;text-underline-offset:0!important}
+    .preregister-check a:visited{color:#551a8b!important}
     @media(max-width:760px){:root{--header:66px}}
   </style>
 </head>
@@ -80,7 +81,7 @@
 
         <label class="preregister-check">
           <input type="checkbox" name="terms" data-terms required />
-          <span>利用規約に同意する</span>
+          <span><a href="./terms.html">利用規約</a>に同意する</span>
         </label>
 
         <button class="preregister-submit" type="submit">登録</button>
@@ -93,7 +94,7 @@
     <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
     <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
     <nav class="footer-links" aria-label="フッターリンク">
-      <a href="#" data-placeholder-link>利用規約</a>
+      <a href="./terms.html">利用規約</a>
       <a href="./privacy.html">プライバシーポリシー</a>
       <a href="#" data-placeholder-link>Cookieポリシー</a>
       <a href="#" data-placeholder-link>運営者情報</a>
