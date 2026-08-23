@@ -5,7 +5,26 @@ const email=document.querySelector('#contact-email');
 const subject=document.querySelector('#contact-subject');
 const message=document.querySelector('#contact-message');
 const subjectCount=document.querySelector('[data-subject-count]');
+const messageCount=document.querySelector('[data-message-count]');
 const status=document.querySelector('[data-contact-status]');
+
+const disposableDomains=new Set([
+  '10minutemail.com',
+  'guerrillamail.com',
+  'guerrillamail.net',
+  'guerrillamail.org',
+  'mailinator.com',
+  'sharklasers.com',
+  'grr.la',
+  'yopmail.com',
+  'trashmail.com',
+  'tempmail.com',
+  'temp-mail.org'
+]);
+
+const junkLocalParts=new Set([
+  'aaa','aaaa','aaaaa','test','testtest','dummy','sample','qwerty','asdf','asdfgh','zxcv','zxcvbn'
+]);
 
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
@@ -45,20 +64,54 @@ const requireText=field=>{
   field.setCustomValidity(field.value.trim()?'':'この項目は必須です。');
 };
 
+const validateEmail=()=>{
+  if(!email) return;
+  email.setCustomValidity('');
+  const value=email.value.trim().toLowerCase();
+  if(!value) return;
+
+  const at=value.lastIndexOf('@');
+  if(at<=0 || at===value.length-1) return;
+
+  const local=value.slice(0,at);
+  const domain=value.slice(at+1);
+  const compact=local.replace(/[._+-]/g,'');
+  const sameCharacter=compact.length>=3 && new Set(compact).size===1;
+  const obviousJunk=junkLocalParts.has(compact);
+  const disposable=disposableDomains.has(domain) || [...disposableDomains].some(item=>domain.endsWith(`.${item}`));
+
+  if(disposable){
+    email.setCustomValidity('使い捨てメールアドレスは使用できません。');
+    return;
+  }
+
+  if(sameCharacter || obviousJunk){
+    email.setCustomValidity('適当な文字列ではなく、実際に使用しているメールアドレスを入力してください。');
+  }
+};
+
 const updateSubject=()=>{
   if(subjectCount && subject) subjectCount.textContent=`${subject.value.length}/20`;
   requireText(subject);
 };
 
+const updateMessage=()=>{
+  if(messageCount && message) messageCount.textContent=`${message.value.length}/1000`;
+  requireText(message);
+};
+
 subject?.addEventListener('input',updateSubject);
-message?.addEventListener('input',()=>requireText(message));
-email?.addEventListener('input',()=>email.setCustomValidity(''));
+message?.addEventListener('input',updateMessage);
+email?.addEventListener('input',validateEmail);
+email?.addEventListener('blur',validateEmail);
 updateSubject();
-requireText(message);
+updateMessage();
+validateEmail();
 
 form?.addEventListener('submit',event=>{
   event.preventDefault();
   status.textContent='';
+  validateEmail();
   requireText(subject);
   requireText(message);
 
