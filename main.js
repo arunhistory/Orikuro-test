@@ -64,6 +64,10 @@ if(preregisterCard){
 const heroMessage=document.querySelector('.hero-bottom p');
 if(heroMessage) heroMessage.textContent='自由をカタチに未来をつくる';
 
+/* Keep the project teaser heading unpunctuated. */
+const anticipationTitle=document.querySelector('.link-zone-title');
+if(anticipationTitle) anticipationTitle.textContent='乞うご期待';
+
 /* Build the 2027 launch scene as separate moving pieces. */
 const launch=document.querySelector('.launch');
 if(launch){
