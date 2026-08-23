@@ -34,6 +34,13 @@ if(mobileMenu){
     </div>`;
 }
 
+/* Connect roadmap menu to the project list on the homepage. */
+const roadmapLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='ロードマップ');
+roadmapLinks.forEach(link=>{
+  link.href='#links';
+  link.removeAttribute('data-placeholder-link');
+});
+
 /* Connect footer contact link too. */
 document.querySelectorAll('a[data-placeholder-link]').forEach(link=>{
   if(link.textContent.trim()!=='お問い合わせ') return;
