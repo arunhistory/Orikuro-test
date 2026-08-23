@@ -30,6 +30,12 @@ faqLinks.forEach(link=>{
   link.removeAttribute('data-placeholder-link');
 });
 
+const termsLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='利用規約');
+termsLinks.forEach(link=>{
+  link.href='./terms.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const contactLinks=[...document.querySelectorAll('a[data-placeholder-link]')].filter(link=>link.textContent.trim()==='お問い合わせ');
 contactLinks.forEach(link=>{
   link.href='./contact.html';
