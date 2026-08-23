@@ -24,7 +24,7 @@ if(mobileMenu){
       <section class="menu-group">
         <p class="menu-group-label">参加する</p>
         <a href="./preregister.html">事前登録</a>
-        <a href="#" data-placeholder-link>クラウドファンディング</a>
+        <a href="./crowdfunding.html">クラウドファンディング</a>
       </section>
       <section class="menu-group">
         <p class="menu-group-label">サポート</p>
@@ -58,6 +58,12 @@ const preregisterCard=[...document.querySelectorAll('.route-card')].find(card=>c
 if(preregisterCard){
   preregisterCard.href='./preregister.html';
   preregisterCard.removeAttribute('data-placeholder-link');
+}
+
+const crowdfundingCard=[...document.querySelectorAll('.route-card')].find(card=>card.querySelector('h3')?.textContent.trim()==='クラウドファンディング');
+if(crowdfundingCard){
+  crowdfundingCard.href='./crowdfunding.html';
+  crowdfundingCard.removeAttribute('data-placeholder-link');
 }
 
 /* Keep the hero slogan exactly as specified. */
