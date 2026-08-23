@@ -7,7 +7,7 @@
   <meta name="description" content="Original Create Project お問い合わせ" />
   <title>お問い合わせ | Original Create Project</title>
   <link rel="stylesheet" href="./business.css?v=20260823-0939" />
-  <link rel="stylesheet" href="./contact.css?v=20260823-0939" />
+  <link rel="stylesheet" href="./contact.css?v=20260823-0952" />
   <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
   <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
@@ -80,24 +80,32 @@
         <div class="contact-field">
           <label for="contact-email">メール</label>
           <input id="contact-email" name="email" type="email" autocomplete="email" inputmode="email" required />
+          <p class="contact-field-note">使い捨てメールアドレス・適当な文字列での入力は禁止です。</p>
         </div>
 
         <div class="contact-field">
-          <label for="contact-subject">件名</label>
+          <label for="contact-subject">件名（20文字以内）</label>
           <input id="contact-subject" name="subject" type="text" maxlength="20" required />
           <div class="contact-field-meta"><span data-subject-count>0/20</span></div>
         </div>
 
         <div class="contact-field">
-          <label for="contact-message">内容</label>
-          <textarea id="contact-message" name="message" required></textarea>
+          <label for="contact-message">内容（1000文字以内）</label>
+          <textarea id="contact-message" name="message" maxlength="1000" required></textarea>
+          <div class="contact-field-meta"><span data-message-count>0/1000</span></div>
         </div>
 
         <button class="contact-submit" type="submit">送信</button>
         <p class="contact-status" role="status" aria-live="polite" data-contact-status></p>
       </form>
 
-      <a class="contact-x" href="https://x.com/orikuro_2027?s=11&t=oe3JylyzOH2-p5yGov2e9g" target="_blank" rel="noopener noreferrer">公式 X 受付中</a>
+      <a class="contact-x" href="https://x.com/orikuro_2027?s=11&t=oe3JylyzOH2-p5yGov2e9g" target="_blank" rel="noopener noreferrer">
+        <span class="contact-x-row">
+          <span class="contact-x-icon" aria-hidden="true">X</span>
+          <span class="contact-x-title">公式 X 受付中</span>
+        </span>
+        <span class="contact-x-note">匿名でお問い合わせ可能</span>
+      </a>
     </article>
   </main>
 
@@ -114,6 +122,6 @@
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./contact.js?v=20260823-0944"></script>
+  <script src="./contact.js?v=20260823-0952"></script>
 </body>
 </html>
