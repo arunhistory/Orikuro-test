@@ -13,6 +13,12 @@ cookieLinks.forEach(link=>{
   link.removeAttribute('data-placeholder-link');
 });
 
+const operatorLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='運営者情報');
+operatorLinks.forEach(link=>{
+  link.href='./operator.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
