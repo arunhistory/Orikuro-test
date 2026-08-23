@@ -66,6 +66,35 @@
   color:#617084;
 }
 
+.contact-consents{
+  display:grid;
+  gap:14px;
+  margin-top:2px;
+}
+
+.contact-check{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  font-size:14px;
+  line-height:1.6;
+  cursor:pointer;
+}
+
+.contact-check input{
+  width:18px;
+  height:18px;
+  margin:2px 0 0;
+  flex:0 0 18px;
+}
+
+.contact-check a,
+.contact-check a:visited{
+  color:#0000ee;
+  text-decoration:underline;
+  text-underline-offset:.12em;
+}
+
 .contact-submit{
   width:100%;
   min-height:56px;
