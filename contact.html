@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#f4f7fb" />
+  <meta name="description" content="Original Create Project お問い合わせ" />
+  <title>お問い合わせ | Original Create Project</title>
+  <link rel="stylesheet" href="./business.css?v=20260823-0939" />
+  <link rel="stylesheet" href="./contact.css?v=20260823-0939" />
+  <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
+  <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
+  <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
+  <style>
+    :root{--header:74px}
+    .page-header{z-index:50!important}
+    .mobile-menu .menu-group{display:block!important;gap:0!important}
+    .mobile-menu .menu-group .menu-group-label{margin:0 0 12px!important;color:#66758a!important;font-size:10px!important;font-weight:850!important;letter-spacing:.18em!important}
+    .mobile-menu .menu-group a::after{content:none!important;display:none!important}
+    @media(max-width:760px){:root{--header:66px}}
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <a class="page-brand" href="./index.html" aria-label="Original Create ホームページへ戻る">
+      <img class="brand-symbol" src="./assets/oc-symbol-user.jpg" alt="" />
+      <span>Original Create</span>
+    </a>
+
+    <button class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false" data-menu-button>
+      <span></span><span></span>
+    </button>
+  </header>
+
+  <div class="mobile-menu" data-mobile-menu aria-label="サイトメニュー">
+    <div class="menu-map">
+      <section class="menu-group">
+        <p class="menu-group-label">知る</p>
+        <a href="./about.html">Original Createとは</a>
+        <a href="./greeting.html">代表挨拶</a>
+        <a href="./business.html">事業説明</a>
+        <a href="./services.html">サービス一覧</a>
+        <a href="#" data-placeholder-link>ロードマップ</a>
+      </section>
+
+      <section class="menu-group">
+        <p class="menu-group-label">試す</p>
+        <a href="#" data-placeholder-link>配信テスト</a>
+        <a href="#" data-placeholder-link>視聴テスト</a>
+        <a href="#" data-placeholder-link>アルゴリズムテスト</a>
+      </section>
+
+      <section class="menu-group">
+        <p class="menu-group-label">参加する</p>
+        <a href="#" data-placeholder-link>事前登録</a>
+        <a href="#" data-placeholder-link>クラウドファンディング</a>
+      </section>
+
+      <section class="menu-group">
+        <p class="menu-group-label">サポート</p>
+        <a href="#" data-placeholder-link>FAQ</a>
+        <a href="./contact.html" aria-current="page">お問い合わせ</a>
+      </section>
+    </div>
+  </div>
+
+  <main class="contact-main">
+    <article class="contact-wrap">
+      <h1>お問い合わせ</h1>
+
+      <div class="contact-notes">
+        <p>オリジナルクリエイトプロジェクトに関するお問い合わせ以外には、返答いたしかねます。</p>
+        <p>送信後、ご入力いただいたメールアドレス宛にGmailより返答いたします。</p>
+        <p>送信をもって、プライバシーポリシーに同意したものとみなします。</p>
+        <p>迷惑行為等はおやめください。</p>
+        <p>XのDMにてもお問い合わせを受け付けております。</p>
+      </div>
+
+      <form class="contact-form" data-contact-form>
+        <div class="contact-field">
+          <label for="contact-email">メール</label>
+          <input id="contact-email" name="email" type="email" autocomplete="email" inputmode="email" required />
+        </div>
+
+        <div class="contact-field">
+          <label for="contact-subject">件名</label>
+          <input id="contact-subject" name="subject" type="text" maxlength="20" required />
+          <div class="contact-field-meta"><span data-subject-count>0/20</span></div>
+        </div>
+
+        <div class="contact-field">
+          <label for="contact-message">内容</label>
+          <textarea id="contact-message" name="message" required></textarea>
+        </div>
+
+        <button class="contact-submit" type="submit">送信</button>
+        <p class="contact-status" role="status" aria-live="polite" data-contact-status></p>
+      </form>
+
+      <a class="contact-x" href="https://x.com/orikuro_2027?s=11&t=oe3JylyzOH2-p5yGov2e9g" target="_blank" rel="noopener noreferrer">公式 X 受付中</a>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
+    <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
+    <nav class="footer-links" aria-label="フッターリンク">
+      <a href="#" data-placeholder-link>利用規約</a>
+      <a href="#" data-placeholder-link>プライバシーポリシー</a>
+      <a href="#" data-placeholder-link>Cookieポリシー</a>
+      <a href="#" data-placeholder-link>運営者情報</a>
+      <a href="./contact.html" aria-current="page">お問い合わせ</a>
+    </nav>
+    <p class="footer-license">©Original Create</p>
+  </footer>
+
+  <script src="./contact.js?v=20260823-0939"></script>
+</body>
+</html>
