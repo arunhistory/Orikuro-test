@@ -4,6 +4,8 @@ const form=document.querySelector('[data-contact-form]');
 const email=document.querySelector('#contact-email');
 const subject=document.querySelector('#contact-subject');
 const message=document.querySelector('#contact-message');
+const termsConsent=document.querySelector('[data-contact-terms]');
+const privacyConsent=document.querySelector('[data-contact-privacy]');
 const subjectCount=document.querySelector('[data-subject-count]');
 const messageCount=document.querySelector('[data-message-count]');
 const status=document.querySelector('[data-contact-status]');
@@ -126,6 +128,11 @@ const validateEmail=()=>{
   }
 };
 
+const validateConsent=()=>{
+  termsConsent?.setCustomValidity(termsConsent.checked?'':'利用規約への同意が必要です。');
+  privacyConsent?.setCustomValidity(privacyConsent.checked?'':'プライバシーポリシーへの同意が必要です。');
+};
+
 const updateSubject=()=>{
   if(subjectCount && subject) subjectCount.textContent=`${subject.value.length}/20`;
   requireText(subject);
@@ -140,14 +147,18 @@ subject?.addEventListener('input',updateSubject);
 message?.addEventListener('input',updateMessage);
 email?.addEventListener('input',validateEmail);
 email?.addEventListener('blur',validateEmail);
+termsConsent?.addEventListener('change',validateConsent);
+privacyConsent?.addEventListener('change',validateConsent);
 updateSubject();
 updateMessage();
 validateEmail();
+validateConsent();
 
 form?.addEventListener('submit',event=>{
   event.preventDefault();
   status.textContent='';
   validateEmail();
+  validateConsent();
   requireText(subject);
   requireText(message);
 
