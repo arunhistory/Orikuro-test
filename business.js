@@ -8,7 +8,7 @@ const mobileMenu=document.querySelector('[data-mobile-menu]');
 
 const roadmapLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='ロードマップ');
 roadmapLinks.forEach(link=>{
-  link.href='./index.html#links';
+  link.href='./roadmap.html';
   link.removeAttribute('data-placeholder-link');
 });
 
