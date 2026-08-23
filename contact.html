@@ -7,7 +7,7 @@
   <meta name="description" content="Original Create Project お問い合わせ" />
   <title>お問い合わせ | Original Create Project</title>
   <link rel="stylesheet" href="./business.css?v=20260823-0939" />
-  <link rel="stylesheet" href="./contact.css?v=20260823-0952" />
+  <link rel="stylesheet" href="./contact.css?v=20260823-1926" />
   <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
   <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
@@ -71,7 +71,6 @@
       <div class="contact-notes">
         <p>オリジナルクリエイトプロジェクトに関するお問い合わせ以外には、返答いたしかねます。</p>
         <p>送信後、ご入力いただいたメールアドレス宛にGmailより返答いたします。</p>
-        <p>送信をもって、プライバシーポリシーに同意したものとみなします。</p>
         <p>法人からのお問い合わせを除き、氏名・住所・電話番号など個人を特定できる情報をお問い合わせ本文へ記載しないでください。</p>
         <p>迷惑行為等はおやめください。</p>
         <p>XのDMにてもお問い合わせ受付けしております。</p>
@@ -94,6 +93,17 @@
           <label for="contact-message">内容（1000文字以内）</label>
           <textarea id="contact-message" name="message" maxlength="1000" required></textarea>
           <div class="contact-field-meta"><span data-message-count>0/1000</span></div>
+        </div>
+
+        <div class="contact-consents">
+          <label class="contact-check">
+            <input type="checkbox" name="terms" data-contact-terms required />
+            <span><a href="./terms.html">利用規約</a>に同意する</span>
+          </label>
+          <label class="contact-check">
+            <input type="checkbox" name="privacy" data-contact-privacy required />
+            <span><a href="./privacy.html">プライバシーポリシー</a>に同意する</span>
+          </label>
         </div>
 
         <button class="contact-submit" type="submit">送信</button>
@@ -123,6 +133,6 @@
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./contact.js?v=20260823-0952"></script>
+  <script src="./contact.js?v=20260823-1926"></script>
 </body>
 </html>
