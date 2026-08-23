@@ -28,7 +28,7 @@ if(mobileMenu){
       </section>
       <section class="menu-group">
         <p class="menu-group-label">サポート</p>
-        <a href="#" data-placeholder-link>FAQ</a>
+        <a href="./faq.html">FAQ</a>
         <a href="./contact.html">お問い合わせ</a>
       </section>
     </div>`;
