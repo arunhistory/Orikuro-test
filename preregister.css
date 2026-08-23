@@ -1,0 +1,91 @@
+.preregister-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
+}
+
+.preregister-wrap{width:min(760px,100%);margin:0 auto}
+
+.preregister-wrap>h1{
+  margin:0 0 clamp(44px,6vw,68px);
+  font-size:clamp(38px,5vw,64px);
+  line-height:1.1;
+  letter-spacing:-.05em;
+}
+
+.preregister-form{display:grid;gap:26px}
+.preregister-field{display:grid;gap:10px}
+.preregister-field label{font-size:15px;font-weight:800;letter-spacing:.01em}
+
+.preregister-field input{
+  width:100%;
+  border:1px solid rgba(54,80,113,.22);
+  border-radius:10px;
+  background:rgba(255,255,255,.82);
+  color:#10182a;
+  font:inherit;
+  font-size:16px;
+  line-height:1.65;
+  padding:15px 16px;
+  outline:none;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+
+.preregister-field input:focus{
+  border-color:rgba(16,24,42,.62);
+  background:#fff;
+  box-shadow:0 0 0 3px rgba(16,24,42,.06);
+}
+
+.preregister-field-note{
+  margin:0;
+  color:#617084;
+  font-size:12px;
+  line-height:1.65;
+}
+
+.preregister-check{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  font-size:15px;
+  font-weight:700;
+  line-height:1.6;
+  cursor:pointer;
+}
+
+.preregister-check input{
+  width:18px;
+  height:18px;
+  margin:3px 0 0;
+  flex:0 0 auto;
+}
+
+.preregister-submit{
+  width:100%;
+  min-height:56px;
+  margin-top:4px;
+  border:0;
+  border-radius:10px;
+  background:#10182a;
+  color:#fff;
+  font-size:16px;
+  font-weight:850;
+  cursor:pointer;
+}
+
+.preregister-submit:active{transform:translateY(1px)}
+
+.preregister-status{
+  min-height:1.6em;
+  margin:0;
+  color:#617084;
+  font-size:14px;
+  line-height:1.6;
+}
+
+@media(max-width:760px){
+  .preregister-main{padding-top:56px}
+  .preregister-wrap>h1{margin-bottom:40px}
+  .preregister-form{gap:24px}
+}
