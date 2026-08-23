@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#f4f7fb" />
+  <meta name="description" content="Original Create Project クラウドファンディング" />
+  <title>クラウドファンディング | Original Create Project</title>
+  <link rel="stylesheet" href="./business.css?v=20260823-1140" />
+  <link rel="stylesheet" href="./crowdfunding.css?v=20260823-1140" />
+  <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
+  <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
+  <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
+  <style>
+    :root{--header:74px}
+    .page-header{z-index:50!important}
+    .mobile-menu .menu-group{display:block!important;gap:0!important}
+    .mobile-menu .menu-group .menu-group-label{margin:0 0 12px!important;color:#66758a!important;font-size:10px!important;font-weight:850!important;letter-spacing:.18em!important}
+    .mobile-menu .menu-group a::after{content:none!important;display:none!important}
+    @media(max-width:760px){:root{--header:66px}}
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <a class="page-brand" href="./index.html" aria-label="Original Create ホームページへ戻る">
+      <img class="brand-symbol" src="./assets/oc-symbol-user.jpg" alt="" />
+      <span>Original Create</span>
+    </a>
+    <button class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false" data-menu-button>
+      <span></span><span></span>
+    </button>
+  </header>
+
+  <div class="mobile-menu" data-mobile-menu aria-label="サイトメニュー">
+    <div class="menu-map">
+      <section class="menu-group">
+        <p class="menu-group-label">知る</p>
+        <a href="./about.html">Original Createとは</a>
+        <a href="./greeting.html">代表挨拶</a>
+        <a href="./business.html">事業説明</a>
+        <a href="./services.html">サービス一覧</a>
+        <a href="#" data-placeholder-link>ロードマップ</a>
+      </section>
+      <section class="menu-group">
+        <p class="menu-group-label">試す</p>
+        <a href="#" data-placeholder-link>配信テスト</a>
+        <a href="#" data-placeholder-link>視聴テスト</a>
+        <a href="#" data-placeholder-link>アルゴリズムテスト</a>
+      </section>
+      <section class="menu-group">
+        <p class="menu-group-label">参加する</p>
+        <a href="./preregister.html">事前登録</a>
+        <a href="./crowdfunding.html" aria-current="page">クラウドファンディング</a>
+      </section>
+      <section class="menu-group">
+        <p class="menu-group-label">サポート</p>
+        <a href="#" data-placeholder-link>FAQ</a>
+        <a href="./contact.html">お問い合わせ</a>
+      </section>
+    </div>
+  </div>
+
+  <main class="crowdfunding-main">
+    <article class="crowdfunding-wrap">
+      <h1>クラウドファンディング</h1>
+
+      <div class="crowdfunding-summary">
+        <section class="crowdfunding-stat">
+          <p class="crowdfunding-label">目標金額</p>
+          <p class="crowdfunding-value">50万円以上</p>
+          <p class="crowdfunding-sub">最大500万円</p>
+        </section>
+        <section class="crowdfunding-stat">
+          <p class="crowdfunding-label">期間</p>
+          <p class="crowdfunding-value">12月31日まで</p>
+        </section>
+      </div>
+
+      <section class="crowdfunding-notice">
+        <h2>注意事項</h2>
+        <p>クラウドファンディングは外部サイトにて実施いたします。</p>
+        <p>支援条件、決済、キャンセル、リターンその他の事項については、外部サイトに記載された内容および規約に従ってください。</p>
+        <p>ご支援の前に、必ず外部サイトの内容をご確認ください。</p>
+        <p>当サイトでは、支援の受付および決済は行っておりません。</p>
+      </section>
+
+      <a class="crowdfunding-button is-pending" href="#" aria-disabled="true" data-placeholder-link>クラウドファンディングページへ ↗</a>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
+    <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
+    <nav class="footer-links" aria-label="フッターリンク">
+      <a href="#" data-placeholder-link>利用規約</a>
+      <a href="#" data-placeholder-link>プライバシーポリシー</a>
+      <a href="#" data-placeholder-link>Cookieポリシー</a>
+      <a href="#" data-placeholder-link>運営者情報</a>
+      <a href="./contact.html">お問い合わせ</a>
+    </nav>
+    <p class="footer-license">©Original Create</p>
+  </footer>
+
+  <script src="./crowdfunding.js?v=20260823-1140"></script>
+</body>
+</html>
