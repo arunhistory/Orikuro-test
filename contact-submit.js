@@ -27,6 +27,8 @@ const termsLinks=[...document.querySelectorAll('a')].filter(link=>link.textConte
 termsLinks.forEach(link=>{link.href='./terms.html';link.removeAttribute('data-placeholder-link');});
 const privacyLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='プライバシーポリシー');
 privacyLinks.forEach(link=>{link.href='./privacy.html';link.removeAttribute('data-placeholder-link');});
+const cookieLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='Cookieポリシー');
+cookieLinks.forEach(link=>{link.href='./cookie.html';link.removeAttribute('data-placeholder-link');});
 
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
