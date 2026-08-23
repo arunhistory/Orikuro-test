@@ -1,0 +1,101 @@
+.contact-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
+}
+
+.contact-wrap{width:min(760px,100%);margin:0 auto}
+
+.contact-wrap>h1{
+  margin:0 0 clamp(44px,6vw,68px);
+  font-size:clamp(38px,5vw,64px);
+  line-height:1.1;
+  letter-spacing:-.05em;
+}
+
+.contact-notes{
+  margin:0 0 clamp(48px,7vw,76px);
+  padding:0 0 clamp(34px,5vw,48px);
+  border-bottom:1px solid rgba(54,80,113,.16);
+  font-size:clamp(15px,1.55vw,18px);
+  line-height:1.9;
+}
+
+.contact-notes p{margin:0 0 16px}
+.contact-notes p:last-child{margin-bottom:0}
+
+.contact-form{display:grid;gap:30px}
+.contact-field{display:grid;gap:10px}
+.contact-field label{font-size:15px;font-weight:800;letter-spacing:.01em}
+
+.contact-field input,
+.contact-field textarea{
+  width:100%;
+  border:1px solid rgba(54,80,113,.22);
+  border-radius:10px;
+  background:rgba(255,255,255,.82);
+  color:#10182a;
+  font:inherit;
+  font-size:16px;
+  line-height:1.65;
+  padding:15px 16px;
+  outline:none;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+
+.contact-field textarea{min-height:220px;resize:vertical}
+
+.contact-field input:focus,
+.contact-field textarea:focus{
+  border-color:rgba(16,24,42,.62);
+  background:#fff;
+  box-shadow:0 0 0 3px rgba(16,24,42,.06);
+}
+
+.contact-field-meta{
+  display:flex;
+  justify-content:flex-end;
+  font-size:12px;
+  color:#617084;
+}
+
+.contact-submit{
+  width:100%;
+  min-height:56px;
+  margin-top:4px;
+  border:0;
+  border-radius:10px;
+  background:#10182a;
+  color:#fff;
+  font-size:16px;
+  font-weight:850;
+  cursor:pointer;
+}
+
+.contact-submit:active{transform:translateY(1px)}
+
+.contact-status{
+  min-height:1.6em;
+  margin:0;
+  color:#617084;
+  font-size:14px;
+  line-height:1.6;
+}
+
+.contact-x{
+  display:inline-flex;
+  align-items:center;
+  margin-top:clamp(52px,7vw,80px);
+  padding-bottom:5px;
+  border-bottom:1px solid currentColor;
+  font-size:17px;
+  font-weight:850;
+  letter-spacing:-.01em;
+}
+
+@media(max-width:760px){
+  .contact-main{padding-top:56px}
+  .contact-wrap>h1{margin-bottom:40px}
+  .contact-form{gap:26px}
+  .contact-field textarea{min-height:190px}
+}
