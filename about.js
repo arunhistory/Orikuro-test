@@ -12,6 +12,12 @@ if(businessLink){
   businessLink.removeAttribute('data-placeholder-link');
 }
 
+const contactLinks=[...document.querySelectorAll('a[data-placeholder-link]')].filter(link=>link.textContent.trim()==='お問い合わせ');
+contactLinks.forEach(link=>{
+  link.href='./contact.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
