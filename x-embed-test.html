@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>X Embed Test</title>
+  <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 16px}pre{white-space:pre-wrap;background:#f5f5f5;padding:12px}.ok{color:green}.ng{color:#b00020}</style>
+</head>
+<body>
+  <h1>X Embed Test</h1>
+  <div id="status">loading…</div>
+  <div id="timeline">
+    <a class="twitter-timeline" data-height="520" data-dnt="true" href="https://x.com/orikuro_2027">Posts by @orikuro_2027</a>
+  </div>
+  <pre id="log"></pre>
+  <script>
+    const log=document.getElementById('log');
+    const status=document.getElementById('status');
+    const write=(m)=>{log.textContent+=m+'\n'};
+    window.addEventListener('error',e=>write('window error: '+(e.message||'unknown')));
+    const s=document.createElement('script');
+    s.src='https://platform.x.com/widgets.js';
+    s.async=true;
+    s.charset='utf-8';
+    s.onload=()=>{
+      write('widgets.js loaded');
+      write('twttr present: '+Boolean(window.twttr));
+      try{
+        if(window.twttr?.widgets?.load){
+          window.twttr.widgets.load(document.getElementById('timeline'));
+          write('widgets.load called');
+        }
+      }catch(e){write('widgets.load error: '+e.message)}
+      setTimeout(()=>{
+        const iframe=document.querySelector('#timeline iframe');
+        status.textContent=iframe?'iframe rendered':'iframe NOT rendered';
+        status.className=iframe?'ok':'ng';
+        write('iframe present: '+Boolean(iframe));
+      },2500);
+    };
+    s.onerror=()=>{status.textContent='widgets.js FAILED to load';status.className='ng';write('script onerror fired');};
+    document.head.appendChild(s);
+  </script>
+</body>
+</html>
