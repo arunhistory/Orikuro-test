@@ -7,6 +7,12 @@ faqLinks.forEach(link=>{
   link.removeAttribute('data-placeholder-link');
 });
 
+const termsLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='利用規約');
+termsLinks.forEach(link=>{
+  link.href='./terms.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
