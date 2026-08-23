@@ -1,6 +1,12 @@
 const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 
+const preregisterLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='事前登録');
+preregisterLinks.forEach(link=>{
+  link.href='./preregister.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const contactLinks=[...document.querySelectorAll('a[data-placeholder-link]')].filter(link=>link.textContent.trim()==='お問い合わせ');
 contactLinks.forEach(link=>{
   link.href='./contact.html';
