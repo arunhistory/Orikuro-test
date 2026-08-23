@@ -13,6 +13,12 @@ termsLinks.forEach(link=>{
   link.removeAttribute('data-placeholder-link');
 });
 
+const privacyLinks=[...document.querySelectorAll('a')].filter(link=>link.textContent.trim()==='プライバシーポリシー');
+privacyLinks.forEach(link=>{
+  link.href='./privacy.html';
+  link.removeAttribute('data-placeholder-link');
+});
+
 const closeMenu=()=>{
   menuButton?.classList.remove('is-open');
   mobileMenu?.classList.remove('is-open');
