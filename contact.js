@@ -1,7 +1,9 @@
 const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const form=document.querySelector('[data-contact-form]');
+const email=document.querySelector('#contact-email');
 const subject=document.querySelector('#contact-subject');
+const message=document.querySelector('#contact-message');
 const subjectCount=document.querySelector('[data-subject-count]');
 const status=document.querySelector('[data-contact-status]');
 
@@ -38,15 +40,27 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Escape') closeMenu();
 });
 
-const updateSubjectCount=()=>{
-  if(subjectCount && subject) subjectCount.textContent=`${subject.value.length}/20`;
+const requireText=field=>{
+  if(!field) return;
+  field.setCustomValidity(field.value.trim()?'':'この項目は必須です。');
 };
-subject?.addEventListener('input',updateSubjectCount);
-updateSubjectCount();
+
+const updateSubject=()=>{
+  if(subjectCount && subject) subjectCount.textContent=`${subject.value.length}/20`;
+  requireText(subject);
+};
+
+subject?.addEventListener('input',updateSubject);
+message?.addEventListener('input',()=>requireText(message));
+email?.addEventListener('input',()=>email.setCustomValidity(''));
+updateSubject();
+requireText(message);
 
 form?.addEventListener('submit',event=>{
   event.preventDefault();
   status.textContent='';
+  requireText(subject);
+  requireText(message);
 
   if(!form.checkValidity()){
     form.reportValidity();
