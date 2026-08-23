@@ -47,6 +47,11 @@ document.querySelectorAll('a[data-placeholder-link]').forEach(link=>{
     link.removeAttribute('data-placeholder-link');
     return;
   }
+  if(label==='Cookieポリシー'){
+    link.href='./cookie.html';
+    link.removeAttribute('data-placeholder-link');
+    return;
+  }
   if(label==='お問い合わせ'){
     link.href='./contact.html';
     link.removeAttribute('data-placeholder-link');
