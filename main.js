@@ -42,6 +42,11 @@ document.querySelectorAll('a[data-placeholder-link]').forEach(link=>{
     link.removeAttribute('data-placeholder-link');
     return;
   }
+  if(label==='プライバシーポリシー'){
+    link.href='./privacy.html';
+    link.removeAttribute('data-placeholder-link');
+    return;
+  }
   if(label==='お問い合わせ'){
     link.href='./contact.html';
     link.removeAttribute('data-placeholder-link');
