@@ -52,6 +52,11 @@ document.querySelectorAll('a[data-placeholder-link]').forEach(link=>{
     link.removeAttribute('data-placeholder-link');
     return;
   }
+  if(label==='運営者情報'){
+    link.href='./operator.html';
+    link.removeAttribute('data-placeholder-link');
+    return;
+  }
   if(label==='お問い合わせ'){
     link.href='./contact.html';
     link.removeAttribute('data-placeholder-link');
