@@ -40,7 +40,7 @@
   line-height:1.65;
   padding:15px 16px;
   outline:none;
-  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease,opacity .18s ease;
 }
 
 .contact-field textarea{min-height:220px;resize:vertical}
@@ -50,6 +50,13 @@
   border-color:rgba(16,24,42,.62);
   background:#fff;
   box-shadow:0 0 0 3px rgba(16,24,42,.06);
+}
+
+.contact-field.is-disabled input,
+.contact-field.is-disabled textarea{
+  opacity:.48;
+  background:rgba(225,231,239,.64);
+  cursor:not-allowed;
 }
 
 .contact-field-note{
@@ -64,6 +71,29 @@
   justify-content:flex-end;
   font-size:12px;
   color:#617084;
+}
+
+.contact-delete-option{
+  display:grid;
+  gap:10px;
+  padding:20px 22px;
+  border:1px solid rgba(180,35,24,.18);
+  border-radius:12px;
+  background:rgba(255,255,255,.72);
+}
+
+.contact-delete-check{
+  font-weight:850;
+  color:#8f1d15;
+}
+
+.contact-delete-mode-note{
+  margin:2px 0 0;
+  padding-top:12px;
+  border-top:1px solid rgba(180,35,24,.12);
+  color:#8f1d15;
+  font-size:13px;
+  line-height:1.7;
 }
 
 .contact-consents{
@@ -214,6 +244,7 @@
   .contact-wrap>h1{margin-bottom:40px}
   .contact-form{gap:26px}
   .contact-field textarea{min-height:190px}
+  .contact-delete-option{padding:18px}
   .contact-x{padding:18px}
   .contact-complete-main{padding-top:32px}
   .contact-complete-wrap>h1{font-size:clamp(30px,9vw,42px)}
