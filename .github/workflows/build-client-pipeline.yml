@@ -1,4 +1,4 @@
-# Client pipeline v2: A/B/C separation + integration + response
+# Client pipeline v3: production A/B/C separation + integration + response
 name: Build client submission pipeline
 
 on:
