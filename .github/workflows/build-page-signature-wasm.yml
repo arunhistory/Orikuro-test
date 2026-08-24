@@ -49,4 +49,5 @@ jobs:
             exit 0
           fi
           git commit -m 'Build page signature WASM'
+          git pull --rebase origin main
           git push
