@@ -4,6 +4,10 @@ const VERSION: u8 = 1;
 const ERROR_MARKER: u8 = 0xff;
 const SIGNATURE_LEN: usize = 32;
 
+const PAGE_PREREGISTER: u32 = 1;
+const PAGE_CONTACT: u32 = 2;
+const PAGE_TEST: u32 = 3;
+
 const PREREGISTER_SIGNATURE: [u8; SIGNATURE_LEN] = [
     149, 242, 234, 4, 116, 70, 202, 200, 187, 77, 202, 235, 241, 246, 220, 157,
     16, 239, 109, 121, 163, 251, 149, 231, 239, 26, 197, 248, 57, 204, 87, 67,
@@ -61,6 +65,34 @@ pub unsafe extern "C" fn signature_for_page(input_ptr: u32, input_len: u32) -> u
     out.push(VERSION);
     out.extend_from_slice(signature);
     return_buffer(out)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn page_for_signature(input_ptr: u32, input_len: u32) -> u32 {
+    if input_ptr == 0 || input_len as usize != SIGNATURE_LEN {
+        return 0;
+    }
+    let input = slice::from_raw_parts(input_ptr as *const u8, SIGNATURE_LEN);
+    if fixed_eq(input, &PREREGISTER_SIGNATURE) {
+        PAGE_PREREGISTER
+    } else if fixed_eq(input, &CONTACT_SIGNATURE) {
+        PAGE_CONTACT
+    } else if fixed_eq(input, &TEST_SIGNATURE) {
+        PAGE_TEST
+    } else {
+        0
+    }
+}
+
+fn fixed_eq(a: &[u8], b: &[u8; SIGNATURE_LEN]) -> bool {
+    if a.len() != SIGNATURE_LEN {
+        return false;
+    }
+    let mut diff = 0u8;
+    for i in 0..SIGNATURE_LEN {
+        diff |= a[i] ^ b[i];
+    }
+    diff == 0
 }
 
 fn error(code: u8) -> Vec<u8> {
