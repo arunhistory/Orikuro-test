@@ -52,7 +52,7 @@
 
       <section class="menu-group">
         <p class="menu-group-label">参加する</p>
-        <a href="#" data-placeholder-link>事前登録</a>
+        <a href="./preregister.html">事前登録</a>
         <a href="#" data-placeholder-link>クラウドファンディング</a>
       </section>
 
@@ -76,7 +76,7 @@
         <p>XのDMにてもお問い合わせ受付けしております。</p>
       </div>
 
-      <form class="contact-form" data-contact-form action="./contact-complete.html" method="get">
+      <form class="contact-form" data-contact-form novalidate>
         <div class="contact-field">
           <label for="contact-email">メール</label>
           <input id="contact-email" name="email" type="email" autocomplete="email" inputmode="email" required />
@@ -106,7 +106,7 @@
           </label>
         </div>
 
-        <button class="contact-submit" type="submit">送信</button>
+        <button class="contact-submit" type="submit" disabled>送信</button>
         <p class="contact-status" role="status" aria-live="polite" data-contact-status></p>
       </form>
 
@@ -124,8 +124,8 @@
     <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
     <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
     <nav class="footer-links" aria-label="フッターリンク">
-      <a href="#" data-placeholder-link>利用規約</a>
-      <a href="#" data-placeholder-link>プライバシーポリシー</a>
+      <a href="./terms.html">利用規約</a>
+      <a href="./privacy.html">プライバシーポリシー</a>
       <a href="./cookie.html">Cookieポリシー</a>
       <a href="#" data-placeholder-link>運営者情報</a>
       <a href="./contact.html" aria-current="page">お問い合わせ</a>
@@ -133,6 +133,7 @@
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./contact-submit.js?v=20260823-2026"></script>
+  <script src="./contact-submit.js?v=20260824-prod"></script>
+  <script type="module" src="./assets/js/input-router.js?v=20260824-prod"></script>
 </body>
 </html>
