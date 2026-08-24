@@ -26,7 +26,7 @@ const PAGE_CONFIG: Record<PageKind, {
   contact: {
     formSelector: '[data-contact-form]',
     statusSelector: '[data-contact-status]',
-    allowedNames: ['email', 'subject', 'message', 'terms', 'privacy'],
+    allowedNames: ['email', 'deletePreregisterEmail', 'subject', 'message', 'terms', 'privacy'],
   },
   test: {
     formSelector: '[data-test-form]',
@@ -80,6 +80,15 @@ function collectOtherInput(form: HTMLFormElement, kind: PageKind): OtherInput {
   }
 
   if (kind === 'contact') {
+    const deletionMode = checkbox(form, 'deletePreregisterEmail');
+    if (deletionMode) {
+      return Object.freeze({
+        deletePreregisterEmail: true,
+        terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
+        privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
+      });
+    }
+
     const subject = text(form, 'subject');
     const message = text(form, 'message');
     if (!subject || subject.length > 20) throw new Error('件名は1〜20文字で入力してください。');
