@@ -27,6 +27,7 @@ const JUNK_LOCAL_PARTS: &[&str] = &[
     "asdf", "asdfgh", "zxcv", "zxcvbn",
 ];
 
+#[link(wasm_import_module = "env")]
 extern "C" {
     fn oc_random_fill(ptr: u32, len: u32) -> i32;
 }
