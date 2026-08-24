@@ -1,6 +1,7 @@
 const WASM_URL = new URL('./email_stage1.wasm', import.meta.url);
 
 let wasmPromise;
+let wasmExports;
 
 const ERROR_MESSAGES = Object.freeze({
   1: 'メールアドレスを入力してください。',
@@ -22,6 +23,23 @@ export class EmailStage1Error extends Error {
   }
 }
 
+function imports() {
+  return {
+    env: {
+      oc_random_fill(ptr, len) {
+        try {
+          if (!wasmExports?.memory || !globalThis.crypto?.getRandomValues) return -1;
+          const view = new Uint8Array(wasmExports.memory.buffer, ptr, len);
+          crypto.getRandomValues(view);
+          return 0;
+        } catch {
+          return -1;
+        }
+      },
+    },
+  };
+}
+
 async function loadWasm() {
   if (!wasmPromise) {
     wasmPromise = (async () => {
@@ -30,18 +48,22 @@ async function loadWasm() {
         throw new Error(`email stage1 wasm load failed: ${response.status}`);
       }
 
+      let instance;
       if (WebAssembly.instantiateStreaming) {
         try {
-          const { instance } = await WebAssembly.instantiateStreaming(response.clone(), {});
-          return instance.exports;
+          ({ instance } = await WebAssembly.instantiateStreaming(response.clone(), imports()));
         } catch {
           // GitHub Pages/CDN側のMIME差異があってもArrayBuffer経由で継続する。
         }
       }
 
-      const bytes = await response.arrayBuffer();
-      const { instance } = await WebAssembly.instantiate(bytes, {});
-      return instance.exports;
+      if (!instance) {
+        const bytes = await response.arrayBuffer();
+        ({ instance } = await WebAssembly.instantiate(bytes, imports()));
+      }
+
+      wasmExports = instance.exports;
+      return wasmExports;
     })();
   }
   return wasmPromise;
@@ -73,9 +95,6 @@ export async function processEmailStage1(email) {
   if (typeof email !== 'string') {
     throw new TypeError('email must be a string');
   }
-  if (!globalThis.crypto?.getRandomValues) {
-    throw new Error('secure random source is unavailable');
-  }
 
   const wasm = await loadWasm();
   if (!wasm.memory || !wasm.alloc || !wasm.dealloc || !wasm.process_email) {
@@ -83,48 +102,44 @@ export async function processEmailStage1(email) {
   }
 
   const input = new TextEncoder().encode(email);
-  const nonce = crypto.getRandomValues(new Uint8Array(16));
   const inputPtr = input.length ? wasm.alloc(input.length) : 0;
-  const noncePtr = wasm.alloc(nonce.length);
 
-  if ((input.length && !inputPtr) || !noncePtr) {
-    if (inputPtr) wasm.dealloc(inputPtr, input.length);
-    if (noncePtr) wasm.dealloc(noncePtr, nonce.length);
+  if (input.length && !inputPtr) {
     throw new Error('email stage1 wasm allocation failed');
   }
 
   try {
-    let memory = new Uint8Array(wasm.memory.buffer);
-    if (input.length) memory.set(input, inputPtr);
-    memory.set(nonce, noncePtr);
+    if (input.length) {
+      const memory = new Uint8Array(wasm.memory.buffer);
+      memory.set(input, inputPtr);
+    }
 
-    const packed = wasm.process_email(inputPtr, input.length, noncePtr, nonce.length);
+    const packed = wasm.process_email(inputPtr, input.length);
     const { ptr, len } = unpackResult(packed);
     if (!ptr || !len) {
       throw new Error('email stage1 wasm produced an empty result');
     }
 
-    memory = new Uint8Array(wasm.memory.buffer);
+    const memory = new Uint8Array(wasm.memory.buffer);
     const result = memory.slice(ptr, ptr + len);
     wasm.dealloc(ptr, len);
 
     if (result[0] === 0xff) {
       throw new EmailStage1Error(result[1] || 0);
     }
-    if (result[0] !== 1) {
+    if (result[0] !== 2) {
       throw new Error('unsupported email stage1 payload version');
     }
 
     return Object.freeze({
-      version: 1,
+      version: 2,
       kind: 'email',
-      algorithm: 'oc-email-stage1-v1',
+      algorithm: 'oc-email-stage1-v2',
       payload: toBase64Url(result),
       payloadBytes: result.length,
     });
   } finally {
     if (inputPtr) wasm.dealloc(inputPtr, input.length);
-    wasm.dealloc(noncePtr, nonce.length);
   }
 }
 
