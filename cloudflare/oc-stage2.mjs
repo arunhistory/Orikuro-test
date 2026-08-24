@@ -3,6 +3,15 @@ const SUPABASE_ROUTER_URL = "https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/
 const MAX_BODY_BYTES = 16384;
 const STAGE2_ALGORITHM = "oc-email-stage2-double-v1";
 const LAYER_ALGORITHM = "RSA-OAEP-256+A256GCM";
+const STAGE2_PUBLIC_KEY_KID = "juLZWwM28kxjHOTZc3xCCnkTDwfvJ2QeBVwuMce9S7w";
+const STAGE2_PUBLIC_KEY_JWK = Object.freeze({
+  kty: "RSA",
+  n: "mgrIAuERRTnHlPVwqX0q01J7RAaP6RK_jXnJC7uUOLWfKQ9IbAzDkHZc0SNMl7Ifg5qEhcLw7uZ_NiwfSMrQDrP6Qhqm6f7MyLsoadJVz-7HvTjmsWy2Adzpu2BueO1FYxuCQe1Jfkl9-MkDGmQHcqR7g5yijM9gQwo9eLYPtHYJoTxok3fxmwymFGnxO33d9jfSmweS3e8gXO-a5-TktzvHqjV6TEl0hz8SH5ZWKQVzvTmDiQ79Ru8BiMmgMuUZM5wjKNwHYIkpBcxrcoN9NOJ6fpADR79XN1APi_efxb83ayMypyl6FFbG6lW3ljLnmQO1vXNtNyb3LRiSv71YHUt6jcix0JIBVxjyF82rH_tRibhN_acy7fGJrok_S1OpyWAXZC6lIhGgmo9goVLB3628gE5pxSUhiZQqlpmrzHavbYhVSPBfIBGeB8iFi7qR8JznjQp5xep0tQwiGuLH9kI92SE-oqgaj4T63o7MOovfqOP14dqLTKGJl0fHawkx",
+  e: "AQAB",
+  alg: "RSA-OAEP-256",
+  use: "enc",
+  kid: STAGE2_PUBLIC_KEY_KID,
+});
 const encoder = new TextEncoder();
 
 function cors(origin) {
@@ -52,28 +61,15 @@ function toBase64Url(value) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function publicKeyConfig(env) {
-  if (typeof env.OC_EMAIL_STAGE2_PUBLIC_KEY_JWK !== "string" || !env.OC_EMAIL_STAGE2_PUBLIC_KEY_JWK) {
-    throw new Error("OC_EMAIL_STAGE2_PUBLIC_KEY_JWK is unavailable");
+function publicKeyConfig() {
+  if (STAGE2_PUBLIC_KEY_JWK.kty !== "RSA" || typeof STAGE2_PUBLIC_KEY_JWK.n !== "string" || typeof STAGE2_PUBLIC_KEY_JWK.e !== "string") {
+    throw new Error("stage2 public key is invalid");
   }
-  if (typeof env.OC_EMAIL_STAGE2_PUBLIC_KEY_KID !== "string" || !env.OC_EMAIL_STAGE2_PUBLIC_KEY_KID) {
-    throw new Error("OC_EMAIL_STAGE2_PUBLIC_KEY_KID is unavailable");
-  }
-
-  let jwk;
-  try {
-    jwk = JSON.parse(env.OC_EMAIL_STAGE2_PUBLIC_KEY_JWK);
-  } catch {
-    throw new Error("OC_EMAIL_STAGE2_PUBLIC_KEY_JWK is invalid");
-  }
-  if (!isObject(jwk) || jwk.kty !== "RSA" || typeof jwk.n !== "string" || typeof jwk.e !== "string") {
-    throw new Error("OC_EMAIL_STAGE2_PUBLIC_KEY_JWK is not an RSA public key");
-  }
-  return { jwk, kid: env.OC_EMAIL_STAGE2_PUBLIC_KEY_KID };
+  return { jwk: STAGE2_PUBLIC_KEY_JWK, kid: STAGE2_PUBLIC_KEY_KID };
 }
 
-async function importStage2PublicKey(env) {
-  const { jwk, kid } = publicKeyConfig(env);
+async function importStage2PublicKey() {
+  const { jwk, kid } = publicKeyConfig();
   const key = await crypto.subtle.importKey(
     "jwk",
     jwk,
@@ -126,8 +122,8 @@ async function encryptLayer(data, publicKey, kid, layer) {
   }
 }
 
-async function encryptEmailTwice(email, env) {
-  const { key: publicKey, kid } = await importStage2PublicKey(env);
+async function encryptEmailTwice(email) {
+  const { key: publicKey, kid } = await importStage2PublicKey();
 
   const stage1Bytes = encoder.encode(JSON.stringify(email));
   const layer1 = await encryptLayer(stage1Bytes, publicKey, kid, 1);
@@ -164,15 +160,20 @@ export default {
     if (request.method === "GET" && url.pathname === "/health") {
       let cryptoReady = false;
       try {
-        publicKeyConfig(env);
+        await importStage2PublicKey();
         cryptoReady = true;
       } catch {}
       return reply(origin, 200, {
         ok: true,
         service: "oc-stage2",
-        version: 4,
+        version: 5,
         mode: "production",
-        emailEncryption: { layers: 2, algorithm: STAGE2_ALGORITHM, ready: cryptoReady },
+        emailEncryption: {
+          layers: 2,
+          algorithm: STAGE2_ALGORITHM,
+          kid: STAGE2_PUBLIC_KEY_KID,
+          ready: cryptoReady,
+        },
       });
     }
 
@@ -217,7 +218,7 @@ export default {
 
     let protectedEmail;
     try {
-      protectedEmail = await encryptEmailTwice(body.email, env);
+      protectedEmail = await encryptEmailTwice(body.email);
     } catch {
       return reply(origin, 500, { status: "system_error", signature, message: "メール保護処理を利用できません。" });
     }
