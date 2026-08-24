@@ -1,4 +1,4 @@
-# Client pipeline v4: production A/B/C separation + deletion flow
+# Client pipeline v5: production A/B/C separation + deletion flow
 name: Build client submission pipeline
 
 on:
@@ -11,6 +11,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: build-client-submission-pipeline-main
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -84,10 +88,26 @@ jobs:
             sha256sum "assets/js/${name}.js" > "assets/js/${name}.js.sha256"
           done
 
-      - name: Commit generated client scripts
+      - name: Publish generated client scripts on latest main
+        shell: bash
         run: |
+          set -euo pipefail
+          mkdir -p /tmp/oc-generated-client
+          cp assets/js/input-router.js assets/js/input-router.js.sha256 \
+             assets/js/b-verify.js assets/js/b-verify.js.sha256 \
+             assets/js/cloudflare-submit.js assets/js/cloudflare-submit.js.sha256 \
+             assets/js/response-router.js assets/js/response-router.js.sha256 \
+             assets/js/contact-mode.js assets/js/contact-mode.js.sha256 \
+             assets/js/email-delete.js assets/js/email-delete.js.sha256 \
+             assets/js/email-delete-not-registered.js assets/js/email-delete-not-registered.js.sha256 \
+             /tmp/oc-generated-client/
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git reset --hard origin/main
+          cp /tmp/oc-generated-client/* assets/js/
+
           git add assets/js/input-router.js assets/js/input-router.js.sha256 \
                   assets/js/b-verify.js assets/js/b-verify.js.sha256 \
                   assets/js/cloudflare-submit.js assets/js/cloudflare-submit.js.sha256 \
@@ -100,5 +120,4 @@ jobs:
             exit 0
           fi
           git commit -m 'Build minified obfuscated client submission scripts'
-          git pull --rebase origin main
-          git push
+          git push origin HEAD:main
