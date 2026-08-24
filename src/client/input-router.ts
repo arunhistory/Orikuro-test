@@ -1,10 +1,11 @@
 import { processEmailStage1 } from '../../assets/wasm/email-stage1.js';
 import { createPageSignature } from '../../assets/wasm/page-signature.js';
-import { submitPreparedSubmission } from './cloudflare-submit.js';
+import { verifyOtherInputWithSupabase } from './b-verify.js';
+import { submitIntegratedSubmission } from './cloudflare-submit.js';
 import { handleFinalResponse, renderPipelineError } from './response-router.js';
 
 type PageKind = 'preregister' | 'contact' | 'test';
-type OtherInput = Record<string, string | boolean>;
+type OtherInput = Readonly<Record<string, string | boolean>>;
 
 type PreparedSubmission = Readonly<{
   email: Readonly<{ version: number; kind: string; algorithm: string; payload: string; payloadBytes: number }>;
@@ -72,10 +73,10 @@ function requireConsent(value: boolean, label: string): true {
 
 function collectOtherInput(form: HTMLFormElement, kind: PageKind): OtherInput {
   if (kind === 'preregister') {
-    return {
+    return Object.freeze({
       privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
       terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
-    };
+    });
   }
 
   if (kind === 'contact') {
@@ -83,37 +84,49 @@ function collectOtherInput(form: HTMLFormElement, kind: PageKind): OtherInput {
     const message = text(form, 'message');
     if (!subject || subject.length > 20) throw new Error('件名は1〜20文字で入力してください。');
     if (!message || message.length > 1000) throw new Error('お問い合わせ内容は1〜1000文字で入力してください。');
-    return {
+    return Object.freeze({
       subject,
       message,
       terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
       privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
-    };
+    });
   }
 
-  return {
+  return Object.freeze({
     terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
     privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
     cookie: requireConsent(checkbox(form, 'cookie'), 'Cookieポリシー'),
-  };
+  });
 }
 
-export async function prepareSubmission(form: HTMLFormElement, pathname = location.pathname): Promise<PreparedSubmission> {
+export async function prepareSubmission(
+  form: HTMLFormElement,
+  pathname = location.pathname,
+): Promise<PreparedSubmission> {
   const kind = pageKindFromPath(pathname);
   exactFormKeys(form, PAGE_CONFIG[kind].allowedNames);
 
   const emailValue = text(form, 'email');
   if (!emailValue) throw new Error('メールアドレスを入力してください。');
 
-  const other = collectOtherInput(form, kind);
+  const otherInput = collectOtherInput(form, kind);
+
+  // A（メール）とC（電子署名）は独立処理。
   const [email, pageSignature] = await Promise.all([
     processEmailStage1(emailValue),
     createPageSignature(pathname),
   ]);
 
+  // Bはその他入力値をSupabaseへ確認し、Trueの場合のみ次へ進む。
+  const verified = await verifyOtherInputWithSupabase(otherInput, pageSignature.signature);
+  if (verified !== true) {
+    throw new Error('入力内容の確認に失敗しました。');
+  }
+
+  // Bは値を書き換えない。True確認済みの元入力値をA/Cと統合する。
   return Object.freeze({
     email,
-    input: Object.freeze(other),
+    input: otherInput,
     signature: pageSignature.signature,
   });
 }
@@ -145,7 +158,7 @@ export function bindCurrentSubmissionForm(): void {
 
     try {
       const prepared = await prepareSubmission(form);
-      const finalResponse = await submitPreparedSubmission(prepared);
+      const finalResponse = await submitIntegratedSubmission(prepared);
       await handleFinalResponse(prepared.signature, finalResponse, status);
     } catch (error) {
       renderPipelineError(error, status);
