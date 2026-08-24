@@ -1,0 +1,161 @@
+import { processEmailStage1 } from '../../assets/wasm/email-stage1.js';
+import { createPageSignature } from '../../assets/wasm/page-signature.js';
+import { submitPreparedSubmission } from './cloudflare-submit.js';
+import { handleFinalResponse, renderPipelineError } from './response-router.js';
+
+type PageKind = 'preregister' | 'contact' | 'test';
+type OtherInput = Record<string, string | boolean>;
+
+type PreparedSubmission = Readonly<{
+  email: Readonly<{ version: number; kind: string; algorithm: string; payload: string; payloadBytes: number }>;
+  input: OtherInput;
+  signature: string;
+}>;
+
+const PAGE_CONFIG: Record<PageKind, {
+  formSelector: string;
+  statusSelector: string;
+  allowedNames: readonly string[];
+}> = {
+  preregister: {
+    formSelector: '[data-preregister-form]',
+    statusSelector: '[data-preregister-status]',
+    allowedNames: ['email', 'privacy', 'terms'],
+  },
+  contact: {
+    formSelector: '[data-contact-form]',
+    statusSelector: '[data-contact-status]',
+    allowedNames: ['email', 'subject', 'message', 'terms', 'privacy'],
+  },
+  test: {
+    formSelector: '[data-test-form]',
+    statusSelector: '[data-test-status]',
+    allowedNames: ['email', 'terms', 'privacy', 'cookie'],
+  },
+};
+
+function pageKindFromPath(pathname: string): PageKind {
+  const file = pathname.split('/').filter(Boolean).at(-1) || '';
+  if (file === 'preregister.html') return 'preregister';
+  if (file === 'contact.html') return 'contact';
+  if (file === 'test.html') return 'test';
+  throw new Error('このページからの送信には対応していません。');
+}
+
+function exactFormKeys(form: HTMLFormElement, allowed: readonly string[]): void {
+  const keys = [...new Set(Array.from(new FormData(form).keys()))];
+  for (const key of keys) {
+    if (!allowed.includes(key)) throw new Error('許可されていない入力項目が含まれています。');
+  }
+}
+
+function checkbox(form: HTMLFormElement, name: string): boolean {
+  const field = form.elements.namedItem(name);
+  if (!(field instanceof HTMLInputElement) || field.type !== 'checkbox') {
+    throw new Error(`入力項目 ${name} が正しくありません。`);
+  }
+  return field.checked;
+}
+
+function text(form: HTMLFormElement, name: string): string {
+  const field = form.elements.namedItem(name);
+  if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) {
+    throw new Error(`入力項目 ${name} が正しくありません。`);
+  }
+  return field.value.trim();
+}
+
+function requireConsent(value: boolean, label: string): true {
+  if (!value) throw new Error(`${label}への同意が必要です。`);
+  return true;
+}
+
+function collectOtherInput(form: HTMLFormElement, kind: PageKind): OtherInput {
+  if (kind === 'preregister') {
+    return {
+      privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
+      terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
+    };
+  }
+
+  if (kind === 'contact') {
+    const subject = text(form, 'subject');
+    const message = text(form, 'message');
+    if (!subject || subject.length > 20) throw new Error('件名は1〜20文字で入力してください。');
+    if (!message || message.length > 1000) throw new Error('お問い合わせ内容は1〜1000文字で入力してください。');
+    return {
+      subject,
+      message,
+      terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
+      privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
+    };
+  }
+
+  return {
+    terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
+    privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
+    cookie: requireConsent(checkbox(form, 'cookie'), 'Cookieポリシー'),
+  };
+}
+
+export async function prepareSubmission(form: HTMLFormElement, pathname = location.pathname): Promise<PreparedSubmission> {
+  const kind = pageKindFromPath(pathname);
+  exactFormKeys(form, PAGE_CONFIG[kind].allowedNames);
+
+  const emailValue = text(form, 'email');
+  if (!emailValue) throw new Error('メールアドレスを入力してください。');
+
+  const other = collectOtherInput(form, kind);
+  const [email, pageSignature] = await Promise.all([
+    processEmailStage1(emailValue),
+    createPageSignature(pathname),
+  ]);
+
+  return Object.freeze({
+    email,
+    input: Object.freeze(other),
+    signature: pageSignature.signature,
+  });
+}
+
+export function bindCurrentSubmissionForm(): void {
+  let kind: PageKind;
+  try {
+    kind = pageKindFromPath(location.pathname);
+  } catch {
+    return;
+  }
+
+  const config = PAGE_CONFIG[kind];
+  const form = document.querySelector<HTMLFormElement>(config.formSelector);
+  const status = document.querySelector<HTMLElement>(config.statusSelector);
+  if (!form) return;
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit?.disabled) return;
+    if (status) status.textContent = '送信内容を確認しています。';
+    if (submit) submit.disabled = true;
+
+    try {
+      const prepared = await prepareSubmission(form);
+      const finalResponse = await submitPreparedSubmission(prepared);
+      await handleFinalResponse(prepared.signature, finalResponse, status);
+    } catch (error) {
+      renderPipelineError(error, status);
+      if (submit) submit.disabled = false;
+    }
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindCurrentSubmissionForm, { once: true });
+} else {
+  bindCurrentSubmissionForm();
+}
