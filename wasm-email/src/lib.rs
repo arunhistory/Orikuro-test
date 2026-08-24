@@ -1,11 +1,11 @@
 use sha2::{Digest, Sha256};
 use std::{ptr, slice, str};
 
-const VERSION: u8 = 1;
+const VERSION: u8 = 2;
 const ERROR_MARKER: u8 = 0xff;
 const NONCE_LEN: usize = 16;
-const CONTEXT_MASK: &[u8] = b"OC/STAGE1/EMAIL/V1/MASK";
-const CONTEXT_DIGEST: &[u8] = b"OC/STAGE1/EMAIL/V1/DIGEST";
+const CONTEXT_MASK: &[u8] = b"OC/STAGE1/EMAIL/V2/MASK";
+const CONTEXT_DIGEST: &[u8] = b"OC/STAGE1/EMAIL/V2/DIGEST";
 
 const DISPOSABLE_DOMAINS: &[&str] = &[
     "10minutemail.com",
@@ -26,6 +26,10 @@ const JUNK_LOCAL_PARTS: &[&str] = &[
     "asdf", "asdfgh", "zxcv", "zxcvbn",
 ];
 
+extern "C" {
+    fn oc_random_fill(ptr: u32, len: u32) -> i32;
+}
+
 #[no_mangle]
 pub extern "C" fn alloc(len: u32) -> u32 {
     if len == 0 {
@@ -45,22 +49,12 @@ pub unsafe extern "C" fn dealloc(ptr: u32, len: u32) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn process_email(
-    input_ptr: u32,
-    input_len: u32,
-    nonce_ptr: u32,
-    nonce_len: u32,
-) -> u64 {
+pub unsafe extern "C" fn process_email(input_ptr: u32, input_len: u32) -> u64 {
     if input_ptr == 0 || input_len == 0 {
         return return_buffer(error(1));
     }
-    if nonce_ptr == 0 || nonce_len as usize != NONCE_LEN {
-        return return_buffer(error(9));
-    }
 
     let input = slice::from_raw_parts(input_ptr as *const u8, input_len as usize);
-    let nonce = slice::from_raw_parts(nonce_ptr as *const u8, NONCE_LEN);
-
     let raw = match str::from_utf8(input) {
         Ok(value) => value,
         Err(_) => return return_buffer(error(3)),
@@ -71,14 +65,19 @@ pub unsafe extern "C" fn process_email(
         Err(code) => return return_buffer(error(code)),
     };
 
+    let mut nonce = [0u8; NONCE_LEN];
+    if oc_random_fill(nonce.as_mut_ptr() as u32, NONCE_LEN as u32) != 0 {
+        return return_buffer(error(9));
+    }
+
     let bytes = normalized.as_bytes();
-    let digest = digest_email(nonce, bytes);
-    let masked = mask_email(nonce, bytes);
+    let digest = digest_email(&nonce, bytes);
+    let masked = mask_email(&nonce, bytes);
 
     let mut out = Vec::with_capacity(1 + 2 + NONCE_LEN + 32 + masked.len());
     out.push(VERSION);
     out.extend_from_slice(&(bytes.len() as u16).to_be_bytes());
-    out.extend_from_slice(nonce);
+    out.extend_from_slice(&nonce);
     out.extend_from_slice(&digest);
     out.extend_from_slice(&masked);
 
