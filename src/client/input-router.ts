@@ -111,19 +111,16 @@ export async function prepareSubmission(
 
   const otherInput = collectOtherInput(form, kind);
 
-  // A（メール）とC（電子署名）は独立処理。
   const [email, pageSignature] = await Promise.all([
     processEmailStage1(emailValue),
     createPageSignature(pathname),
   ]);
 
-  // Bはその他入力値をSupabaseへ確認し、Trueの場合のみ次へ進む。
   const verified = await verifyOtherInputWithSupabase(otherInput, pageSignature.signature);
   if (verified !== true) {
     throw new Error('入力内容の確認に失敗しました。');
   }
 
-  // Bは値を書き換えない。True確認済みの元入力値をA/Cと統合する。
   return Object.freeze({
     email,
     input: otherInput,
@@ -144,6 +141,10 @@ export function bindCurrentSubmissionForm(): void {
   const status = document.querySelector<HTMLElement>(config.statusSelector);
   if (!form) return;
 
+  const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (submitButton) submitButton.disabled = false;
+  form.dataset.productionPipeline = 'ready';
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!form.checkValidity()) {
@@ -158,6 +159,7 @@ export function bindCurrentSubmissionForm(): void {
 
     try {
       const prepared = await prepareSubmission(form);
+      if (status) status.textContent = '送信しています。';
       const finalResponse = await submitIntegratedSubmission(prepared);
       await handleFinalResponse(prepared.signature, finalResponse, status);
     } catch (error) {
