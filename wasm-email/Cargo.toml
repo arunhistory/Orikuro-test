@@ -1,6 +1,6 @@
 [package]
 name = "oc_email_stage1"
-version = "0.2.0"
+version = "0.1.0"
 edition = "2021"
 publish = false
 
@@ -8,10 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-rsa = { version = "=0.9.8", default-features = false }
-sha2 = { version = "=0.10.9", features = ["oid"] }
-rand_core = "=0.6.4"
-base64ct = { version = "=1.8.0", features = ["alloc"] }
+sha2 = "=0.11.0"
 
 [profile.release]
 opt-level = "z"
