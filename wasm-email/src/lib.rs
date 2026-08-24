@@ -1,6 +1,7 @@
 use sha2::{Digest, Sha256};
 use std::{ptr, slice, str};
 
+// Application input is intentionally limited to the email address only.
 const VERSION: u8 = 2;
 const ERROR_MARKER: u8 = 0xff;
 const NONCE_LEN: usize = 16;
