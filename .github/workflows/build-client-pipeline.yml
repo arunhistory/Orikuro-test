@@ -91,4 +91,5 @@ jobs:
             exit 0
           fi
           git commit -m 'Build minified obfuscated client submission scripts'
+          git pull --rebase origin main
           git push
