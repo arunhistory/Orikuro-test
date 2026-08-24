@@ -1,6 +1,7 @@
 const ALLOWED_ORIGIN = "https://arunhistory.github.io";
 const SUPABASE_ROUTER_URL = "https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/submission-router";
 const MAX_BODY_BYTES = 16384;
+const STAGE1_ALGORITHM = "oc-email-stage1-a-rsa-v1";
 const STAGE2_ALGORITHM = "oc-email-stage2-double-v1";
 const LAYER_ALGORITHM = "RSA-OAEP-256+A256GCM";
 const STAGE2_PUBLIC_KEY_KID = "juLZWwM28kxjHOTZc3xCCnkTDwfvJ2QeBVwuMce9S7w";
@@ -44,7 +45,7 @@ function validEnvelope(body) {
   if (!isObject(body) || !exactKeys(body, ["email", "input", "signature"])) return false;
   if (!isObject(body.email) || !isObject(body.input) || typeof body.signature !== "string") return false;
   if (!exactKeys(body.email, ["version", "kind", "algorithm", "payload", "payloadBytes"])) return false;
-  if (body.email.version !== 2 || body.email.kind !== "email" || body.email.algorithm !== "oc-email-stage1-v2") return false;
+  if (body.email.version !== 3 || body.email.kind !== "email" || body.email.algorithm !== STAGE1_ALGORITHM) return false;
   if (typeof body.email.payload !== "string" || body.email.payload.length < 1) return false;
   if (!Number.isInteger(body.email.payloadBytes) || body.email.payloadBytes < 1) return false;
   if (!/^[A-Za-z0-9_-]{43}$/.test(body.signature)) return false;
@@ -55,29 +56,19 @@ function toBase64Url(value) {
   const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
   let binary = "";
   const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
+  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function publicKeyConfig() {
-  if (STAGE2_PUBLIC_KEY_JWK.kty !== "RSA" || typeof STAGE2_PUBLIC_KEY_JWK.n !== "string" || typeof STAGE2_PUBLIC_KEY_JWK.e !== "string") {
-    throw new Error("stage2 public key is invalid");
-  }
-  return { jwk: STAGE2_PUBLIC_KEY_JWK, kid: STAGE2_PUBLIC_KEY_KID };
-}
-
 async function importStage2PublicKey() {
-  const { jwk, kid } = publicKeyConfig();
   const key = await crypto.subtle.importKey(
     "jwk",
-    jwk,
+    STAGE2_PUBLIC_KEY_JWK,
     { name: "RSA-OAEP", hash: "SHA-256" },
     false,
     ["encrypt"],
   );
-  return { key, kid };
+  return { key, kid: STAGE2_PUBLIC_KEY_KID };
 }
 
 async function encryptLayer(data, publicKey, kid, layer) {
@@ -87,25 +78,13 @@ async function encryptLayer(data, publicKey, kid, layer) {
   const aad = encoder.encode(aadText);
 
   try {
-    const aesKey = await crypto.subtle.importKey(
-      "raw",
-      dek,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt"],
-    );
-
+    const aesKey = await crypto.subtle.importKey("raw", dek, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
     const ciphertext = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv, additionalData: aad, tagLength: 128 },
       aesKey,
       data,
     );
-
-    const wrappedKey = await crypto.subtle.encrypt(
-      { name: "RSA-OAEP" },
-      publicKey,
-      dek,
-    );
+    const wrappedKey = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, publicKey, dek);
 
     return Object.freeze({
       version: 1,
@@ -124,7 +103,6 @@ async function encryptLayer(data, publicKey, kid, layer) {
 
 async function encryptEmailTwice(email) {
   const { key: publicKey, kid } = await importStage2PublicKey();
-
   const stage1Bytes = encoder.encode(JSON.stringify(email));
   const layer1 = await encryptLayer(stage1Bytes, publicKey, kid, 1);
   stage1Bytes.fill(0);
@@ -138,13 +116,7 @@ async function encryptEmailTwice(email) {
   const payloadBytes = outerBytes.byteLength;
   outerBytes.fill(0);
 
-  return Object.freeze({
-    version: 3,
-    kind: "email",
-    algorithm: STAGE2_ALGORITHM,
-    payload,
-    payloadBytes,
-  });
+  return Object.freeze({ version: 3, kind: "email", algorithm: STAGE2_ALGORITHM, payload, payloadBytes });
 }
 
 export default {
@@ -159,28 +131,20 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/health") {
       let cryptoReady = false;
-      try {
-        await importStage2PublicKey();
-        cryptoReady = true;
-      } catch {}
+      try { await importStage2PublicKey(); cryptoReady = true; } catch {}
       return reply(origin, 200, {
         ok: true,
         service: "oc-stage2",
-        version: 5,
+        version: 6,
         mode: "production",
-        emailEncryption: {
-          layers: 2,
-          algorithm: STAGE2_ALGORITHM,
-          kid: STAGE2_PUBLIC_KEY_KID,
-          ready: cryptoReady,
-        },
+        inputEncryption: STAGE1_ALGORITHM,
+        emailEncryption: { layers: 2, algorithm: STAGE2_ALGORITHM, kid: STAGE2_PUBLIC_KEY_KID, ready: cryptoReady },
       });
     }
 
     if (request.method !== "POST" || url.pathname !== "/v1/process") {
       return reply(origin, 405, { status: "rejected", signature: "", message: "許可されていない通信です。" });
     }
-
     if (origin !== ALLOWED_ORIGIN) {
       return reply(origin, 403, { status: "rejected", signature: "", message: "送信元を確認できません。" });
     }
@@ -201,11 +165,8 @@ export default {
     }
 
     let body;
-    try {
-      body = JSON.parse(text);
-    } catch {
-      return reply(origin, 400, { status: "rejected_schema", signature: "", message: "送信内容の形式が正しくありません。" });
-    }
+    try { body = JSON.parse(text); }
+    catch { return reply(origin, 400, { status: "rejected_schema", signature: "", message: "送信内容の形式が正しくありません。" }); }
 
     const signature = isObject(body) && typeof body.signature === "string" ? body.signature : "";
     if (!validEnvelope(body)) {
@@ -217,27 +178,15 @@ export default {
     }
 
     let protectedEmail;
-    try {
-      protectedEmail = await encryptEmailTwice(body.email);
-    } catch {
-      return reply(origin, 500, { status: "system_error", signature, message: "メール保護処理を利用できません。" });
-    }
-
-    const protectedBody = {
-      email: protectedEmail,
-      input: body.input,
-      signature: body.signature,
-    };
+    try { protectedEmail = await encryptEmailTwice(body.email); }
+    catch { return reply(origin, 500, { status: "system_error", signature, message: "メール保護処理を利用できません。" }); }
 
     let upstream;
     try {
       upstream = await fetch(SUPABASE_ROUTER_URL, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-oc-router-secret": env.OC_SUBMISSION_ROUTER_SECRET,
-        },
-        body: JSON.stringify(protectedBody),
+        headers: { "content-type": "application/json", "x-oc-router-secret": env.OC_SUBMISSION_ROUTER_SECRET },
+        body: JSON.stringify({ email: protectedEmail, input: body.input, signature: body.signature }),
       });
     } catch {
       return reply(origin, 502, { status: "system_error", signature, message: "保存処理との通信に失敗しました。" });
@@ -245,11 +194,8 @@ export default {
 
     const upstreamText = await upstream.text();
     let payload;
-    try {
-      payload = JSON.parse(upstreamText);
-    } catch {
-      return reply(origin, 502, { status: "system_error", signature, message: "保存処理から不正な応答を受信しました。" });
-    }
+    try { payload = JSON.parse(upstreamText); }
+    catch { return reply(origin, 502, { status: "system_error", signature, message: "保存処理から不正な応答を受信しました。" }); }
 
     return reply(origin, upstream.status, payload);
   },
