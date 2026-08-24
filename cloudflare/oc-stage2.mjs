@@ -1,5 +1,6 @@
 const ALLOWED_ORIGIN = "https://arunhistory.github.io";
 const SUPABASE_ROUTER_URL = "https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/submission-router";
+const SUPABASE_DELETE_REQUEST_URL = "https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/preregister-delete-request";
 const MAX_BODY_BYTES = 16384;
 const STAGE1_ALGORITHM = "oc-email-stage1-a-rsa-v1";
 const STAGE2_ALGORITHM = "oc-email-stage2-double-v1";
@@ -135,7 +136,7 @@ export default {
       return reply(origin, 200, {
         ok: true,
         service: "oc-stage2",
-        version: 6,
+        version: 7,
         mode: "production",
         inputEncryption: STAGE1_ALGORITHM,
         emailEncryption: { layers: 2, algorithm: STAGE2_ALGORITHM, kid: STAGE2_PUBLIC_KEY_KID, ready: cryptoReady },
@@ -181,9 +182,12 @@ export default {
     try { protectedEmail = await encryptEmailTwice(body.email); }
     catch { return reply(origin, 500, { status: "system_error", signature, message: "メール保護処理を利用できません。" }); }
 
+    const isDeletionRequest = body.input.deletePreregisterEmail === true;
+    const upstreamUrl = isDeletionRequest ? SUPABASE_DELETE_REQUEST_URL : SUPABASE_ROUTER_URL;
+
     let upstream;
     try {
-      upstream = await fetch(SUPABASE_ROUTER_URL, {
+      upstream = await fetch(upstreamUrl, {
         method: "POST",
         headers: { "content-type": "application/json", "x-oc-router-secret": env.OC_SUBMISSION_ROUTER_SECRET },
         body: JSON.stringify({ email: protectedEmail, input: body.input, signature: body.signature }),
