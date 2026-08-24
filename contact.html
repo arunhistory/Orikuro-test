@@ -7,7 +7,7 @@
   <meta name="description" content="Original Create Project お問い合わせ" />
   <title>お問い合わせ | Original Create Project</title>
   <link rel="stylesheet" href="./business.css?v=20260823-0939" />
-  <link rel="stylesheet" href="./contact.css?v=20260823-1933" />
+  <link rel="stylesheet" href="./contact.css?v=20260825-delete1" />
   <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
   <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
@@ -83,6 +83,15 @@
           <p class="contact-field-note">使い捨てメールアドレス・適当な文字列での入力は禁止です。</p>
         </div>
 
+        <div class="contact-delete-option">
+          <label class="contact-check contact-delete-check">
+            <input type="checkbox" name="deletePreregisterEmail" data-preregister-delete-request />
+            <span>事前登録メールアドレスを削除する</span>
+          </label>
+          <p class="contact-field-note">削除申請にチェックした場合、件名・内容は入力できません。</p>
+          <p class="contact-delete-mode-note" data-delete-mode-note hidden>入力したメールアドレス宛に確認用URLを送信します。URLの有効期限は発行から30分です。</p>
+        </div>
+
         <div class="contact-field">
           <label for="contact-subject">件名（20文字以内）</label>
           <input id="contact-subject" name="subject" type="text" maxlength="20" required />
@@ -134,6 +143,7 @@
   </footer>
 
   <script src="./contact-submit.js?v=20260824-prod"></script>
-  <script type="module" src="./assets/js/input-router.js?v=20260824-prod"></script>
+  <script type="module" src="./assets/js/contact-mode.js?v=20260825-delete1"></script>
+  <script type="module" src="./assets/js/input-router.js?v=20260825-delete1"></script>
 </body>
 </html>
