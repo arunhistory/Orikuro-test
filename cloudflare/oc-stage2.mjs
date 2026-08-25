@@ -240,7 +240,7 @@ export default {
 
     const text = await request.text();
     if (encoder.encode(text).byteLength > MAX_BODY_BYTES) {
-      return reply(origin, 413, { status: "rejected_schema", signature, message: "送信内容が大きすぎます。" });
+      return reply(origin, 413, { status: "rejected_schema", signature: "", message: "送信内容が大きすぎます。" });
     }
 
     let body;
