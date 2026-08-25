@@ -2,9 +2,11 @@ const ALLOWED_ORIGIN = "https://arunhistory.github.io";
 const SUPABASE_ROUTER_URL = "https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/submission-router";
 const SUPABASE_DELETE_REQUEST_URL = "https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/preregister-delete-request";
 const MAX_BODY_BYTES = 16384;
-const STAGE1_ALGORITHM = "oc-email-stage1-a-rsa-v1";
+const LEGACY_STAGE1_ALGORITHM = "oc-email-stage1-a-rsa-v1";
+const MATCH_STAGE1_ALGORITHM = "oc-email-stage1-a-rsa-match-v2";
 const STAGE2_ALGORITHM = "oc-email-stage2-double-v1";
 const LAYER_ALGORITHM = "RSA-OAEP-256+A256GCM";
+const MATCH_KEY_CONTEXT = "OC/EMAIL/MATCH-KEY/V1";
 const STAGE2_PUBLIC_KEY_KID = "juLZWwM28kxjHOTZc3xCCnkTDwfvJ2QeBVwuMce9S7w";
 const STAGE2_PUBLIC_KEY_JWK = Object.freeze({
   kty: "RSA",
@@ -42,13 +44,33 @@ function exactKeys(value, expected) {
   return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
 }
 
+function validEmailEnvelope(email) {
+  if (!isObject(email)) return false;
+
+  const commonValid = email.kind === "email"
+    && typeof email.payload === "string"
+    && email.payload.length > 0
+    && Number.isInteger(email.payloadBytes)
+    && email.payloadBytes > 0;
+  if (!commonValid) return false;
+
+  if (email.version === 3 && email.algorithm === LEGACY_STAGE1_ALGORITHM) {
+    return exactKeys(email, ["version", "kind", "algorithm", "payload", "payloadBytes"]);
+  }
+
+  if (email.version === 4 && email.algorithm === MATCH_STAGE1_ALGORITHM) {
+    return exactKeys(email, ["version", "kind", "algorithm", "payload", "payloadBytes", "matchDigest"])
+      && typeof email.matchDigest === "string"
+      && /^[A-Za-z0-9_-]{43}$/.test(email.matchDigest);
+  }
+
+  return false;
+}
+
 function validEnvelope(body) {
   if (!isObject(body) || !exactKeys(body, ["email", "input", "signature"])) return false;
-  if (!isObject(body.email) || !isObject(body.input) || typeof body.signature !== "string") return false;
-  if (!exactKeys(body.email, ["version", "kind", "algorithm", "payload", "payloadBytes"])) return false;
-  if (body.email.version !== 3 || body.email.kind !== "email" || body.email.algorithm !== STAGE1_ALGORITHM) return false;
-  if (typeof body.email.payload !== "string" || body.email.payload.length < 1) return false;
-  if (!Number.isInteger(body.email.payloadBytes) || body.email.payloadBytes < 1) return false;
+  if (!isObject(body.input) || typeof body.signature !== "string") return false;
+  if (!validEmailEnvelope(body.email)) return false;
   if (!/^[A-Za-z0-9_-]{43}$/.test(body.signature)) return false;
   return true;
 }
@@ -59,6 +81,61 @@ function toBase64Url(value) {
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(value) {
+  let source = value.replace(/-/g, "+").replace(/_/g, "/");
+  while (source.length % 4) source += "=";
+  const binary = atob(source);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function legacyStage1Envelope(email) {
+  return Object.freeze({
+    version: 3,
+    kind: "email",
+    algorithm: LEGACY_STAGE1_ALGORITHM,
+    payload: email.payload,
+    payloadBytes: email.payloadBytes,
+  });
+}
+
+async function deriveMatchToken(matchDigest, rootSecret) {
+  if (!matchDigest) return null;
+
+  const digestBytes = fromBase64Url(matchDigest);
+  const rootBytes = encoder.encode(rootSecret);
+  const contextBytes = encoder.encode(MATCH_KEY_CONTEXT);
+  let derivedBytes;
+  try {
+    if (digestBytes.length !== 32) throw new Error("invalid_match_digest");
+    const rootKey = await crypto.subtle.importKey(
+      "raw",
+      rootBytes,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    derivedBytes = new Uint8Array(await crypto.subtle.sign("HMAC", rootKey, contextBytes));
+    const matchKey = await crypto.subtle.importKey(
+      "raw",
+      derivedBytes,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const token = new Uint8Array(await crypto.subtle.sign("HMAC", matchKey, digestBytes));
+    try {
+      return toBase64Url(token);
+    } finally {
+      token.fill(0);
+    }
+  } finally {
+    digestBytes.fill(0);
+    rootBytes.fill(0);
+    contextBytes.fill(0);
+    derivedBytes?.fill(0);
+  }
 }
 
 async function importStage2PublicKey() {
@@ -136,9 +213,10 @@ export default {
       return reply(origin, 200, {
         ok: true,
         service: "oc-stage2",
-        version: 7,
+        version: 8,
         mode: "production",
-        inputEncryption: STAGE1_ALGORITHM,
+        inputEncryption: [LEGACY_STAGE1_ALGORITHM, MATCH_STAGE1_ALGORITHM],
+        matchIndex: { algorithm: "HMAC-SHA-256", ready: typeof env.OC_SUBMISSION_ROUTER_SECRET === "string" && !!env.OC_SUBMISSION_ROUTER_SECRET },
         emailEncryption: { layers: 2, algorithm: STAGE2_ALGORITHM, kid: STAGE2_PUBLIC_KEY_KID, ready: cryptoReady },
       });
     }
@@ -162,7 +240,7 @@ export default {
 
     const text = await request.text();
     if (encoder.encode(text).byteLength > MAX_BODY_BYTES) {
-      return reply(origin, 413, { status: "rejected_schema", signature: "", message: "送信内容が大きすぎます。" });
+      return reply(origin, 413, { status: "rejected_schema", signature, message: "送信内容が大きすぎます。" });
     }
 
     let body;
@@ -179,17 +257,33 @@ export default {
     }
 
     let protectedEmail;
-    try { protectedEmail = await encryptEmailTwice(body.email); }
-    catch { return reply(origin, 500, { status: "system_error", signature, message: "メール保護処理を利用できません。" }); }
+    let matchToken = null;
+    try {
+      const stage1ForStorage = legacyStage1Envelope(body.email);
+      [protectedEmail, matchToken] = await Promise.all([
+        encryptEmailTwice(stage1ForStorage),
+        body.email.version === 4
+          ? deriveMatchToken(body.email.matchDigest, env.OC_SUBMISSION_ROUTER_SECRET)
+          : Promise.resolve(null),
+      ]);
+    } catch {
+      return reply(origin, 500, { status: "system_error", signature, message: "メール保護処理を利用できません。" });
+    }
 
     const isDeletionRequest = body.input.deletePreregisterEmail === true;
     const upstreamUrl = isDeletionRequest ? SUPABASE_DELETE_REQUEST_URL : SUPABASE_ROUTER_URL;
 
     let upstream;
     try {
+      const headers = {
+        "content-type": "application/json",
+        "x-oc-router-secret": env.OC_SUBMISSION_ROUTER_SECRET,
+      };
+      if (matchToken) headers["x-oc-email-match-token"] = matchToken;
+
       upstream = await fetch(upstreamUrl, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-oc-router-secret": env.OC_SUBMISSION_ROUTER_SECRET },
+        headers,
         body: JSON.stringify({ email: protectedEmail, input: body.input, signature: body.signature }),
       });
     } catch {
