@@ -1,6 +1,8 @@
 const WASM_URL = new URL('./email_stage1.wasm', import.meta.url);
 
 const A_KID = 'gnqyOhhA_YngD8NGD-uJjxQD6H9x3VRaTn7vY6vw02c';
+const STAGE1_OUTPUT_ALGORITHM = 'oc-email-stage1-a-rsa-match-v2';
+const MATCH_DIGEST_CONTEXT = 'OC/EMAIL/MATCH-DIGEST/V1\0';
 const A_PUBLIC_JWK = Object.freeze({
   kty: 'RSA',
   n: 'wDNvnSNpLWzrS7VoD2Lz4t-e6Ktg5CauInDV2LeX0UE0kIt3hXgySRdQ9Yt5P5RfdA2nOYrTUKqYrx1AxiDNbkWDQuBWmz4uEe9jfhlKRpz4DcV3IxGYmjpVQrGFe8iJ5BVDKdRoPyjaHN8x7RnZoOOwJOqbxSbLKBEFswPIl5T5VDe-W9CaQ7kFwF3l0aB3tEGztkoHs5pKHRSJEuGIIBc4QJ0CVBqVvdrTbLOVvj1zc7FdTzcqFMuE22nkXiZKdBZTEb9mkXtTNFasR_8tAzZCBcs3aEo_99JevFlNKXMxlXyfMx4d9vDK_WW8ax6gCjH0W3SpGSI__RtFAZWcAmnXilGPmXm3AUcoQEfa1UgUqZkoZQ-j2AGUPppG9arMgI6fME7r1WtxHAJc_rNKBAPNXoajGTXT0Z5GEZoMkGWucAw7NwLePQLrBzC62MSHgfIA2Ji2F_u4kYyJKq4wsCQ_RSUaiI0L6Jz9y8m7l8D5yLcckOJtYDJV2f8',
@@ -129,12 +131,19 @@ export async function processEmailStage1(email) {
 
   await validateWithWasm(email);
   const normalized = normalizeAfterValidation(email);
-  const plain = new TextEncoder().encode(normalized);
+  const textEncoder = new TextEncoder();
+  const plain = textEncoder.encode(normalized);
+  const digestInput = textEncoder.encode(`${MATCH_DIGEST_CONTEXT}${normalized}`);
 
   try {
     const publicKey = await loadPublicKey();
-    const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, publicKey, plain));
-    const kid = new TextEncoder().encode(A_KID);
+    const [encryptedBuffer, digestBuffer] = await Promise.all([
+      crypto.subtle.encrypt({ name: 'RSA-OAEP' }, publicKey, plain),
+      crypto.subtle.digest('SHA-256', digestInput),
+    ]);
+    const encrypted = new Uint8Array(encryptedBuffer);
+    const matchDigest = toBase64Url(new Uint8Array(digestBuffer));
+    const kid = textEncoder.encode(A_KID);
     const framed = new Uint8Array(1 + kid.length + 2 + encrypted.length);
     framed[0] = kid.length;
     framed.set(kid, 1);
@@ -143,14 +152,16 @@ export async function processEmailStage1(email) {
     framed.set(encrypted, 3 + kid.length);
 
     return Object.freeze({
-      version: 3,
+      version: 4,
       kind: 'email',
-      algorithm: 'oc-email-stage1-a-rsa-v1',
+      algorithm: STAGE1_OUTPUT_ALGORITHM,
       payload: toBase64Url(framed),
       payloadBytes: framed.length,
+      matchDigest,
     });
   } finally {
     plain.fill(0);
+    digestInput.fill(0);
   }
 }
 
