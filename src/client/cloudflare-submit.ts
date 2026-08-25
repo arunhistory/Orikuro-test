@@ -4,6 +4,7 @@ type EmailStage1 = Readonly<{
   algorithm: string;
   payload: string;
   payloadBytes: number;
+  matchDigest?: string;
 }>;
 
 type IntegratedSubmission = Readonly<{
