@@ -3,6 +3,7 @@ const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const startButton=document.querySelector('[data-chat-start]');
 const statusNode=document.querySelector('[data-contact-status]');
+const START_LABEL='Discordで認証してチャットを開始';
 
 function closeMenu(){
   menuButton?.classList.remove('is-open');
@@ -57,6 +58,6 @@ startButton?.addEventListener('click',async()=>{
     console.error(error);
     if(statusNode)statusNode.textContent='Discord認証を開始できませんでした。時間をおいてもう一度お試しください。';
     startButton.disabled=false;
-    startButton.textContent='チャットを開始';
+    startButton.textContent=START_LABEL;
   }
 });
