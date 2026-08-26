@@ -1,7 +1,7 @@
 import { processEmailStage1 } from '../../assets/wasm/email-stage1.js';
 import { createPageSignature } from '../../assets/wasm/page-signature.js';
 import { verifyOtherInputWithSupabase } from './b-verify.js';
-import { submitIntegratedSubmission } from './submission-submit.js';
+import { submitIntegratedSubmission } from './cloudflare-submit.js';
 import { handleFinalResponse, renderPipelineError } from './response-router.js';
 
 type PageKind = 'preregister' | 'test';
