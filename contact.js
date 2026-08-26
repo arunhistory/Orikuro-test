@@ -3,7 +3,7 @@ const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const startButton=document.querySelector('[data-chat-start]');
 const statusNode=document.querySelector('[data-contact-status]');
-const START_LABEL='Discordで認証してチャットを開始';
+const START_LABEL='チャットを開始';
 let oauthReady=false;
 
 function closeMenu(){
@@ -37,19 +37,19 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu()}
 const params=new URLSearchParams(location.search);
 const discordState=params.get('discord');
 const errorMessages={
-  cancelled:'Discord認証がキャンセルされました。チャットを利用するにはDiscord認証が必要です。',
-  invalid:'Discord認証を確認できませんでした。もう一度お試しください。',
-  expired:'Discord認証の有効時間が切れました。もう一度お試しください。',
-  configuration:'Discord認証の準備が完了していません。',
+  cancelled:'認証がキャンセルされました。チャットを利用するにはDiscordアカウントでの認証が必要です。',
+  invalid:'認証を確認できませんでした。もう一度お試しください。',
+  expired:'認証の有効時間が切れました。もう一度お試しください。',
+  configuration:'チャットの認証準備が完了していません。',
   rate:'短時間に開始操作が集中しています。時間をおいてお試しください。',
-  failed:'Discord認証またはお問い合わせ開始処理に失敗しました。もう一度お試しください。'
+  failed:'認証またはお問い合わせ開始処理に失敗しました。もう一度お試しください。'
 };
 if(discordState&&statusNode){statusNode.textContent=errorMessages[discordState]||'';history.replaceState(null,'',location.pathname)}
 
 async function checkReadiness(){
   if(!startButton)return;
   startButton.disabled=true;
-  startButton.textContent='Discord認証を確認しています…';
+  startButton.textContent='チャットの準備を確認しています…';
   try{
     const response=await fetch(AUTH_ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'health'}),cache:'no-store'});
     const result=await response.json().catch(()=>null);
@@ -61,14 +61,14 @@ async function checkReadiness(){
       return;
     }
     startButton.disabled=true;
-    startButton.textContent='Discord認証の準備中';
-    if(statusNode&&!discordState)statusNode.textContent='現在、Discord認証を準備しています。設定完了後にチャットを開始できます。';
+    startButton.textContent='チャットの準備中';
+    if(statusNode&&!discordState)statusNode.textContent='現在、チャットの認証機能を準備しています。設定完了後に開始できます。';
   }catch(error){
     console.error(error);
     oauthReady=false;
     startButton.disabled=true;
-    startButton.textContent='Discord認証の確認に失敗しました';
-    if(statusNode&&!discordState)statusNode.textContent='Discord認証の状態を確認できません。時間をおいて再読み込みしてください。';
+    startButton.textContent='チャットの準備を確認できません';
+    if(statusNode&&!discordState)statusNode.textContent='チャットの状態を確認できません。時間をおいて再読み込みしてください。';
   }
 }
 
@@ -76,7 +76,7 @@ startButton?.addEventListener('click',async()=>{
   if(!oauthReady)return;
   if(statusNode)statusNode.textContent='';
   startButton.disabled=true;
-  startButton.textContent='Discord認証へ移動しています…';
+  startButton.textContent='認証画面へ移動しています…';
   try{
     const response=await fetch(AUTH_ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'start'}),cache:'no-store'});
     const result=await response.json().catch(()=>null);
@@ -85,7 +85,7 @@ startButton?.addEventListener('click',async()=>{
   }catch(error){
     console.error(error);
     oauthReady=false;
-    if(statusNode)statusNode.textContent='Discord認証を開始できませんでした。設定状態を再確認しています。';
+    if(statusNode)statusNode.textContent='認証を開始できませんでした。設定状態を再確認しています。';
     await checkReadiness();
   }
 });
