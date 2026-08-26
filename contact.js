@@ -4,7 +4,10 @@ const mobileMenu=document.querySelector('[data-mobile-menu]');
 const startButton=document.querySelector('[data-chat-start]');
 const statusNode=document.querySelector('[data-contact-status]');
 const START_LABEL='チャットを開始';
+const TOKEN_KEY='oc_support_access_token';
+const CODE_KEY='oc_support_ticket_code';
 let oauthReady=false;
+let completingOAuth=false;
 
 function closeMenu(){
   menuButton?.classList.remove('is-open');
@@ -46,14 +49,54 @@ const errorMessages={
 };
 if(discordState&&statusNode){statusNode.textContent=errorMessages[discordState]||'';history.replaceState(null,'',location.pathname)}
 
+async function completeOAuthFromFragment(){
+  const raw=location.hash.replace(/^#/,'');
+  if(!raw)return false;
+  const hash=new URLSearchParams(raw);
+  const accessToken=hash.get('access_token');
+  const state=hash.get('state');
+  const oauthError=hash.get('error');
+  if(!accessToken&&!oauthError)return false;
+
+  completingOAuth=true;
+  history.replaceState(null,'',location.pathname);
+  if(startButton){startButton.disabled=true;startButton.textContent='チャットを準備しています…'}
+
+  if(oauthError){
+    if(statusNode)statusNode.textContent='認証がキャンセルされたか、完了できませんでした。';
+    completingOAuth=false;
+    return true;
+  }
+  if(!accessToken||!state){
+    if(statusNode)statusNode.textContent='認証情報を確認できませんでした。もう一度お試しください。';
+    completingOAuth=false;
+    return true;
+  }
+
+  try{
+    const response=await fetch(AUTH_ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'complete',accessToken,state}),cache:'no-store'});
+    const result=await response.json().catch(()=>null);
+    if(!response.ok||!result?.accessToken||!result?.ticketCode)throw new Error(result?.code||'AUTH_COMPLETE_FAILED');
+    sessionStorage.setItem(TOKEN_KEY,result.accessToken);
+    sessionStorage.setItem(CODE_KEY,result.ticketCode);
+    location.replace('./contact-chat.html');
+    return true;
+  }catch(error){
+    console.error(error);
+    if(statusNode)statusNode.textContent='認証は完了しましたが、チャットを開始できませんでした。もう一度お試しください。';
+    completingOAuth=false;
+    return true;
+  }
+}
+
 async function checkReadiness(){
-  if(!startButton)return;
+  if(!startButton||completingOAuth)return;
   startButton.disabled=true;
   startButton.textContent='チャットの準備を確認しています…';
   try{
     const response=await fetch(AUTH_ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'health'}),cache:'no-store'});
     const result=await response.json().catch(()=>null);
-    oauthReady=Boolean(response.ok&&result?.ok===true&&result?.clientSecretConfigured===true&&result?.redirectConfigured===true);
+    oauthReady=Boolean(response.ok&&result?.ok===true&&result?.redirectConfigured===true);
     if(oauthReady){
       startButton.disabled=false;
       startButton.textContent=START_LABEL;
@@ -73,7 +116,7 @@ async function checkReadiness(){
 }
 
 startButton?.addEventListener('click',async()=>{
-  if(!oauthReady)return;
+  if(!oauthReady||completingOAuth)return;
   if(statusNode)statusNode.textContent='';
   startButton.disabled=true;
   startButton.textContent='認証画面へ移動しています…';
@@ -90,4 +133,8 @@ startButton?.addEventListener('click',async()=>{
   }
 });
 
-void checkReadiness();
+void (async()=>{
+  const handled=await completeOAuthFromFragment();
+  if(!handled)await checkReadiness();
+  else if(!completingOAuth)await checkReadiness();
+})();
