@@ -95,8 +95,8 @@ async function completeOAuthFromFragment(){
     const result=await response.json().catch(()=>null);
     if(!response.ok||!result?.accessToken||!result?.ticketCode){
       const code=result?.code||'AUTH_COMPLETE_FAILED';
-      if(code==='ACTIVE_TICKET_EXISTS'){
-        if(statusNode)statusNode.textContent='進行中のお問い合わせがあります。受付番号を入力して「お問い合わせに戻る」から再開してください。';
+      if(code==='ACTIVE_TICKET_LIMIT_REACHED'||code==='ACTIVE_TICKET_EXISTS'){
+        if(statusNode)statusNode.textContent='同時に進行できるお問い合わせは5件までです。既存のお問い合わせは受付番号から再開できます。';
       }else if(code==='TICKET_RESUME_REJECTED'){
         if(resumeStatus)resumeStatus.textContent='受付番号、またはDiscordアカウントが一致しません。';
       }else{
