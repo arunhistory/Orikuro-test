@@ -6,6 +6,7 @@ const closed=document.querySelector('[data-chat-closed]');
 const log=document.querySelector('[data-chat-log]');
 const loading=document.querySelector('[data-chat-loading]');
 const ticketCodeNode=document.querySelector('[data-ticket-code]');
+const ticketCodeNoticeNode=document.querySelector('[data-ticket-code-notice]');
 const form=document.querySelector('[data-chat-form]');
 const input=document.querySelector('[data-chat-input]');
 const sendButton=document.querySelector('[data-chat-send]');
@@ -34,6 +35,7 @@ function parseInitialAccess(){
 const access=parseInitialAccess();
 if(!access.token||!access.ticket){location.replace('./contact.html?discord=invalid')}
 if(ticketCodeNode)ticketCodeNode.textContent=access.ticket||'お問い合わせ';
+if(ticketCodeNoticeNode)ticketCodeNoticeNode.textContent=access.ticket||'確認できません';
 
 function escapeText(value){return String(value??'')}
 function fmt(ts){try{return new Intl.DateTimeFormat('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(ts))}catch{return''}}
