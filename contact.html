@@ -7,7 +7,7 @@
   <meta name="description" content="Original Create Project お問い合わせ" />
   <title>お問い合わせ | Original Create Project</title>
   <link rel="stylesheet" href="./business.css?v=20260823-0939" />
-  <link rel="stylesheet" href="./contact.css?v=20260826-discord3" />
+  <link rel="stylesheet" href="./contact.css?v=20260826-discord5" />
   <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
   <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
@@ -59,6 +59,20 @@
         <p>認証後のお問い合わせは、Original Createのサイト内チャットで行われます。</p>
         <button class="contact-chat-start" type="button" data-chat-start disabled>チャットの準備を確認しています…</button>
         <p class="contact-status" role="status" aria-live="polite" data-contact-status></p>
+
+        <div class="contact-resume">
+          <h3>お問い合わせに戻る</h3>
+          <p>進行中のお問い合わせへ戻る場合は、最初に表示された受付番号を入力してください。</p>
+          <form class="contact-resume-form" data-resume-form>
+            <label for="support-ticket-code">受付番号</label>
+            <div class="contact-resume-row">
+              <input id="support-ticket-code" data-resume-input type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="11" placeholder="OC-XXXXXXXX" aria-describedby="support-ticket-help" />
+              <button type="submit" data-resume-button disabled>お問い合わせに戻る</button>
+            </div>
+            <p id="support-ticket-help" class="contact-resume-help">受付番号と、開始時に使用したDiscordアカウントの両方を確認します。</p>
+          </form>
+          <p class="contact-resume-status" role="status" aria-live="polite" data-resume-status></p>
+        </div>
       </section>
 
       <a class="contact-x" href="https://x.com/orikuro_2027?s=11&t=oe3JylyzOH2-p5yGov2e9g" target="_blank" rel="noopener noreferrer">
@@ -75,6 +89,6 @@
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./contact.js?v=20260826-discord4"></script>
+  <script src="./contact.js?v=20260826-discord5"></script>
 </body>
 </html>
