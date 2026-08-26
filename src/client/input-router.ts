@@ -4,7 +4,7 @@ import { verifyOtherInputWithSupabase } from './b-verify.js';
 import { submitIntegratedSubmission } from './cloudflare-submit.js';
 import { handleFinalResponse, renderPipelineError } from './response-router.js';
 
-type PageKind = 'preregister' | 'contact' | 'test';
+type PageKind = 'preregister' | 'test';
 type OtherInput = Readonly<Record<string, string | boolean>>;
 
 type PreparedSubmission = Readonly<{
@@ -23,11 +23,6 @@ const PAGE_CONFIG: Record<PageKind, {
     statusSelector: '[data-preregister-status]',
     allowedNames: ['email', 'privacy', 'terms'],
   },
-  contact: {
-    formSelector: '[data-contact-form]',
-    statusSelector: '[data-contact-status]',
-    allowedNames: ['email', 'deletePreregisterEmail', 'subject', 'message', 'terms', 'privacy'],
-  },
   test: {
     formSelector: '[data-test-form]',
     statusSelector: '[data-test-status]',
@@ -38,7 +33,6 @@ const PAGE_CONFIG: Record<PageKind, {
 function pageKindFromPath(pathname: string): PageKind {
   const file = pathname.split('/').filter(Boolean).at(-1) || '';
   if (file === 'preregister.html') return 'preregister';
-  if (file === 'contact.html') return 'contact';
   if (file === 'test.html') return 'test';
   throw new Error('このページからの送信には対応していません。');
 }
@@ -76,28 +70,6 @@ function collectOtherInput(form: HTMLFormElement, kind: PageKind): OtherInput {
     return Object.freeze({
       privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
       terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
-    });
-  }
-
-  if (kind === 'contact') {
-    const deletionMode = checkbox(form, 'deletePreregisterEmail');
-    if (deletionMode) {
-      return Object.freeze({
-        deletePreregisterEmail: true,
-        terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
-        privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
-      });
-    }
-
-    const subject = text(form, 'subject');
-    const message = text(form, 'message');
-    if (!subject || subject.length > 20) throw new Error('件名は1〜20文字で入力してください。');
-    if (!message || message.length > 1000) throw new Error('お問い合わせ内容は1〜1000文字で入力してください。');
-    return Object.freeze({
-      subject,
-      message,
-      terms: requireConsent(checkbox(form, 'terms'), '利用規約'),
-      privacy: requireConsent(checkbox(form, 'privacy'), 'プライバシーポリシー'),
     });
   }
 
