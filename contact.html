@@ -7,7 +7,7 @@
   <meta name="description" content="Original Create Project お問い合わせ" />
   <title>お問い合わせ | Original Create Project</title>
   <link rel="stylesheet" href="./business.css?v=20260823-0939" />
-  <link rel="stylesheet" href="./contact.css?v=20260825-delete1" />
+  <link rel="stylesheet" href="./contact.css?v=20260826-discord1" />
   <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
   <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
@@ -26,105 +26,44 @@
       <img class="brand-symbol" src="./assets/oc-symbol-user.jpg" alt="" />
       <span>Original Create</span>
     </a>
-
-    <button class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false" data-menu-button>
-      <span></span><span></span>
-    </button>
+    <button class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false" data-menu-button><span></span><span></span></button>
   </header>
 
   <div class="mobile-menu" data-mobile-menu aria-label="サイトメニュー">
     <div class="menu-map">
-      <section class="menu-group">
-        <p class="menu-group-label">知る</p>
-        <a href="./about.html">Original Createとは</a>
-        <a href="./greeting.html">代表挨拶</a>
-        <a href="./business.html">事業説明</a>
-        <a href="./services.html">サービス一覧</a>
-        <a href="#" data-placeholder-link>ロードマップ</a>
-      </section>
-
-      <section class="menu-group">
-        <p class="menu-group-label">試す</p>
-        <a href="#" data-placeholder-link>配信テスト</a>
-        <a href="#" data-placeholder-link>視聴テスト</a>
-        <a href="#" data-placeholder-link>アルゴリズムテスト</a>
-      </section>
-
-      <section class="menu-group">
-        <p class="menu-group-label">参加する</p>
-        <a href="./preregister.html">事前登録</a>
-        <a href="#" data-placeholder-link>クラウドファンディング</a>
-      </section>
-
-      <section class="menu-group">
-        <p class="menu-group-label">サポート</p>
-        <a href="#" data-placeholder-link>FAQ</a>
-        <a href="./contact.html" aria-current="page">お問い合わせ</a>
-      </section>
+      <section class="menu-group"><p class="menu-group-label">知る</p><a href="./about.html">Original Createとは</a><a href="./greeting.html">代表挨拶</a><a href="./business.html">事業説明</a><a href="./services.html">サービス一覧</a><a href="./roadmap.html">ロードマップ</a></section>
+      <section class="menu-group"><p class="menu-group-label">試す</p><a href="#" data-placeholder-link>配信テスト</a><a href="#" data-placeholder-link>視聴テスト</a><a href="#" data-placeholder-link>アルゴリズムテスト</a></section>
+      <section class="menu-group"><p class="menu-group-label">参加する</p><a href="./preregister.html">事前登録</a><a href="./crowdfunding.html">クラウドファンディング</a></section>
+      <section class="menu-group"><p class="menu-group-label">サポート</p><a href="./faq.html">FAQ</a><a href="./contact.html" aria-current="page">お問い合わせ</a></section>
     </div>
   </div>
 
   <main class="contact-main">
     <article class="contact-wrap">
-      <h1>お問い合わせ</h1>
-
-      <div class="contact-notes">
-        <p>オリジナルクリエイトプロジェクトに関するお問い合わせ以外には、返答いたしかねます。</p>
-        <p>送信後、ご入力いただいたメールアドレス宛にGmailより返答いたします。</p>
-        <p>法人からのお問い合わせを除き、氏名・住所・電話番号など個人を特定できる情報をお問い合わせ本文へ記載しないでください。</p>
-        <p>迷惑行為等はおやめください。</p>
-        <p>XのDMにてもお問い合わせ受付けしております。</p>
+      <div class="contact-head">
+        <p class="contact-kicker">SUPPORT / CHAT</p>
+        <h1>お問い合わせ</h1>
+        <p class="contact-lead">Original Createへのお問い合わせは、Webチャットから受け付けています。</p>
       </div>
 
-      <form class="contact-form" data-contact-form novalidate>
-        <div class="contact-field">
-          <label for="contact-email">メール</label>
-          <input id="contact-email" name="email" type="email" autocomplete="email" inputmode="email" required />
-          <p class="contact-field-note">使い捨てメールアドレス・適当な文字列での入力は禁止です。</p>
-        </div>
-
-        <div class="contact-delete-option">
-          <label class="contact-check contact-delete-check">
-            <input type="checkbox" name="deletePreregisterEmail" data-preregister-delete-request />
-            <span>事前登録メールアドレスを削除する</span>
-          </label>
-          <p class="contact-field-note">削除申請にチェックした場合、件名・内容は入力できません。</p>
-          <p class="contact-delete-mode-note" data-delete-mode-note hidden>入力したメールアドレス宛に確認用URLを送信します。URLの有効期限は発行から30分です。</p>
-        </div>
-
-        <div class="contact-field">
-          <label for="contact-subject">件名（20文字以内）</label>
-          <input id="contact-subject" name="subject" type="text" maxlength="20" required />
-          <div class="contact-field-meta"><span data-subject-count>0/20</span></div>
-        </div>
-
-        <div class="contact-field">
-          <label for="contact-message">内容（1000文字以内）</label>
-          <textarea id="contact-message" name="message" maxlength="1000" required></textarea>
-          <div class="contact-field-meta"><span data-message-count>0/1000</span></div>
-        </div>
-
-        <div class="contact-consents">
-          <label class="contact-check">
-            <input type="checkbox" name="terms" data-contact-terms required />
-            <span><a href="./terms.html">利用規約</a>に同意する</span>
-          </label>
-          <label class="contact-check">
-            <input type="checkbox" name="privacy" data-contact-privacy required />
-            <span><a href="./privacy.html">プライバシーポリシー</a>に同意する</span>
-          </label>
-        </div>
-
-        <button class="contact-submit" type="submit" disabled>送信</button>
+      <section class="contact-chat-card" aria-labelledby="chat-title">
+        <div class="contact-chat-badge" aria-hidden="true">Discord</div>
+        <h2 id="chat-title">チャットでお問い合わせ</h2>
+        <p>お問い合わせチャットを利用するには、Discordアカウントでの認証が必要です。</p>
+        <p>「チャットを開始」を押すとDiscordの認証画面へ移動します。認証後、あなた専用のプライベートお問い合わせチャンネルを作成し、Web上のチャット画面へ移動します。</p>
+        <button class="contact-chat-start" type="button" data-chat-start>チャットを開始</button>
         <p class="contact-status" role="status" aria-live="polite" data-contact-status></p>
-      </form>
+      </section>
+
+      <div class="contact-notes">
+        <p>Original Create Projectに関するお問い合わせ以外には、返答いたしかねます。</p>
+        <p>氏名・住所・電話番号など、不要な個人情報は入力しないでください。</p>
+        <p>迷惑行為、連続送信、なりすまし等は禁止します。</p>
+      </div>
 
       <a class="contact-x" href="https://x.com/orikuro_2027?s=11&t=oe3JylyzOH2-p5yGov2e9g" target="_blank" rel="noopener noreferrer">
-        <span class="contact-x-row">
-          <span class="contact-x-icon" aria-hidden="true">X</span>
-          <span class="contact-x-title">公式 X 受付中</span>
-        </span>
-        <span class="contact-x-note">匿名でお問い合わせ可能</span>
+        <span class="contact-x-row"><span class="contact-x-icon" aria-hidden="true">X</span><span class="contact-x-title">公式 X 受付中</span></span>
+        <span class="contact-x-note">XのDMからもお問い合わせできます</span>
       </a>
     </article>
   </main>
@@ -132,18 +71,10 @@
   <footer class="site-footer">
     <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
     <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
-    <nav class="footer-links" aria-label="フッターリンク">
-      <a href="./terms.html">利用規約</a>
-      <a href="./privacy.html">プライバシーポリシー</a>
-      <a href="./cookie.html">Cookieポリシー</a>
-      <a href="#" data-placeholder-link>運営者情報</a>
-      <a href="./contact.html" aria-current="page">お問い合わせ</a>
-    </nav>
+    <nav class="footer-links" aria-label="フッターリンク"><a href="./terms.html">利用規約</a><a href="./privacy.html">プライバシーポリシー</a><a href="./cookie.html">Cookieポリシー</a><a href="#" data-placeholder-link>運営者情報</a><a href="./contact.html" aria-current="page">お問い合わせ</a></nav>
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./contact-submit.js?v=20260824-prod"></script>
-  <script type="module" src="./assets/js/contact-mode.js?v=20260825-delete1"></script>
-  <script type="module" src="./assets/js/input-router.js?v=20260825-delete1"></script>
+  <script src="./contact.js?v=20260826-discord1"></script>
 </body>
 </html>
