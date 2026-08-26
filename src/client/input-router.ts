@@ -1,4 +1,4 @@
-import { processEmailStage1 } from '../../assets/wasm/email-stage1.js';
+import { processEmailStage1 } from '../../assets/wasm/email-stage1.js?v=20260827-a2';
 import { createPageSignature } from '../../assets/wasm/page-signature.js';
 import { verifyOtherInputWithSupabase } from './b-verify.js';
 import { submitIntegratedSubmission } from './cloudflare-submit.js';
