@@ -9,7 +9,7 @@ type EmailStage1 = Readonly<{
 
 type IntegratedSubmission = Readonly<{
   email: EmailStage1;
-  input: Readonly<Record<string, string | boolean>>;
+  input: Readonly<Record<string, unknown>>;
   signature: string;
 }>;
 
