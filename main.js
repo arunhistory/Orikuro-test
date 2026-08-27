@@ -17,9 +17,9 @@ if(mobileMenu){
       </section>
       <section class="menu-group">
         <p class="menu-group-label">試す</p>
-        <a href="#" data-placeholder-link>配信テスト</a>
-        <a href="#" data-placeholder-link>視聴テスト</a>
-        <a href="#" data-placeholder-link>アルゴリズムテスト</a>
+        <a href="./test.html" data-service-entry="stream">配信テスト</a>
+        <a href="./test.html" data-service-entry="watch">視聴テスト</a>
+        <a href="./test.html" data-service-entry="algorithm">アルゴリズムテスト</a>
       </section>
       <section class="menu-group">
         <p class="menu-group-label">参加する</p>
@@ -76,6 +76,19 @@ if(businessCard){
   businessCard.removeAttribute('data-placeholder-link');
 }
 
+const serviceCards={
+  '配信テスト':'stream',
+  '視聴テスト':'watch',
+  'アルゴリズムテスト':'algorithm',
+};
+for(const [label,entry] of Object.entries(serviceCards)){
+  const card=[...document.querySelectorAll('.route-card')].find(item=>item.querySelector('h3')?.textContent.trim()===label);
+  if(!card) continue;
+  card.href='./test.html';
+  card.dataset.serviceEntry=entry;
+  card.removeAttribute('data-placeholder-link');
+}
+
 const preregisterCard=[...document.querySelectorAll('.route-card')].find(card=>card.querySelector('h3')?.textContent.trim()==='事前登録');
 if(preregisterCard){
   preregisterCard.href='./preregister.html';
@@ -87,6 +100,29 @@ if(crowdfundingCard){
   crowdfundingCard.href='./crowdfunding.html';
   crowdfundingCard.removeAttribute('data-placeholder-link');
 }
+
+/* Service identity never crosses to the consent page. Only a Supabase-issued token is kept. */
+document.querySelectorAll('[data-service-entry]').forEach(link=>link.addEventListener('click',async event=>{
+  event.preventDefault();
+  if(link.dataset.serviceLoading==='1') return;
+  link.dataset.serviceLoading='1';
+  try{
+    const entry=link.dataset.serviceEntry;
+    if(!['stream','watch','algorithm'].includes(entry)) throw new Error('サービス入口を確認できません。');
+    const {startServiceFlow}=await import('./assets/js/service-flow.js?v=20260827-flow1');
+    await startServiceFlow(entry);
+    location.assign('./test.html');
+  }catch(error){
+    if(toast){
+      toast.textContent=error instanceof Error&&error.message?error.message:'利用準備に失敗しました。';
+      toast.classList.add('is-visible');
+      clearTimeout(window.__ocToastTimer);
+      window.__ocToastTimer=setTimeout(()=>toast.classList.remove('is-visible'),1600);
+    }
+  }finally{
+    delete link.dataset.serviceLoading;
+  }
+}));
 
 /* Keep the hero slogan exactly as specified. */
 const heroMessage=document.querySelector('.hero-bottom p');
