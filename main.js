@@ -199,39 +199,62 @@ document.querySelectorAll('.reveal').forEach(item=>{
   observer.observe(item);
 });
 
-/* Information storm: words keep bubbling up rapidly instead of flashing in at once. */
+/* Information storm: soft first signs, then an accelerating flood of overlapping words. */
 const pressureWall=document.querySelector('.pressure-wall');
 const stormWords=[...document.querySelectorAll('.pressure-wall .pressure-word.reveal')];
+const stormGhosts=[...document.querySelectorAll('.pressure-wall .pressure-ghost')];
 const stormOrder=[0,7,14,2,19,10,23,5,17,1,12,21,8,16,4,24,11,6,20,3,15,9,22,13,18];
+const stormPace=[0,190,150,115,90,70,55,44,36,30,25,21,18,16,14,13,12,11,10,9,9,8,8,7,7];
 
 stormWords.forEach((item,index)=>{
-  const driftX=[-11,8,-6,13,-9,5][index%6];
-  const driftY=[18,24,15,21,17,26][index%6];
-  const startScale=[.955,.97,.945,.965][index%4];
-  item.style.setProperty('transition','opacity .26s ease-out, translate .40s cubic-bezier(.16,1,.3,1), scale .40s cubic-bezier(.16,1,.3,1), filter .30s ease-out','important');
+  const driftX=[-14,10,-8,15,-11,7][index%6];
+  const driftY=[24,31,21,28,23,34][index%6];
+  const startScale=[.94,.955,.935,.95][index%4];
+  item.style.setProperty('opacity','0','important');
+  item.style.setProperty('transition','opacity .58s cubic-bezier(.16,1,.3,1), translate .72s cubic-bezier(.16,1,.3,1), scale .72s cubic-bezier(.16,1,.3,1), filter .62s cubic-bezier(.16,1,.3,1)','important');
   item.style.setProperty('transition-delay','0ms','important');
   item.style.setProperty('translate',`${driftX}px ${driftY}px`,'important');
   item.style.setProperty('scale',String(startScale),'important');
-  item.style.setProperty('filter','blur(6px)','important');
+  item.style.setProperty('filter','blur(10px)','important');
+});
+
+stormGhosts.forEach((ghost,index)=>{
+  ghost.style.setProperty('transition','opacity .95s cubic-bezier(.16,1,.3,1)','important');
+  ghost.style.setProperty('transition-delay',`${140+index*150}ms`,'important');
 });
 
 if(pressureWall){
   const stormObserver=new IntersectionObserver(entries=>{
     entries.forEach(entry=>{
       if(!entry.isIntersecting) return;
-      pressureWall.classList.add('is-active');
 
-      let elapsed=0;
+      /* Background information only begins to breathe in after the foreground has started. */
+      setTimeout(()=>pressureWall.classList.add('is-active'),180);
+
+      let elapsed=110;
       stormOrder.forEach((wordIndex,sequence)=>{
         const item=stormWords[wordIndex];
         if(!item) return;
-        elapsed+=36+((sequence*17)%31);
+        elapsed+=stormPace[sequence]||0;
+
+        /* Stage 1: a faint hint appears, so no word pops into existence. */
         setTimeout(()=>{
+          const x=[-5,4,-3,5,-4,3][wordIndex%6];
+          const y=[10,13,9,12,10,14][wordIndex%6];
+          item.style.setProperty('opacity','0.14','important');
+          item.style.setProperty('translate',`${x}px ${y}px`,'important');
+          item.style.setProperty('scale','.985','important');
+          item.style.setProperty('filter','blur(6px)','important');
+        },elapsed);
+
+        /* Stage 2 overlaps the next arrivals and blooms into the final position. */
+        setTimeout(()=>{
+          item.style.removeProperty('opacity');
           item.classList.add('is-visible');
           item.style.setProperty('translate','0 0','important');
           item.style.setProperty('scale','1','important');
           item.style.setProperty('filter','blur(0)','important');
-        },elapsed);
+        },elapsed+110);
       });
 
       stormObserver.unobserve(pressureWall);
