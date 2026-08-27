@@ -1,3 +1,4 @@
+import { clearServiceFlowToken } from './service-flow.js';
 import { identifyPageSignature } from '../../assets/wasm/page-signature.js';
 
 type PageKind = 'preregister' | 'contact' | 'test';
@@ -34,6 +35,23 @@ function setStatus(target: HTMLElement | null | undefined, message: string): voi
   if (target) target.textContent = message;
 }
 
+function safeServiceDestination(value: unknown): string {
+  if (typeof value !== 'string' || !/^\.\/[A-Za-z0-9._/-]+$/.test(value) || value.includes('..')) {
+    throw new Error('サービスの移動先を確認できません。');
+  }
+  const target = new URL(value, location.href);
+  if (target.origin !== location.origin || target.search || target.hash) {
+    throw new Error('サービスの移動先を確認できません。');
+  }
+  return value;
+}
+
+function timeoutToHome(statusTarget?: HTMLElement | null): void {
+  setStatus(statusTarget, 'タイムアウトしました。');
+  clearServiceFlowToken();
+  setTimeout(() => location.replace('./index.html'), 1100);
+}
+
 export async function handleFinalResponse(
   submittedSignature: string,
   rawPayload: unknown,
@@ -50,18 +68,24 @@ export async function handleFinalResponse(
     throw new Error('返答ステータスが正しくありません。');
   }
 
-  // 固定署名の逆引きもWASMで行う。JS側には署名値を重複定義しない。
   const page = await identifyPageSignature(responseSignature) as PageKind;
 
   if (status === 'saved') {
     if (page === 'test') {
-      setStatus(statusTarget, '完了しました。');
+      const destination = safeServiceDestination(payload.destination);
+      setStatus(statusTarget, '同意を確認しました。移動します。');
+      location.assign(destination);
       return;
     }
     const destination = SUCCESS_PAGE[page];
     if (!destination) throw new Error('完了画面が定義されていません。');
     setStatus(statusTarget, '保存が完了しました。');
     location.assign(destination);
+    return;
+  }
+
+  if (page === 'test' && payload.code === 'FLOW_TIMEOUT') {
+    timeoutToHome(statusTarget);
     return;
   }
 
