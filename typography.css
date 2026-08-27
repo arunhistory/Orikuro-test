@@ -116,23 +116,26 @@ body{
 /* Anticipation — full-width centered headline with a warped landing. */
 html body .link-zone-head{
   padding-top:clamp(170px,22vw,330px)!important;
-  padding-bottom:clamp(150px,19vw,280px)!important;
+  padding-bottom:clamp(280px,31vw,480px)!important;
   padding-left:clamp(8px,1.5vw,22px)!important;
   padding-right:clamp(8px,1.5vw,22px)!important;
-  overflow:hidden!important;
+  overflow:visible!important;
 }
 
 html body .link-zone-head .link-zone-title{
+  display:block!important;
   width:100%!important;
   max-width:none!important;
   margin:0!important;
+  padding:.16em 0 .20em!important;
   text-align:center!important;
   white-space:nowrap!important;
   font-size:clamp(72px,17vw,260px)!important;
-  line-height:.82!important;
+  line-height:1.04!important;
   font-weight:900!important;
   letter-spacing:-.075em!important;
   transform-origin:50% 55%!important;
+  overflow:visible!important;
 }
 
 /* Keep the waiting geometry inside its real box so IntersectionObserver can still see it. */
@@ -140,7 +143,7 @@ html body .link-zone-head .link-zone-title.reveal{
   opacity:0;
   transform:rotateZ(-4deg) skewX(-18deg) scaleX(.72) scaleY(1.18);
   filter:blur(10px) contrast(.78);
-  clip-path:polygon(2% 8%,98% 1%,96% 94%,4% 100%);
+  clip-path:polygon(2% 0%,98% 0%,96% 100%,4% 100%);
   transition:none!important;
   will-change:transform,filter,opacity,clip-path;
 }
@@ -154,19 +157,19 @@ html body .link-zone-head .link-zone-title.reveal.is-visible{
     opacity:0;
     transform:perspective(900px) rotateX(72deg) rotateZ(-7deg) skewX(-22deg) scaleX(.46) scaleY(1.72);
     filter:blur(13px) contrast(.72);
-    clip-path:polygon(5% 39%,96% 20%,91% 67%,2% 82%);
+    clip-path:polygon(5% 2%,96% 0%,91% 98%,2% 100%);
   }
   34%{
     opacity:.78;
     transform:perspective(900px) rotateX(-11deg) rotateZ(2.6deg) skewX(12deg) scaleX(1.20) scaleY(.76);
     filter:blur(4px) contrast(1.18);
-    clip-path:polygon(0 10%,100% 3%,97% 92%,3% 100%);
+    clip-path:polygon(0 0,100% 0,97% 100%,3% 100%);
   }
   58%{
     opacity:1;
     transform:perspective(900px) rotateX(5deg) rotateZ(-1.5deg) skewX(-5deg) scaleX(.94) scaleY(1.10);
     filter:blur(1.8px) contrast(1.06);
-    clip-path:polygon(1% 2%,99% 7%,100% 96%,0 91%);
+    clip-path:polygon(0 0,100% 0,100% 100%,0 100%);
   }
   78%{
     transform:perspective(900px) rotateX(-2deg) rotateZ(.5deg) skewX(2deg) scaleX(1.08) scaleY(.97);
@@ -184,11 +187,13 @@ html body .link-zone-head .link-zone-title.reveal.is-visible{
 @media(max-width:820px){
   html body .link-zone-head{
     padding-top:clamp(130px,28vw,210px)!important;
-    padding-bottom:clamp(120px,25vw,190px)!important;
+    padding-bottom:clamp(230px,48vw,360px)!important;
   }
 
   html body .link-zone-head .link-zone-title{
+    padding:.18em 0 .22em!important;
     font-size:clamp(66px,17.5vw,148px)!important;
+    line-height:1.08!important;
     letter-spacing:-.085em!important;
   }
 }
