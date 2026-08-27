@@ -135,11 +135,12 @@ html body .link-zone-head .link-zone-title{
   transform-origin:50% 55%!important;
 }
 
+/* Keep the waiting geometry inside its real box so IntersectionObserver can still see it. */
 html body .link-zone-head .link-zone-title.reveal{
-  opacity:0!important;
-  transform:perspective(900px) rotateX(72deg) rotateZ(-7deg) skewX(-22deg) scaleX(.46) scaleY(1.72)!important;
-  filter:blur(13px) contrast(.72)!important;
-  clip-path:polygon(5% 39%,96% 20%,91% 67%,2% 82%)!important;
+  opacity:0;
+  transform:rotateZ(-4deg) skewX(-18deg) scaleX(.72) scaleY(1.18);
+  filter:blur(10px) contrast(.78);
+  clip-path:polygon(2% 8%,98% 1%,96% 94%,4% 100%);
   transition:none!important;
   will-change:transform,filter,opacity,clip-path;
 }
