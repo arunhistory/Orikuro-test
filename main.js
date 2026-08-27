@@ -287,15 +287,16 @@ if(pressureWall){
   stormObserver.observe(pressureWall);
 }
 
-/* 2027 launch: trigger the impact scene once it reaches the lower 20%. */
+/* 2027 launch waits until the scene reaches near the visual centre before impact. */
 if(launch){
+  const launchOptions={threshold:0,rootMargin:'0px 0px -48% 0px'};
   const launchObserver=new IntersectionObserver(entries=>{
     entries.forEach(entry=>{
       if(!entry.isIntersecting) return;
       launch.classList.add('is-launch-visible');
       launchObserver.unobserve(launch);
     });
-  },revealOptions);
+  },launchOptions);
   launchObserver.observe(launch);
 }
 
