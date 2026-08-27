@@ -101,6 +101,133 @@ html body .service-rush .reveal{
   transition:none!important;
 }
 
+/* Closing statement — emerge from the spectrum storm instead of simply fading in. */
+html body .pressure-close{
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+}
+
+html body .pressure-close::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:max(128vw,920px);
+  aspect-ratio:1;
+  pointer-events:none;
+  z-index:0;
+  opacity:.10;
+  transform:translate(-50%,-50%) scale(.64) rotate(-10deg);
+  background:
+    radial-gradient(circle at 50% 50%,rgba(255,255,255,.96) 0 3%,rgba(255,255,255,.48) 8%,transparent 25%),
+    repeating-conic-gradient(from 4deg at 50% 50%,
+      rgba(255,77,93,.23) 0deg 1.2deg,
+      transparent 1.2deg 8deg,
+      rgba(255,138,52,.18) 8deg 9deg,
+      transparent 9deg 17deg,
+      rgba(255,227,72,.20) 17deg 18deg,
+      transparent 18deg 27deg,
+      rgba(57,232,106,.18) 27deg 28deg,
+      transparent 28deg 38deg,
+      rgba(51,231,243,.22) 38deg 39deg,
+      transparent 39deg 50deg,
+      rgba(74,141,255,.22) 50deg 51deg,
+      transparent 51deg 63deg,
+      rgba(134,88,255,.19) 63deg 64deg,
+      transparent 64deg 77deg,
+      rgba(255,88,214,.20) 77deg 78deg,
+      transparent 78deg 90deg);
+  -webkit-mask-image:radial-gradient(circle at center,#000 0 42%,rgba(0,0,0,.78) 56%,transparent 76%);
+  mask-image:radial-gradient(circle at center,#000 0 42%,rgba(0,0,0,.78) 56%,transparent 76%);
+  filter:blur(5px) saturate(1.35);
+  mix-blend-mode:multiply;
+}
+
+html body .pressure-close:has(.reveal.is-visible)::before{
+  animation:ocPressureStormBurst 1.18s cubic-bezier(.16,1,.3,1) both;
+}
+
+html body .pressure-close>*,
+html body .pressure-close h3{
+  position:relative!important;
+  z-index:2!important;
+}
+
+html body .pressure-close .reveal{
+  opacity:0!important;
+  transform:translate3d(0,34px,0) scale(.88)!important;
+  filter:blur(18px) contrast(.74)!important;
+  clip-path:inset(46% 3% 46% 3% round 18px)!important;
+  text-shadow:
+    0 0 26px rgba(74,141,255,.22),
+    0 0 48px rgba(255,88,214,.12)!important;
+  transition:
+    opacity .62s cubic-bezier(.16,1,.3,1),
+    transform .78s cubic-bezier(.16,1,.3,1),
+    filter .72s cubic-bezier(.16,1,.3,1),
+    clip-path .76s cubic-bezier(.16,1,.3,1),
+    text-shadow .72s ease-out!important;
+  will-change:opacity,transform,filter,clip-path;
+}
+
+html body .pressure-close .reveal.is-visible{
+  opacity:1!important;
+  transform:translate3d(0,0,0) scale(1)!important;
+  filter:blur(0) contrast(1)!important;
+  clip-path:inset(0 0 0 0 round 0)!important;
+  text-shadow:none!important;
+}
+
+html body .pressure-close .pressure-fact.reveal{
+  transition-delay:0ms!important;
+}
+html body .pressure-close h3 .reveal:nth-child(1){
+  transform:translate3d(-22px,38px,0) scale(.86)!important;
+  transition-delay:80ms!important;
+}
+html body .pressure-close h3 .reveal:nth-child(2){
+  transform:translate3d(18px,34px,0) scale(.87)!important;
+  transition-delay:150ms!important;
+}
+html body .pressure-close h3 .reveal:nth-child(3){
+  transform:translate3d(-12px,30px,0) scale(.89)!important;
+  transition-delay:220ms!important;
+}
+html body .pressure-close h3 .reveal.is-visible{
+  transform:translate3d(0,0,0) scale(1)!important;
+}
+html body .pressure-close .answer-line.reveal{
+  transform:translate3d(0,28px,0) scale(.94)!important;
+  transition-delay:390ms!important;
+}
+html body .pressure-close .answer-line.reveal.is-visible{
+  transform:translate3d(0,0,0) scale(1)!important;
+}
+
+@keyframes ocPressureStormBurst{
+  0%{
+    opacity:.10;
+    transform:translate(-50%,-50%) scale(.64) rotate(-10deg);
+    filter:blur(9px) saturate(1.05);
+  }
+  32%{
+    opacity:.38;
+    transform:translate(-50%,-50%) scale(.88) rotate(-2deg);
+    filter:blur(5px) saturate(1.42);
+  }
+  62%{
+    opacity:.25;
+    transform:translate(-50%,-50%) scale(1.05) rotate(5deg);
+    filter:blur(3px) saturate(1.30);
+  }
+  100%{
+    opacity:.07;
+    transform:translate(-50%,-50%) scale(1.22) rotate(10deg);
+    filter:blur(7px) saturate(1.05);
+  }
+}
+
 @media(max-width:820px){
   html body .hero .hero-title{
     gap:.12em!important;
@@ -117,5 +244,29 @@ html body .service-rush .reveal{
     margin-left:0!important;
     font-size:.80em!important;
     letter-spacing:-.055em!important;
+  }
+
+  html body .pressure-close::before{
+    width:max(190vw,760px);
+    top:48%;
+  }
+
+  html body .pressure-close .reveal{
+    filter:blur(14px) contrast(.78)!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  html body .pressure-close::before{
+    animation:none!important;
+    opacity:.08!important;
+  }
+  html body .pressure-close .reveal,
+  html body .pressure-close .reveal.is-visible{
+    opacity:1!important;
+    transform:none!important;
+    filter:none!important;
+    clip-path:none!important;
+    transition:none!important;
   }
 }
