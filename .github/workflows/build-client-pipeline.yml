@@ -1,4 +1,4 @@
-# Client pipeline v8: Cloudflare stage2 transport + preregistration/test + deletion flow
+# Client pipeline v9: Cloudflare stage2 + service flow + deletion flow
 name: Build client submission pipeline
 
 on:
@@ -80,10 +80,12 @@ jobs:
           build_one src/client/b-verify.ts b-verify
           build_one src/client/cloudflare-submit.ts cloudflare-submit
           build_one src/client/response-router.ts response-router
+          build_one src/client/service-flow.ts service-flow
+          build_one src/client/service-destination.ts service-destination
           build_one src/client/email-delete.ts email-delete
           build_one src/client/email-delete-not-registered.ts email-delete-not-registered
 
-          for name in input-router b-verify cloudflare-submit response-router email-delete email-delete-not-registered; do
+          for name in input-router b-verify cloudflare-submit response-router service-flow service-destination email-delete email-delete-not-registered; do
             sha256sum "assets/js/${name}.js" > "assets/js/${name}.js.sha256"
           done
 
@@ -96,6 +98,8 @@ jobs:
              assets/js/b-verify.js assets/js/b-verify.js.sha256 \
              assets/js/cloudflare-submit.js assets/js/cloudflare-submit.js.sha256 \
              assets/js/response-router.js assets/js/response-router.js.sha256 \
+             assets/js/service-flow.js assets/js/service-flow.js.sha256 \
+             assets/js/service-destination.js assets/js/service-destination.js.sha256 \
              assets/js/email-delete.js assets/js/email-delete.js.sha256 \
              assets/js/email-delete-not-registered.js assets/js/email-delete-not-registered.js.sha256 \
              /tmp/oc-generated-client/
@@ -110,6 +114,8 @@ jobs:
                   assets/js/b-verify.js assets/js/b-verify.js.sha256 \
                   assets/js/cloudflare-submit.js assets/js/cloudflare-submit.js.sha256 \
                   assets/js/response-router.js assets/js/response-router.js.sha256 \
+                  assets/js/service-flow.js assets/js/service-flow.js.sha256 \
+                  assets/js/service-destination.js assets/js/service-destination.js.sha256 \
                   assets/js/email-delete.js assets/js/email-delete.js.sha256 \
                   assets/js/email-delete-not-registered.js assets/js/email-delete-not-registered.js.sha256
           if git diff --cached --quiet; then
