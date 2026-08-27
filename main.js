@@ -195,6 +195,7 @@ const observer=new IntersectionObserver(entries=>{
 
 document.querySelectorAll('.reveal').forEach(item=>{
   if(item.closest('.pressure-wall')) return;
+  if(item.closest('.pressure-question')) return;
   item.style.transitionDelay='0ms';
   observer.observe(item);
 });
@@ -203,6 +204,7 @@ document.querySelectorAll('.reveal').forEach(item=>{
 const pressureWall=document.querySelector('.pressure-wall');
 const stormWords=[...document.querySelectorAll('.pressure-wall .pressure-word.reveal')];
 const stormGhosts=[...document.querySelectorAll('.pressure-wall .pressure-ghost')];
+const pressureQuestionItems=[...document.querySelectorAll('.pressure-question .reveal')];
 const stormOrder=[0,7,14,2,19,10,23,5,17,1,12,21,8,16,4,24,11,6,20,3,15,9,22,13,18];
 const stormPace=[0,190,150,115,90,70,55,44,36,30,25,21,18,16,14,13,12,11,10,9,9,8,8,7,7];
 
@@ -221,6 +223,15 @@ stormWords.forEach((item,index)=>{
 stormGhosts.forEach((ghost,index)=>{
   ghost.style.setProperty('transition','opacity .95s cubic-bezier(.16,1,.3,1)','important');
   ghost.style.setProperty('transition-delay',`${140+index*150}ms`,'important');
+});
+
+/* The question belongs to the storm sequence, not the generic scroll reveal. */
+pressureQuestionItems.forEach(item=>{
+  item.style.setProperty('opacity','0','important');
+  item.style.setProperty('transform','translateY(22px)','important');
+  item.style.setProperty('filter','blur(8px)','important');
+  item.style.setProperty('transition','opacity .92s cubic-bezier(.16,1,.3,1), transform .92s cubic-bezier(.16,1,.3,1), filter .78s cubic-bezier(.16,1,.3,1)','important');
+  item.style.setProperty('transition-delay','0ms','important');
 });
 
 if(pressureWall){
@@ -256,6 +267,19 @@ if(pressureWall){
           item.style.setProperty('filter','blur(0)','important');
         },elapsed+110);
       });
+
+      /* One full second after the final information word has finished blooming, reveal the question softly. */
+      const questionStartsAt=elapsed+110+720+1000;
+      setTimeout(()=>{
+        pressureQuestionItems.forEach((item,index)=>{
+          setTimeout(()=>{
+            item.classList.add('is-visible');
+            item.style.setProperty('opacity','1','important');
+            item.style.setProperty('transform','translateY(0)','important');
+            item.style.setProperty('filter','blur(0)','important');
+          },index*120);
+        });
+      },questionStartsAt);
 
       stormObserver.unobserve(pressureWall);
     });
