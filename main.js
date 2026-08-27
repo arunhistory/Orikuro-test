@@ -268,8 +268,8 @@ if(pressureWall){
         },elapsed+110);
       });
 
-      /* One full second after the final information word has finished blooming, reveal the question softly. */
-      const questionStartsAt=elapsed+110+720+1000;
+      /* 0.3s after the information storm settles, show the lead; 0.2s later show the question. */
+      const questionStartsAt=elapsed+110+720+300;
       setTimeout(()=>{
         pressureQuestionItems.forEach((item,index)=>{
           setTimeout(()=>{
@@ -277,7 +277,7 @@ if(pressureWall){
             item.style.setProperty('opacity','1','important');
             item.style.setProperty('transform','translateY(0)','important');
             item.style.setProperty('filter','blur(0)','important');
-          },index*120);
+          },index*200);
         });
       },questionStartsAt);
 
