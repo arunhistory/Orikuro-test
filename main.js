@@ -199,18 +199,41 @@ document.querySelectorAll('.reveal').forEach(item=>{
   observer.observe(item);
 });
 
-/* Text storm: hidden until the scene reaches the lower 20%, then it floods in quickly. */
+/* Information storm: words keep bubbling up rapidly instead of flashing in at once. */
 const pressureWall=document.querySelector('.pressure-wall');
 const stormWords=[...document.querySelectorAll('.pressure-wall .pressure-word.reveal')];
+const stormOrder=[0,7,14,2,19,10,23,5,17,1,12,21,8,16,4,24,11,6,20,3,15,9,22,13,18];
+
+stormWords.forEach((item,index)=>{
+  const driftX=[-11,8,-6,13,-9,5][index%6];
+  const driftY=[18,24,15,21,17,26][index%6];
+  const startScale=[.955,.97,.945,.965][index%4];
+  item.style.setProperty('transition','opacity .26s ease-out, translate .40s cubic-bezier(.16,1,.3,1), scale .40s cubic-bezier(.16,1,.3,1), filter .30s ease-out','important');
+  item.style.setProperty('transition-delay','0ms','important');
+  item.style.setProperty('translate',`${driftX}px ${driftY}px`,'important');
+  item.style.setProperty('scale',String(startScale),'important');
+  item.style.setProperty('filter','blur(6px)','important');
+});
+
 if(pressureWall){
   const stormObserver=new IntersectionObserver(entries=>{
     entries.forEach(entry=>{
       if(!entry.isIntersecting) return;
       pressureWall.classList.add('is-active');
-      stormWords.forEach((item,index)=>{
-        item.style.transitionDelay=`${Math.min(index*6,90)}ms`;
-        item.classList.add('is-visible');
+
+      let elapsed=0;
+      stormOrder.forEach((wordIndex,sequence)=>{
+        const item=stormWords[wordIndex];
+        if(!item) return;
+        elapsed+=36+((sequence*17)%31);
+        setTimeout(()=>{
+          item.classList.add('is-visible');
+          item.style.setProperty('translate','0 0','important');
+          item.style.setProperty('scale','1','important');
+          item.style.setProperty('filter','blur(0)','important');
+        },elapsed);
       });
+
       stormObserver.unobserve(pressureWall);
     });
   },revealOptions);
