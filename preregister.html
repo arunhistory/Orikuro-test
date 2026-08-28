@@ -90,19 +90,24 @@
           </div>
           <div class="preregister-step">
             <span>03</span>
-            <p>インストール完了と同時に事前予約登録が完了し、OCIからDMが届きます。</p>
+            <p>インストール完了と同時に事前予約登録され、OCIからウェルカム案内と使い方を送信します。</p>
           </div>
         </div>
 
         <a
           class="preregister-discord-button"
-          href="https://discord.com/oauth2/authorize?client_id=1542025171991531531&amp;integration_type=1&amp;scope=applications.commands"
+          href="#"
           target="_blank"
           rel="noopener noreferrer"
+          aria-disabled="true"
+          data-discord-install
         >Discordで事前予約登録する</a>
 
+        <p class="preregister-discord-note" data-discord-install-status>
+          Discord登録リンクを準備しています。
+        </p>
         <p class="preregister-discord-note">
-          Discordサーバーへの参加やメールアドレスの登録は必要ありません。
+          Discordサーバーへの参加やメールアドレスの登録は必要ありません。Discordの仕様上ウェルカムDMを受信できない場合は、インストール後にDiscordで <strong>/oci</strong> を実行すると同じ案内を表示できます。
         </p>
       </section>
 
@@ -115,12 +120,12 @@
           <div><strong>視聴テスト</strong><span>公開前の視聴テストへ移動</span></div>
           <div><strong>アルゴリズムテスト</strong><span>各種テストへ直接アクセス</span></div>
           <div><strong>クラウドファンディング</strong><span>企画情報をOCIから確認</span></div>
-          <div><strong>退会する</strong><span>事前予約登録をOCIから解除</span></div>
+          <div><strong>事前予約解除</strong><span>事前予約登録をOCIから解除</span></div>
         </div>
       </section>
 
       <div class="preregister-footnote">
-        <p>OCIのインストールを解除した場合、事前予約登録も解除されます。</p>
+        <p>OCIの認証をDiscord側で解除した場合、事前予約登録も自動解除されます。</p>
         <p>再度OCIをインストールすると、もう一度事前予約登録できます。</p>
       </div>
     </article>
@@ -139,6 +144,6 @@
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./preregister.js?v=20260828-discord1"></script>
+  <script src="./preregister.js?v=20260828-discord2"></script>
 </body>
 </html>
