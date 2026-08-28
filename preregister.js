@@ -1,11 +1,8 @@
 const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
-const email=document.querySelector('#preregister-email');
-const privacy=document.querySelector('[data-privacy]');
-const terms=document.querySelector('[data-terms]');
-
-const disposableDomains=new Set(['10minutemail.com','guerrillamail.com','guerrillamail.net','guerrillamail.org','mailinator.com','sharklasers.com','grr.la','yopmail.com','trashmail.com','tempmail.com','temp-mail.org']);
-const junkLocalParts=new Set(['aaa','aaaa','aaaaa','test','testtest','dummy','sample','qwerty','asdf','asdfgh','zxcv','zxcvbn']);
+const installButton=document.querySelector('[data-discord-install]');
+const installStatus=document.querySelector('[data-discord-install-status]');
+const INSTALL_CONFIG_URL='https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/discord-information-install';
 
 const links={
   'ロードマップ':'./roadmap.html',
@@ -42,29 +39,37 @@ document.querySelectorAll('[data-placeholder-link]').forEach(link=>{
 });
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu();});
 
-const validateEmail=()=>{
-  if(!email)return;
-  email.setCustomValidity('');
-  const value=email.value.trim().toLowerCase();
-  if(!value)return;
-  const at=value.lastIndexOf('@');
-  if(at<=0||at===value.length-1)return;
-  const local=value.slice(0,at);
-  const domain=value.slice(at+1);
-  const compact=local.replace(/[._+-]/g,'');
-  const disposable=disposableDomains.has(domain)||[...disposableDomains].some(item=>domain.endsWith(`.${item}`));
-  if(disposable){email.setCustomValidity('使い捨てメールアドレスは使用できません。');return;}
-  if((compact.length>=3&&new Set(compact).size===1)||junkLocalParts.has(compact)){
-    email.setCustomValidity('適当な文字列ではなく、実際に使用しているメールアドレスを入力してください。');
+const disableInstall=(message)=>{
+  if(installButton){
+    installButton.setAttribute('aria-disabled','true');
+    installButton.removeAttribute('href');
+    installButton.addEventListener('click',event=>event.preventDefault(),{once:true});
+  }
+  if(installStatus)installStatus.textContent=message;
+};
+
+const prepareInstall=async()=>{
+  if(!installButton)return;
+  try{
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),8000);
+    let response;
+    try{
+      response=await fetch(INSTALL_CONFIG_URL,{method:'GET',credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',signal:controller.signal});
+    }finally{
+      clearTimeout(timer);
+    }
+    const payload=await response.json().catch(()=>null);
+    if(!response.ok||!payload||payload.ok!==true||typeof payload.installUrl!=='string'||!payload.installUrl.startsWith('https://discord.com/oauth2/authorize?')){
+      disableInstall('Discord登録リンクを取得できませんでした。時間をおいて再度お試しください。');
+      return;
+    }
+    installButton.href=payload.installUrl;
+    installButton.setAttribute('aria-disabled','false');
+    if(installStatus)installStatus.textContent='Discordを開いてOCIをあなたのアカウントへ追加してください。';
+  }catch{
+    disableInstall('Discord登録リンクを取得できませんでした。時間をおいて再度お試しください。');
   }
 };
-const validateConsent=()=>{
-  privacy?.setCustomValidity(privacy.checked?'':'プライバシーポリシーへの同意が必要です。');
-  terms?.setCustomValidity(terms.checked?'':'利用規約への同意が必要です。');
-};
-email?.addEventListener('input',validateEmail);
-email?.addEventListener('blur',validateEmail);
-privacy?.addEventListener('change',validateConsent);
-terms?.addEventListener('change',validateConsent);
-validateEmail();
-validateConsent();
+
+void prepareInstall();
