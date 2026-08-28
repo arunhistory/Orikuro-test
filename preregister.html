@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#f4f7fb" />
-  <meta name="description" content="Original Create Project 事前登録" />
-  <title>事前登録 | Original Create Project</title>
+  <meta name="description" content="Original Create Project Discord事前予約登録" />
+  <title>Discord事前予約登録 | Original Create Project</title>
   <link rel="stylesheet" href="./business.css?v=20260823-0958" />
-  <link rel="stylesheet" href="./preregister.css?v=20260823-1016" />
+  <link rel="stylesheet" href="./preregister.css?v=20260828-discord1" />
   <link rel="stylesheet" href="./footer.css?v=20260822-2126" />
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223" />
   <link rel="stylesheet" href="./typography.css?v=20260822-2337" />
@@ -17,8 +17,6 @@
     .mobile-menu .menu-group{display:block!important;gap:0!important}
     .mobile-menu .menu-group .menu-group-label{margin:0 0 12px!important;color:#66758a!important;font-size:10px!important;font-weight:850!important;letter-spacing:.18em!important}
     .mobile-menu .menu-group a::after{content:none!important;display:none!important}
-    .preregister-check a{color:#0000ee!important;text-decoration:underline!important;text-underline-offset:0!important}
-    .preregister-check a:visited{color:#551a8b!important}
     @media(max-width:760px){:root{--header:66px}}
   </style>
 </head>
@@ -52,7 +50,7 @@
       </section>
       <section class="menu-group">
         <p class="menu-group-label">参加する</p>
-        <a href="./preregister.html" aria-current="page">事前登録</a>
+        <a href="./preregister.html" aria-current="page">事前予約登録</a>
         <a href="#" data-placeholder-link>クラウドファンディング</a>
       </section>
       <section class="menu-group">
@@ -64,29 +62,67 @@
   </div>
 
   <main class="preregister-main">
-    <article class="preregister-wrap">
-      <h1>事前登録</h1>
+    <article class="preregister-wrap preregister-discord-wrap">
+      <div class="preregister-eyebrow">DISCORD / OCI</div>
+      <h1>Discord事前予約登録</h1>
 
-      <form class="preregister-form" data-preregister-form novalidate>
-        <div class="preregister-field">
-          <label for="preregister-email">メールアドレス</label>
-          <input id="preregister-email" name="email" type="email" autocomplete="email" inputmode="email" required />
-          <p class="preregister-field-note">使い捨てメールアドレス・適当な文字列での入力は禁止です。</p>
+      <p class="preregister-lead">
+        <strong>Original Create Information（OCI）</strong>をあなたのDiscordアカウントにインストールすると、Original Createの事前予約登録が完了します。
+      </p>
+
+      <section class="preregister-discord-card" aria-labelledby="oci-register-title">
+        <div class="preregister-discord-head">
+          <span class="preregister-discord-mark" aria-hidden="true">OCI</span>
+          <div>
+            <p class="preregister-card-kicker">Original Create Information</p>
+            <h2 id="oci-register-title">OCIをインストールして登録</h2>
+          </div>
         </div>
 
-        <label class="preregister-check">
-          <input type="checkbox" name="privacy" data-privacy required />
-          <span><a href="./privacy.html">プライバシーポリシー</a>に同意する</span>
-        </label>
+        <div class="preregister-steps" aria-label="事前予約登録の流れ">
+          <div class="preregister-step">
+            <span>01</span>
+            <p>下のボタンからDiscordを開きます。</p>
+          </div>
+          <div class="preregister-step">
+            <span>02</span>
+            <p>OCIを<strong>あなたのアカウント</strong>に追加します。</p>
+          </div>
+          <div class="preregister-step">
+            <span>03</span>
+            <p>インストール完了と同時に事前予約登録が完了し、OCIからDMが届きます。</p>
+          </div>
+        </div>
 
-        <label class="preregister-check">
-          <input type="checkbox" name="terms" data-terms required />
-          <span><a href="./terms.html">利用規約</a>に同意する</span>
-        </label>
+        <a
+          class="preregister-discord-button"
+          href="https://discord.com/oauth2/authorize?client_id=1542025171991531531&amp;integration_type=1&amp;scope=applications.commands"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Discordで事前予約登録する</a>
 
-        <button class="preregister-submit" type="submit" disabled>登録</button>
-        <p class="preregister-status" role="status" aria-live="polite" data-preregister-status></p>
-      </form>
+        <p class="preregister-discord-note">
+          Discordサーバーへの参加やメールアドレスの登録は必要ありません。
+        </p>
+      </section>
+
+      <section class="preregister-oci-section" aria-labelledby="oci-features-title">
+        <p class="preregister-section-kicker">OCI MENU</p>
+        <h2 id="oci-features-title">登録後、そのまま使えます</h2>
+        <div class="preregister-feature-grid">
+          <div><strong>進行状況</strong><span>Original Createの現在地を確認</span></div>
+          <div><strong>配信テスト</strong><span>公開前の配信テストへ移動</span></div>
+          <div><strong>視聴テスト</strong><span>公開前の視聴テストへ移動</span></div>
+          <div><strong>アルゴリズムテスト</strong><span>各種テストへ直接アクセス</span></div>
+          <div><strong>クラウドファンディング</strong><span>企画情報をOCIから確認</span></div>
+          <div><strong>退会する</strong><span>事前予約登録をOCIから解除</span></div>
+        </div>
+      </section>
+
+      <div class="preregister-footnote">
+        <p>OCIのインストールを解除した場合、事前予約登録も解除されます。</p>
+        <p>再度OCIをインストールすると、もう一度事前予約登録できます。</p>
+      </div>
     </article>
   </main>
 
@@ -103,7 +139,6 @@
     <p class="footer-license">©Original Create</p>
   </footer>
 
-  <script src="./preregister.js?v=20260824-prod"></script>
-  <script type="module" src="./assets/js/input-router.js?v=20260827-a2"></script>
+  <script src="./preregister.js?v=20260828-discord1"></script>
 </body>
 </html>
