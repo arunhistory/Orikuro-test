@@ -4,14 +4,183 @@
   padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
 }
 
-.preregister-wrap{width:min(760px,100%);margin:0 auto}
+.preregister-wrap{width:min(820px,100%);margin:0 auto}
 
 .preregister-wrap>h1{
-  margin:0 0 clamp(44px,6vw,68px);
+  margin:0 0 24px;
   font-size:clamp(38px,5vw,64px);
-  line-height:1.1;
+  line-height:1.08;
   letter-spacing:-.05em;
 }
+
+.preregister-eyebrow,
+.preregister-section-kicker,
+.preregister-card-kicker{
+  margin:0;
+  color:#66758a;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.preregister-eyebrow{margin-bottom:18px}
+
+.preregister-lead{
+  max-width:700px;
+  margin:0 0 clamp(36px,5vw,52px);
+  color:#33445a;
+  font-size:clamp(16px,1.8vw,20px);
+  line-height:1.9;
+}
+
+.preregister-discord-card{
+  padding:clamp(24px,4vw,42px);
+  border:1px solid rgba(54,80,113,.18);
+  border-radius:22px;
+  background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(244,247,251,.86));
+  box-shadow:0 20px 60px rgba(16,24,42,.08);
+}
+
+.preregister-discord-head{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  margin-bottom:30px;
+}
+
+.preregister-discord-mark{
+  display:grid;
+  width:62px;
+  height:62px;
+  place-items:center;
+  flex:0 0 auto;
+  border-radius:18px;
+  background:#5865f2;
+  color:#fff;
+  font-size:18px;
+  font-weight:950;
+  letter-spacing:.04em;
+  box-shadow:0 12px 28px rgba(88,101,242,.22);
+}
+
+.preregister-discord-head h2,
+.preregister-oci-section h2{
+  margin:6px 0 0;
+  color:#10182a;
+  font-size:clamp(22px,3vw,30px);
+  line-height:1.25;
+  letter-spacing:-.035em;
+}
+
+.preregister-steps{
+  display:grid;
+  gap:0;
+  margin:0 0 30px;
+  border-top:1px solid rgba(54,80,113,.14);
+}
+
+.preregister-step{
+  display:grid;
+  grid-template-columns:54px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:18px 0;
+  border-bottom:1px solid rgba(54,80,113,.14);
+}
+
+.preregister-step>span{
+  color:#5865f2;
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.12em;
+}
+
+.preregister-step p{
+  margin:0;
+  color:#33445a;
+  font-size:15px;
+  line-height:1.75;
+}
+
+.preregister-discord-button{
+  display:flex;
+  width:100%;
+  min-height:60px;
+  align-items:center;
+  justify-content:center;
+  border-radius:13px;
+  background:#5865f2;
+  color:#fff!important;
+  font-size:16px;
+  font-weight:900;
+  text-align:center;
+  text-decoration:none;
+  box-shadow:0 12px 30px rgba(88,101,242,.24);
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease;
+}
+
+.preregister-discord-button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 16px 34px rgba(88,101,242,.28);
+  filter:brightness(1.02);
+}
+
+.preregister-discord-button:active{transform:translateY(1px)}
+
+.preregister-discord-note{
+  margin:16px 0 0;
+  color:#66758a;
+  font-size:13px;
+  line-height:1.7;
+  text-align:center;
+}
+
+.preregister-oci-section{
+  margin-top:clamp(54px,8vw,78px);
+}
+
+.preregister-section-kicker{margin-bottom:8px}
+
+.preregister-feature-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  margin-top:24px;
+}
+
+.preregister-feature-grid>div{
+  display:grid;
+  gap:6px;
+  min-height:112px;
+  padding:20px;
+  border:1px solid rgba(54,80,113,.16);
+  border-radius:16px;
+  background:rgba(255,255,255,.72);
+}
+
+.preregister-feature-grid strong{
+  color:#10182a;
+  font-size:15px;
+}
+
+.preregister-feature-grid span{
+  color:#66758a;
+  font-size:13px;
+  line-height:1.65;
+}
+
+.preregister-footnote{
+  margin-top:30px;
+  padding:20px 22px;
+  border-left:3px solid #5865f2;
+  background:rgba(88,101,242,.055);
+  color:#526175;
+  font-size:13px;
+  line-height:1.75;
+}
+
+.preregister-footnote p{margin:0}
+.preregister-footnote p+p{margin-top:6px}
 
 .preregister-form{display:grid;gap:26px}
 .preregister-field{display:grid;gap:10px}
@@ -131,7 +300,11 @@
 
 @media(max-width:760px){
   .preregister-main{padding-top:56px}
-  .preregister-wrap>h1{margin-bottom:40px}
-  .preregister-form{gap:24px}
+  .preregister-wrap>h1{margin-bottom:20px}
+  .preregister-discord-card{border-radius:18px}
+  .preregister-feature-grid{grid-template-columns:1fr}
+  .preregister-discord-head{align-items:flex-start}
+  .preregister-discord-mark{width:54px;height:54px;border-radius:16px;font-size:16px}
+  .preregister-step{grid-template-columns:44px 1fr}
   .preregister-complete-main{min-height:calc(100svh - var(--header));padding-top:32px}
 }
