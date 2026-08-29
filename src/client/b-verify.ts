@@ -1,6 +1,6 @@
 type OtherInput = Readonly<Record<string, string | boolean>>;
 
-const SUPABASE_VERIFY_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/input-verify';
+const SUPABASE_VERIFY_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/input-verify';
 const REQUEST_TIMEOUT_MS = 12_000;
 
 export class BVerificationError extends Error {
@@ -40,29 +40,21 @@ export async function verifyOtherInputWithSupabase(
     const response = await fetch(SUPABASE_VERIFY_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        input,
-        signature,
-      }),
+      body: JSON.stringify({ input, signature }),
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
       signal: controller.signal,
     });
-
     const payload = await response.json().catch(() => null);
-
     if (!response.ok) {
-      const parsed = payload && typeof payload === 'object' && !Array.isArray(payload)
-        ? payload as Record<string, unknown>
-        : {};
+      const parsed = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
       throw new BVerificationError(
         typeof parsed.code === 'string' ? parsed.code : `B_HTTP_${response.status}`,
         typeof parsed.message === 'string' ? parsed.message : '入力内容の確認が拒否されました。',
         parsed,
       );
     }
-
     const parsed = responseObject(payload);
     if (parsed.ok !== true) {
       throw new BVerificationError(
@@ -71,8 +63,6 @@ export async function verifyOtherInputWithSupabase(
         parsed,
       );
     }
-
-    // B処理は値を書き換えない。SupabaseがTrueを返した事実だけを統合処理へ渡す。
     return true;
   } catch (error) {
     if (error instanceof BVerificationError) throw error;
