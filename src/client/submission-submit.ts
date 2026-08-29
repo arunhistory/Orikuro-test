@@ -13,13 +13,12 @@ type IntegratedSubmission = Readonly<{
   signature: string;
 }>;
 
-const SUBMISSION_PROTECTOR_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/submission-protector';
+const SUBMISSION_PROTECTOR_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/submission-public';
 const REQUEST_TIMEOUT_MS = 12_000;
 
 export class SubmissionTransportError extends Error {
   readonly code: string;
   readonly detail?: unknown;
-
   constructor(code: string, message: string, detail?: unknown) {
     super(message);
     this.name = 'SubmissionTransportError';
@@ -50,9 +49,7 @@ async function postJson(url: string, body: unknown): Promise<Record<string, unkn
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      const parsed = payload && typeof payload === 'object' && !Array.isArray(payload)
-        ? payload as Record<string, unknown>
-        : {};
+      const parsed = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
       throw new SubmissionTransportError(
         typeof parsed.code === 'string' ? parsed.code : `HTTP_${response.status}`,
         typeof parsed.message === 'string' ? parsed.message : '送信処理が拒否されました。',
@@ -71,13 +68,10 @@ async function postJson(url: string, body: unknown): Promise<Record<string, unkn
   }
 }
 
-export async function submitIntegratedSubmission(
-  submission: IntegratedSubmission,
-): Promise<Record<string, unknown>> {
+export async function submitIntegratedSubmission(submission: IntegratedSubmission): Promise<Record<string, unknown>> {
   if (!submission || !submission.email || !submission.input || typeof submission.signature !== 'string') {
     throw new SubmissionTransportError('INVALID_INTEGRATED_INPUT', '統合送信データが正しくありません。');
   }
-
   return postJson(SUBMISSION_PROTECTOR_URL, {
     email: submission.email,
     input: submission.input,
