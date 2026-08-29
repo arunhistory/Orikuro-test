@@ -1,4 +1,4 @@
-const FLOW_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/service-flow-gate';
+const FLOW_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/service-flow';
 const FLOW_STORAGE_KEY = 'oc_service_flow_token_v1';
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 const REQUEST_TIMEOUT_MS = 12_000;
@@ -33,9 +33,7 @@ async function post(body: Record<string, unknown>): Promise<Record<string, unkno
       signal: controller.signal,
     });
     const payload = await response.json().catch(() => null);
-    const parsed = payload && typeof payload === 'object' && !Array.isArray(payload)
-      ? payload as Record<string, unknown>
-      : {};
+    const parsed = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
     if (!response.ok || parsed.ok !== true) {
       throw new ServiceFlowError(
         typeof parsed.code === 'string' ? parsed.code : `HTTP_${response.status}`,
@@ -58,32 +56,23 @@ export function getServiceFlowToken(): string | null {
   const token = sessionStorage.getItem(FLOW_STORAGE_KEY);
   return token && TOKEN_RE.test(token) ? token : null;
 }
-
-export function clearServiceFlowToken(): void {
-  sessionStorage.removeItem(FLOW_STORAGE_KEY);
-}
-
+export function clearServiceFlowToken(): void { sessionStorage.removeItem(FLOW_STORAGE_KEY); }
 export async function startServiceFlow(entry: 'stream' | 'watch' | 'algorithm'): Promise<void> {
   const payload = await post({ action: 'start', entry });
   const token = payload.token;
-  if (typeof token !== 'string' || !TOKEN_RE.test(token)) {
-    throw new ServiceFlowError('INVALID_TOKEN', '利用準備用トークンを確認できません。');
-  }
+  if (typeof token !== 'string' || !TOKEN_RE.test(token)) throw new ServiceFlowError('INVALID_TOKEN', '利用準備用トークンを確認できません。');
   sessionStorage.setItem(FLOW_STORAGE_KEY, token);
 }
-
 export async function touchServiceFlow(): Promise<void> {
   const token = getServiceFlowToken();
   if (!token) throw new ServiceFlowError('FLOW_MISSING', '利用準備を確認できません。');
   await post({ action: 'touch', token });
 }
-
 export async function consumeServiceFlow(path: string): Promise<void> {
   const token = getServiceFlowToken();
   if (!token) throw new ServiceFlowError('FLOW_MISSING', 'このサービスを直接開くことはできません。');
   await post({ action: 'consume', token, path });
 }
-
 export function isFlowTimeout(error: unknown): boolean {
   return error instanceof ServiceFlowError && (error.code === 'FLOW_TIMEOUT' || error.code === 'FLOW_MISSING');
 }
