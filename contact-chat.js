@@ -54,7 +54,7 @@ function renderMessages(messages,status){
   }else{
     for(const m of messages){
       const row=document.createElement('div');
-      const role=['user','operator','system','resolution','discord'].includes(m.role)?m.role:'discord';
+      const role=['user','operator','system','resolution','ticket_code','discord'].includes(m.role)?m.role:'discord';
       row.className=`chat-message ${role}`;
       const bubble=document.createElement('div');bubble.className='chat-bubble';
       let label='';
