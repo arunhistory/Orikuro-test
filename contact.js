@@ -1,4 +1,4 @@
-const AUTH_ENDPOINT='https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/discord-support-auth';
+const AUTH_ENDPOINT='https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/discord-system/a/auth';
 const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const startButton=document.querySelector('[data-chat-start]');
