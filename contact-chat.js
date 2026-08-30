@@ -1,4 +1,4 @@
-const API='https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/discord-support-api';
+const API='https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/discord-system/a/api';
 const TOKEN_KEY='oc_support_access_token';
 const CODE_KEY='oc_support_ticket_code';
 const shell=document.querySelector('[data-chat-shell]');
