@@ -2,7 +2,7 @@ const menuButton=document.querySelector('[data-menu-button]');
 const mobileMenu=document.querySelector('[data-mobile-menu]');
 const installButton=document.querySelector('[data-discord-install]');
 const installStatus=document.querySelector('[data-discord-install-status]');
-const INSTALL_CONFIG_URL='https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/discord-information-install';
+const INSTALL_CONFIG_URL='https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/discord-system/b/install';
 
 const links={
   'ロードマップ':'./roadmap.html',
