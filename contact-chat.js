@@ -52,7 +52,16 @@ function renderMessages(messages,status){
   if(!messages.length){
     const empty=document.createElement('div');empty.className='chat-loading';empty.textContent='メッセージを入力してお問い合わせを開始してください。';log.appendChild(empty);
   }else{
+    const displayMessages=[];
+    let ticketCodeInserted=false;
     for(const m of messages){
+      displayMessages.push(m);
+      if(!ticketCodeInserted&&m.role==='user'&&access.ticket){
+        displayMessages.push({id:`ticket-code-${access.ticket}`,role:'ticket_code',text:access.ticket,timestamp:null,editedTimestamp:null});
+        ticketCodeInserted=true;
+      }
+    }
+    for(const m of displayMessages){
       const row=document.createElement('div');
       const role=['user','operator','system','resolution','ticket_code','discord'].includes(m.role)?m.role:'discord';
       row.className=`chat-message ${role}`;
