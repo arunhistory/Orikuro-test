@@ -1,0 +1,53 @@
+name: Sync Pages Preview
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-preview-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging
+        uses: actions/checkout@v6
+        with:
+          ref: staging
+          fetch-depth: 0
+
+      - name: Fetch publishing branches
+        run: |
+          set -euo pipefail
+          git fetch origin main staging pages-preview
+
+      - name: Compose production and staging tree
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/oc-pages-publish /tmp/oc-pages-preview
+          mkdir -p /tmp/oc-pages-publish/staging
+          git archive origin/main | tar -x -C /tmp/oc-pages-publish
+          git archive origin/staging | tar -x -C /tmp/oc-pages-publish/staging
+          git worktree add /tmp/oc-pages-preview origin/pages-preview
+          find /tmp/oc-pages-preview -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a /tmp/oc-pages-publish/. /tmp/oc-pages-preview/
+
+      - name: Publish composed tree to pages-preview
+        run: |
+          set -euo pipefail
+          cd /tmp/oc-pages-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "pages-preview is already current"
+            exit 0
+          fi
+          git commit -m "Sync main and staging preview"
+          git push origin HEAD:pages-preview
