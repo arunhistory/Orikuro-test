@@ -20,9 +20,9 @@
   <script>
     (()=>{
       const flowKey='oc_service_flow_token_v1';
-      const rejectHistoryReentry=()=>{
+      const rejectHistoryReentry=(event)=>{
         const nav=performance.getEntriesByType('navigation')[0];
-        if(!nav||nav.type!=='back_forward') return;
+        if(!event.persisted&&nav?.type!=='back_forward') return;
         sessionStorage.removeItem(flowKey);
         location.replace('./index.html');
       };
