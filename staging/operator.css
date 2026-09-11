@@ -1,0 +1,76 @@
+.operator-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(70px,9vw,116px) 0 clamp(110px,13vw,160px);
+}
+
+.operator-document{
+  width:min(900px,100%);
+  margin:0 auto;
+  padding:clamp(36px,6vw,72px) clamp(24px,6vw,72px);
+  border:1px solid rgba(44,55,72,.14);
+  background:rgba(255,255,255,.82);
+  box-shadow:0 24px 72px rgba(35,48,66,.08);
+  font-family:"Yu Mincho","YuMincho","Hiragino Mincho ProN","Hiragino Mincho Pro","MS PMincho",serif;
+  color:#16191f;
+}
+
+.operator-title-block{
+  padding-bottom:clamp(30px,4vw,44px);
+  margin-bottom:clamp(34px,5vw,52px);
+  border-bottom:1px solid rgba(24,28,35,.22);
+}
+
+.operator-kicker{
+  margin:0 0 12px;
+  color:#69717b;
+  font-size:12px;
+  letter-spacing:.18em;
+}
+
+.operator-title-block h1{
+  margin:0;
+  font-size:clamp(30px,6vw,58px);
+  line-height:1.25;
+  font-weight:600;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+.operator-list{
+  margin:0;
+  border-top:1px solid rgba(24,28,35,.12);
+}
+
+.operator-row{
+  display:grid;
+  grid-template-columns:minmax(140px,220px) 1fr;
+  gap:28px;
+  padding:22px 0;
+  border-bottom:1px solid rgba(24,28,35,.12);
+}
+
+.operator-row dt,
+.operator-row dd{
+  margin:0;
+  font-size:clamp(15px,1.7vw,17px);
+  line-height:1.9;
+}
+
+.operator-row dt{
+  font-weight:600;
+}
+
+.operator-row dd{
+  font-weight:400;
+}
+
+@media(max-width:760px){
+  .operator-main{padding-top:54px}
+  .operator-document{padding:32px 20px 38px}
+  .operator-row{
+    grid-template-columns:1fr;
+    gap:6px;
+    padding:20px 0;
+  }
+}

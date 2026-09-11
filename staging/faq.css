@@ -1,0 +1,116 @@
+.faq-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
+}
+
+.faq-wrap{width:min(860px,100%);margin:0 auto}
+
+.faq-wrap>h1{
+  margin:0 0 clamp(48px,6vw,72px);
+  font-size:clamp(38px,5vw,64px);
+  line-height:1.1;
+  letter-spacing:-.05em;
+}
+
+.faq-list{
+  border-top:1px solid rgba(54,80,113,.18);
+}
+
+.faq-item{
+  border-bottom:1px solid rgba(54,80,113,.18);
+}
+
+.faq-item summary{
+  position:relative;
+  display:flex;
+  align-items:center;
+  min-height:clamp(74px,9vw,96px);
+  padding:22px 58px 22px 0;
+  color:#10182a;
+  font-size:clamp(17px,2vw,22px);
+  font-weight:850;
+  line-height:1.55;
+  letter-spacing:-.025em;
+  cursor:pointer;
+  list-style:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.faq-item summary::-webkit-details-marker{display:none}
+
+.faq-item summary::before,
+.faq-item summary::after{
+  content:"";
+  position:absolute;
+  right:8px;
+  top:50%;
+  width:20px;
+  height:2px;
+  border-radius:2px;
+  background:#65758a;
+  transform:translateY(-50%);
+  transition:transform .22s ease,opacity .22s ease;
+}
+
+.faq-item summary::after{
+  transform:translateY(-50%) rotate(90deg);
+}
+
+.faq-item[open] summary::after{
+  transform:translateY(-50%) rotate(0deg);
+  opacity:0;
+}
+
+.faq-item summary:focus-visible{
+  outline:2px solid rgba(52,101,164,.65);
+  outline-offset:6px;
+  border-radius:4px;
+}
+
+.faq-answer{
+  padding:0 58px 28px 0;
+  color:#536176;
+  font-size:clamp(15px,1.65vw,18px);
+  font-weight:600;
+  line-height:1.9;
+  letter-spacing:-.01em;
+}
+
+.faq-answer p{
+  margin:0;
+}
+
+.faq-answer p+p{
+  margin-top:10px;
+}
+
+.faq-answer a{
+  color:#213f68;
+  font-weight:800;
+  text-decoration:underline;
+  text-decoration-thickness:1px;
+  text-underline-offset:4px;
+}
+
+@media(hover:hover){
+  .faq-item summary:hover{color:#345f97}
+  .faq-answer a:hover{opacity:.72}
+}
+
+@media(max-width:760px){
+  .faq-main{padding-top:56px}
+  .faq-wrap>h1{margin-bottom:44px}
+  .faq-item summary{
+    min-height:72px;
+    padding:20px 44px 20px 0;
+  }
+  .faq-item summary::before,
+  .faq-item summary::after{
+    right:4px;
+    width:18px;
+  }
+  .faq-answer{
+    padding:0 42px 24px 0;
+  }
+}

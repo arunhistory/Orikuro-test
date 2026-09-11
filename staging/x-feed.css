@@ -1,0 +1,62 @@
+/* Official X posts: URLs are managed separately and rendered as individual X embeds. */
+.x-timeline-slot{
+  min-height:420px;
+  max-height:560px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  padding:0;
+  background:rgba(255,255,255,.30);
+  scrollbar-width:thin;
+}
+.x-feed-state{
+  min-height:420px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:9px;
+  padding:28px;
+  color:#6b798c;
+}
+.x-feed-state-title{
+  margin:0;
+  color:#10182a;
+  font-size:18px;
+  font-weight:850;
+  line-height:1.4;
+  letter-spacing:-.02em;
+}
+.x-feed-state-text{
+  margin:0;
+  color:#738195;
+  font-size:11px;
+  font-weight:650;
+  line-height:1.7;
+}
+.x-embed-list{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:0;
+}
+.x-embed-item{
+  min-width:0;
+  padding:18px clamp(14px,2vw,20px);
+  border-bottom:1px solid rgba(47,72,104,.10);
+}
+.x-embed-item:last-child{border-bottom:0}
+.x-embed-item .twitter-tweet{
+  margin:0 auto!important;
+  width:100%!important;
+  max-width:550px!important;
+}
+.x-embed-item>iframe,
+.x-embed-item .twitter-tweet-rendered{
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+@media(max-width:620px){
+  .x-timeline-slot{min-height:390px;max-height:500px}
+  .x-feed-state{min-height:390px;padding:24px 20px}
+  .x-embed-item{padding:14px 10px}
+}

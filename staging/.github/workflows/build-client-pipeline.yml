@@ -1,0 +1,132 @@
+# Client pipeline v10: branch-isolated main + staging builds
+name: Build client submission pipeline
+
+on:
+  push:
+    branches: [main, staging]
+    paths:
+      - 'src/client/**'
+      - '.github/workflows/build-client-pipeline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-client-submission-pipeline-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned build tools
+        run: npm install --no-save --no-package-lock esbuild@0.28.2 javascript-obfuscator@5.5.0
+
+      - name: Compile, minify and obfuscate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .build/client assets/js
+
+          build_one() {
+            local src="$1"
+            local name="$2"
+            local tmp=".build/client/${name}.min.js"
+            local out="assets/js/${name}.js"
+
+            npx esbuild "$src" \
+              --outfile="$tmp" \
+              --format=esm \
+              --target=es2022 \
+              --minify \
+              --legal-comments=none \
+              --charset=utf8
+
+            npx javascript-obfuscator "$tmp" \
+              --output "$out" \
+              --target browser-no-eval \
+              --compact true \
+              --control-flow-flattening true \
+              --control-flow-flattening-threshold 0.35 \
+              --dead-code-injection false \
+              --debug-protection false \
+              --disable-console-output true \
+              --identifier-names-generator hexadecimal \
+              --ignore-imports true \
+              --numbers-to-expressions true \
+              --rename-globals false \
+              --rename-properties false \
+              --self-defending false \
+              --simplify true \
+              --split-strings true \
+              --split-strings-chunk-length 12 \
+              --string-array true \
+              --string-array-encoding base64 \
+              --string-array-threshold 0.70 \
+              --transform-object-keys false \
+              --unicode-escape-sequence false
+          }
+
+          build_one src/client/input-router.ts input-router
+          build_one src/client/b-verify.ts b-verify
+          build_one src/client/cloudflare-submit.ts cloudflare-submit
+          build_one src/client/response-router.ts response-router
+          build_one src/client/service-flow.ts service-flow
+          build_one src/client/service-destination.ts service-destination
+          build_one src/client/email-delete.ts email-delete
+          build_one src/client/email-delete-not-registered.ts email-delete-not-registered
+
+          for name in input-router b-verify cloudflare-submit response-router service-flow service-destination email-delete email-delete-not-registered; do
+            sha256sum "assets/js/${name}.js" > "assets/js/${name}.js.sha256"
+          done
+
+      - name: Publish generated client scripts on current branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_branch="${GITHUB_REF_NAME}"
+          case "$target_branch" in
+            main|staging) ;;
+            *) echo "Refusing to publish generated assets to unexpected branch: $target_branch" >&2; exit 1 ;;
+          esac
+
+          mkdir -p /tmp/oc-generated-client
+          cp assets/js/input-router.js assets/js/input-router.js.sha256 \
+             assets/js/b-verify.js assets/js/b-verify.js.sha256 \
+             assets/js/cloudflare-submit.js assets/js/cloudflare-submit.js.sha256 \
+             assets/js/response-router.js assets/js/response-router.js.sha256 \
+             assets/js/service-flow.js assets/js/service-flow.js.sha256 \
+             assets/js/service-destination.js assets/js/service-destination.js.sha256 \
+             assets/js/email-delete.js assets/js/email-delete.js.sha256 \
+             assets/js/email-delete-not-registered.js assets/js/email-delete-not-registered.js.sha256 \
+             /tmp/oc-generated-client/
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin "$target_branch"
+          git reset --hard "origin/$target_branch"
+          cp /tmp/oc-generated-client/* assets/js/
+
+          git add assets/js/input-router.js assets/js/input-router.js.sha256 \
+                  assets/js/b-verify.js assets/js/b-verify.js.sha256 \
+                  assets/js/cloudflare-submit.js assets/js/cloudflare-submit.js.sha256 \
+                  assets/js/response-router.js assets/js/response-router.js.sha256 \
+                  assets/js/service-flow.js assets/js/service-flow.js.sha256 \
+                  assets/js/service-destination.js assets/js/service-destination.js.sha256 \
+                  assets/js/email-delete.js assets/js/email-delete.js.sha256 \
+                  assets/js/email-delete-not-registered.js assets/js/email-delete-not-registered.js.sha256
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+            exit 0
+          fi
+          git commit -m "Build minified obfuscated client submission scripts for ${target_branch}"
+          git push origin "HEAD:${target_branch}"
