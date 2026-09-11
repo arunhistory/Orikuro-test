@@ -14,6 +14,7 @@ type IntegratedSubmission = Readonly<{
 }>;
 
 const CLOUDFLARE_STAGE2_URL = 'https://oc-stage2.garigarimegane625.workers.dev/v1/process';
+const CLOUDFLARE_STAGE2_STAGING_URL = 'https://oc-stage2-staging.garigarimegane625.workers.dev/v1/process';
 const REQUEST_TIMEOUT_MS = 12_000;
 
 export class SubmissionTransportError extends Error {
@@ -78,7 +79,11 @@ export async function submitIntegratedSubmission(
     throw new SubmissionTransportError('INVALID_INTEGRATED_INPUT', '統合送信データが正しくありません。');
   }
 
-  return postJson(CLOUDFLARE_STAGE2_URL, {
+  const url = typeof submission.input.flowToken === 'string'
+    ? CLOUDFLARE_STAGE2_STAGING_URL
+    : CLOUDFLARE_STAGE2_URL;
+
+  return postJson(url, {
     email: submission.email,
     input: submission.input,
     signature: submission.signature,
