@@ -1,9 +1,9 @@
-# Client pipeline v9: Cloudflare stage2 + service flow + deletion flow
+# Client pipeline v10: branch-isolated main + staging builds
 name: Build client submission pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
     paths:
       - 'src/client/**'
       - '.github/workflows/build-client-pipeline.yml'
@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-client-submission-pipeline-main
+  group: build-client-submission-pipeline-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -89,10 +89,16 @@ jobs:
             sha256sum "assets/js/${name}.js" > "assets/js/${name}.js.sha256"
           done
 
-      - name: Publish generated client scripts on latest main
+      - name: Publish generated client scripts on current branch
         shell: bash
         run: |
           set -euo pipefail
+          target_branch="${GITHUB_REF_NAME}"
+          case "$target_branch" in
+            main|staging) ;;
+            *) echo "Refusing to publish generated assets to unexpected branch: $target_branch" >&2; exit 1 ;;
+          esac
+
           mkdir -p /tmp/oc-generated-client
           cp assets/js/input-router.js assets/js/input-router.js.sha256 \
              assets/js/b-verify.js assets/js/b-verify.js.sha256 \
@@ -106,8 +112,8 @@ jobs:
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin main
-          git reset --hard origin/main
+          git fetch origin "$target_branch"
+          git reset --hard "origin/$target_branch"
           cp /tmp/oc-generated-client/* assets/js/
 
           git add assets/js/input-router.js assets/js/input-router.js.sha256 \
@@ -122,5 +128,5 @@ jobs:
             echo 'No generated changes.'
             exit 0
           fi
-          git commit -m 'Build minified obfuscated client submission scripts'
-          git push origin HEAD:main
+          git commit -m "Build minified obfuscated client submission scripts for ${target_branch}"
+          git push origin "HEAD:${target_branch}"
