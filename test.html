@@ -17,6 +17,18 @@
     .mobile-menu .menu-group .menu-group-label{margin:0 0 12px!important;color:#66758a!important;font-size:10px!important;font-weight:850!important;letter-spacing:.18em!important}
     .mobile-menu .menu-group a::after{content:none!important;display:none!important}
   </style>
+  <script>
+    (()=>{
+      const flowKey='oc_service_flow_token_v1';
+      const rejectHistoryReentry=()=>{
+        const nav=performance.getEntriesByType('navigation')[0];
+        if(!nav||nav.type!=='back_forward') return;
+        sessionStorage.removeItem(flowKey);
+        location.replace('./index.html');
+      };
+      window.addEventListener('pageshow',rejectHistoryReentry);
+    })();
+  </script>
 </head>
 <body>
   <header class="page-header">
