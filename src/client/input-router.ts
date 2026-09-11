@@ -2,7 +2,7 @@ import { processEmailStage1 } from '../../assets/wasm/email-stage1.js?v=20260827
 import { processFullNameStage1 } from '../../assets/wasm/full-name-stage1.js?v=20260827-flow1';
 import { createPageSignature } from '../../assets/wasm/page-signature.js';
 import { verifyOtherInputWithSupabase } from './b-verify.js';
-import { submitIntegratedSubmission } from './cloudflare-submit.js';
+import { submitIntegratedSubmission } from './cloudflare-submit.js?v=20260911-stage2fix1';
 import { handleFinalResponse, renderPipelineError } from './response-router.js';
 import { clearServiceFlowToken, getServiceFlowToken, isFlowTimeout, touchServiceFlow } from './service-flow.js';
 
