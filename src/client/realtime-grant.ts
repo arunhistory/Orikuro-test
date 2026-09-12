@@ -1,6 +1,6 @@
 import { getServiceFlowToken, ServiceFlowError } from './service-flow.js';
 
-const GRANT_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-realtime-grant';
+const GRANT_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-authorization';
 const STORAGE_KEY = 'oc_stream_realtime_grant_v1';
 const REQUEST_TIMEOUT_MS = 8_000;
 const STREAM_ID_RE = /^[A-Za-z0-9_-]{16,128}$/;
