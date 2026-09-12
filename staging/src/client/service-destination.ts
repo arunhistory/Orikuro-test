@@ -1,4 +1,4 @@
-import { clearServiceFlowToken, consumeServiceFlow, isFlowTimeout } from './service-flow.js';
+import { clearServiceFlowToken, consumeServiceFlow, isFlowTimeout } from './service-flow.js?v=20260827-flow1';
 
 function currentRelativePath(): string {
   const file = location.pathname.split('/').filter(Boolean).at(-1) || '';
