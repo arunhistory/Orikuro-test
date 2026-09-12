@@ -1,9 +1,9 @@
-# Client pipeline v10: branch-isolated main + staging builds
+# Client pipeline v11: branch-isolated main + staging + temporary phase3 verification
 name: Build client submission pipeline
 
 on:
   push:
-    branches: [main, staging]
+    branches: [main, staging, phase3-audio-comments]
     paths:
       - 'src/client/**'
       - '.github/workflows/build-client-pipeline.yml'
@@ -82,10 +82,13 @@ jobs:
           build_one src/client/response-router.ts response-router
           build_one src/client/service-flow.ts service-flow
           build_one src/client/service-destination.ts service-destination
+          build_one src/client/realtime-grant.ts realtime-grant
+          build_one src/client/stream-realtime.ts stream-realtime
+          build_one src/client/stream-audio-worklet.ts stream-audio-worklet
           build_one src/client/email-delete.ts email-delete
           build_one src/client/email-delete-not-registered.ts email-delete-not-registered
 
-          for name in input-router b-verify cloudflare-submit response-router service-flow service-destination email-delete email-delete-not-registered; do
+          for name in input-router b-verify cloudflare-submit response-router service-flow service-destination realtime-grant stream-realtime stream-audio-worklet email-delete email-delete-not-registered; do
             sha256sum "assets/js/${name}.js" > "assets/js/${name}.js.sha256"
           done
 
@@ -95,7 +98,7 @@ jobs:
           set -euo pipefail
           target_branch="${GITHUB_REF_NAME}"
           case "$target_branch" in
-            main|staging) ;;
+            main|staging|phase3-audio-comments) ;;
             *) echo "Refusing to publish generated assets to unexpected branch: $target_branch" >&2; exit 1 ;;
           esac
 
@@ -106,6 +109,9 @@ jobs:
              assets/js/response-router.js assets/js/response-router.js.sha256 \
              assets/js/service-flow.js assets/js/service-flow.js.sha256 \
              assets/js/service-destination.js assets/js/service-destination.js.sha256 \
+             assets/js/realtime-grant.js assets/js/realtime-grant.js.sha256 \
+             assets/js/stream-realtime.js assets/js/stream-realtime.js.sha256 \
+             assets/js/stream-audio-worklet.js assets/js/stream-audio-worklet.js.sha256 \
              assets/js/email-delete.js assets/js/email-delete.js.sha256 \
              assets/js/email-delete-not-registered.js assets/js/email-delete-not-registered.js.sha256 \
              /tmp/oc-generated-client/
@@ -122,6 +128,9 @@ jobs:
                   assets/js/response-router.js assets/js/response-router.js.sha256 \
                   assets/js/service-flow.js assets/js/service-flow.js.sha256 \
                   assets/js/service-destination.js assets/js/service-destination.js.sha256 \
+                  assets/js/realtime-grant.js assets/js/realtime-grant.js.sha256 \
+                  assets/js/stream-realtime.js assets/js/stream-realtime.js.sha256 \
+                  assets/js/stream-audio-worklet.js assets/js/stream-audio-worklet.js.sha256 \
                   assets/js/email-delete.js assets/js/email-delete.js.sha256 \
                   assets/js/email-delete-not-registered.js assets/js/email-delete-not-registered.js.sha256
           if git diff --cached --quiet; then
