@@ -173,7 +173,7 @@ export default {
       return reply(origin, 200, {
         ok: true,
         service: "oc-stage2-staging",
-        version: 8,
+        version: 9,
         mode: "staging",
         inputEncryption: [LEGACY_STAGE1_ALGORITHM, MATCH_STAGE1_ALGORITHM],
         matchIndex: { algorithm: "HMAC-SHA-256", ready: typeof env.OC_SUBMISSION_ROUTER_SECRET === "string" && !!env.OC_SUBMISSION_ROUTER_SECRET },
@@ -196,7 +196,7 @@ export default {
     }
     const text = await request.text();
     if (encoder.encode(text).byteLength > MAX_BODY_BYTES) {
-      return reply(origin, 413, { status: "rejected_schema", signature: "", message: "送信内容が大きすぎます。" });
+      return reply(origin, 413, { status: "rejected_schema", signature, message: "送信内容が大きすぎます。" });
     }
     let body;
     try { body = JSON.parse(text); }
@@ -223,7 +223,7 @@ export default {
     const upstreamUrl = isDeletionRequest ? SUPABASE_DELETE_REQUEST_URL : SUPABASE_ROUTER_URL;
     let upstream;
     try {
-      const headers = { "content-type": "application/json", "x-oc-router-secret": env.OC_SUBMISSION_ROUTER_SECRET };
+      const headers = { "content-type": "application/json", "x-oc-router-secret": env.OC_SUBMISSION_ROUTER_SECRET, "x-oc-test-channel": "staging" };
       if (matchToken) headers["x-oc-email-match-token"] = matchToken;
       upstream = await fetch(upstreamUrl, {
         method: "POST",
