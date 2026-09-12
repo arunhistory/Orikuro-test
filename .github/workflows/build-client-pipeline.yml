@@ -1,9 +1,9 @@
-# Client pipeline v11: branch-isolated main + staging + temporary phase3 verification
+# Client pipeline v11: branch-isolated main + staging builds with realtime modules
 name: Build client submission pipeline
 
 on:
   push:
-    branches: [main, staging, phase3-audio-comments]
+    branches: [main, staging]
     paths:
       - 'src/client/**'
       - '.github/workflows/build-client-pipeline.yml'
@@ -98,7 +98,7 @@ jobs:
           set -euo pipefail
           target_branch="${GITHUB_REF_NAME}"
           case "$target_branch" in
-            main|staging|phase3-audio-comments) ;;
+            main|staging) ;;
             *) echo "Refusing to publish generated assets to unexpected branch: $target_branch" >&2; exit 1 ;;
           esac
 
