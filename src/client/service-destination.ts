@@ -40,6 +40,7 @@ async function authorize(): Promise<void> {
     if (status) status.textContent = '';
     const content = contentTarget();
     if (content) content.hidden = false;
+    document.dispatchEvent(new CustomEvent('orikuro:service-ready', { detail: { path } }));
   } catch (error) {
     returnHome(isFlowTimeout(error) ? 'タイムアウトしました。' : '利用準備ができません。');
   }
