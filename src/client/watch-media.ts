@@ -101,8 +101,7 @@ function safeBigIntToNumber(value: bigint): number | null {
 
 function mediaMicros(value: bigint, num: number, den: number): number | null {
   if (!Number.isSafeInteger(num) || num <= 0 || !Number.isSafeInteger(den) || den <= 0) return null;
-  const scaled = value * BigInt(num) * 1_000_000n;
-  const micros = scaled / BigInt(den);
+  const micros = value * BigInt(num) * 1_000_000n / BigInt(den);
   return safeBigIntToNumber(micros);
 }
 
@@ -148,8 +147,7 @@ function parseAudioPCM(payload: Uint8Array): AudioPCM | null {
   const sampleRate = view.getUint32(8, false);
   const frames = view.getUint32(12, false);
   if (channels < 1 || channels > 8 || sampleRate < 8_000 || sampleRate > 384_000 || frames < 1 || frames > 4096) return null;
-  const samples = channels * frames;
-  if (AUDIO_HEADER_BYTES + samples * 4 !== payload.byteLength) return null;
+  if (AUDIO_HEADER_BYTES + channels * frames * 4 !== payload.byteLength) return null;
   const planes: Float32Array[] = [];
   let offset = AUDIO_HEADER_BYTES;
   for (let ch = 0; ch < channels; ch++) {
@@ -171,14 +169,8 @@ function annexBNALUnits(data: Uint8Array): Uint8Array[] {
   while (i + 3 <= data.length) {
     let header = -1;
     for (let j = i; j + 3 <= data.length; j++) {
-      if (j + 4 <= data.length && data[j] === 0 && data[j + 1] === 0 && data[j + 2] === 0 && data[j + 3] === 1) {
-        header = j + 4;
-        break;
-      }
-      if (data[j] === 0 && data[j + 1] === 0 && data[j + 2] === 1) {
-        header = j + 3;
-        break;
-      }
+      if (j + 4 <= data.length && data[j] === 0 && data[j + 1] === 0 && data[j + 2] === 0 && data[j + 3] === 1) { header = j + 4; break; }
+      if (data[j] === 0 && data[j + 1] === 0 && data[j + 2] === 1) { header = j + 3; break; }
     }
     if (header < 0 || header >= data.length) break;
     let end = data.length;
@@ -186,10 +178,7 @@ function annexBNALUnits(data: Uint8Array): Uint8Array[] {
       if (
         (j + 4 <= data.length && data[j] === 0 && data[j + 1] === 0 && data[j + 2] === 0 && data[j + 3] === 1)
         || (data[j] === 0 && data[j + 1] === 0 && data[j + 2] === 1)
-      ) {
-        end = j;
-        break;
-      }
+      ) { end = j; break; }
     }
     units.push(data.subarray(header, end));
     i = end;
@@ -258,11 +247,7 @@ export class WatchMediaClient {
   }
 
   onEnded(handler: () => void): void { this.endedHandler = handler; }
-
-  start(): void {
-    if (this.stopping) return;
-    this.connect();
-  }
+  start(): void { if (!this.stopping) this.connect(); }
 
   async enableAudio(): Promise<void> {
     if (this.stopping || this.audioEnabled) return;
@@ -283,10 +268,7 @@ export class WatchMediaClient {
   async stop(): Promise<void> {
     if (this.stopping) return;
     this.stopping = true;
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
+    if (this.reconnectTimer !== null) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     const socket = this.socket;
     this.socket = null;
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, 'viewer stopped');
@@ -301,10 +283,7 @@ export class WatchMediaClient {
   private setStatus(text: string): void { if (this.status) this.status.textContent = text; }
 
   private connect(): void {
-    if (this.stopping || this.grant.expiresAt <= Date.now()) {
-      this.setStatus('視聴認可が終了しました。');
-      return;
-    }
+    if (this.stopping || this.grant.expiresAt <= Date.now()) { this.setStatus('視聴認可が終了しました。'); return; }
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
     this.authenticated = false;
     this.setStatus('配信へ接続しています。');
@@ -320,21 +299,13 @@ export class WatchMediaClient {
 
     socket.addEventListener('message', (event) => {
       if (socket !== this.socket) return;
-      if (typeof event.data === 'string') {
-        this.handleControl(socket, event.data);
-        return;
-      }
-      if (!(event.data instanceof ArrayBuffer)) {
-        socket.close(1008, 'invalid media message');
-        return;
-      }
+      if (typeof event.data === 'string') { this.handleControl(socket, event.data); return; }
+      if (!(event.data instanceof ArrayBuffer)) { socket.close(1008, 'invalid media message'); return; }
       const packet = parseWire(event.data);
-      if (!packet || !this.authenticated || !this.acceptCursor(packet)) {
-        socket.close(1013, 'media resync required');
-        return;
-      }
-      if (packet.kind === KIND_VIDEO) this.handleVideo(socket, packet);
-      else this.handleAudio(socket, packet);
+      if (!packet || !this.authenticated) { socket.close(1008, 'invalid media packet'); return; }
+      if (!this.cursorAllowed(packet)) { this.forceKeyframeReconnect('配信時刻を再同期しています。'); return; }
+      const accepted = packet.kind === KIND_VIDEO ? this.handleVideo(socket, packet) : this.handleAudio(socket, packet);
+      if (accepted) this.commitCursor(packet.cursor);
     });
 
     socket.addEventListener('close', (event) => {
@@ -342,14 +313,8 @@ export class WatchMediaClient {
       this.socket = null;
       this.authenticated = false;
       if (this.stopping) return;
-      if (event.code === 1008 || this.grant.expiresAt <= Date.now()) {
-        this.setStatus('視聴認可が終了しました。');
-        return;
-      }
-      if (event.code === 1001 && event.reason === 'stream ended') {
-        this.finishStream();
-        return;
-      }
+      if (event.code === 1008 || this.grant.expiresAt <= Date.now()) { this.setStatus('視聴認可が終了しました。'); return; }
+      if (event.code === 1001 && event.reason === 'stream ended') { this.finishStream(); return; }
       this.setStatus('配信へ再接続しています。');
       this.scheduleReconnect();
     });
@@ -375,66 +340,57 @@ export class WatchMediaClient {
       this.setStatus('視聴中');
       return;
     }
-    if (payload.type === 'media_ended') {
-      this.finishStream();
-      return;
-    }
+    if (payload.type === 'media_ended') { this.finishStream(); return; }
     if (payload.type === 'pong') return;
     socket.close(1008, 'unsupported control message');
   }
 
-  private acceptCursor(packet: MediaPacket): boolean {
+  private cursorAllowed(packet: MediaPacket): boolean {
     if (packet.cursor <= this.lastCursor) return false;
-    if (this.expectedCursor !== null) {
-      if (packet.cursor !== this.expectedCursor) return false;
-    } else if (this.lastCursor !== 0n && packet.cursor !== this.lastCursor + 1n) {
-      return false;
-    } else if (this.lastCursor === 0n && this.allowKeyframeJump) {
-      if (packet.kind !== KIND_VIDEO || !packet.keyframe) return false;
-      this.allowKeyframeJump = false;
-    }
-    this.lastCursor = packet.cursor;
-    this.expectedCursor = packet.cursor + 1n;
+    if (this.expectedCursor !== null) return packet.cursor === this.expectedCursor;
+    if (this.lastCursor !== 0n) return packet.cursor === this.lastCursor + 1n;
+    if (this.allowKeyframeJump) return packet.kind === KIND_VIDEO && packet.keyframe;
     return true;
   }
 
-  private handleVideo(socket: WebSocket, packet: MediaPacket): void {
+  private commitCursor(cursor: bigint): void {
+    this.lastCursor = cursor;
+    this.expectedCursor = cursor + 1n;
+    this.allowKeyframeJump = false;
+  }
+
+  private handleVideo(socket: WebSocket, packet: MediaPacket): boolean {
     const timestampUs = mediaMicros(packet.pts, packet.timebaseNum, packet.timebaseDen);
     if (timestampUs === null || timestampUs < 0 || typeof VideoDecoder === 'undefined' || typeof EncodedVideoChunk === 'undefined') {
       socket.close(1003, 'video decoder unavailable');
-      return;
+      return false;
     }
     if (packet.keyframe) {
       const codec = avcCodecFromAnnexB(packet.payload);
-      if (!codec) { socket.close(1008, 'invalid h264 keyframe'); return; }
+      if (!codec) { this.forceKeyframeReconnect('映像を再同期しています。'); return false; }
       if (!this.decoder || codec !== this.decoderCodec || this.decoder.state === 'closed') {
         this.resetVideoDecoder();
         try {
           this.decoder = new VideoDecoder({
             output: (frame) => this.queueVideoFrame(frame),
-            error: () => this.forceReconnect('映像を再同期しています。'),
+            error: () => this.forceKeyframeReconnect('映像を再同期しています。'),
           });
           this.decoder.configure({ codec, optimizeForLatency: true, hardwareAcceleration: 'no-preference' });
           this.decoderCodec = codec;
         } catch {
           this.resetVideoDecoder();
           socket.close(1003, 'h264 decoder configuration failed');
-          return;
+          return false;
         }
       }
     }
-    if (!this.decoder || this.decoder.state !== 'configured') {
-      socket.close(1013, 'keyframe required');
-      return;
-    }
+    if (!this.decoder || this.decoder.state !== 'configured') { this.forceKeyframeReconnect('キーフレームを再取得しています。'); return false; }
     try {
-      this.decoder.decode(new EncodedVideoChunk({
-        type: packet.keyframe ? 'key' : 'delta',
-        timestamp: timestampUs,
-        data: packet.payload,
-      }));
+      this.decoder.decode(new EncodedVideoChunk({ type: packet.keyframe ? 'key' : 'delta', timestamp: timestampUs, data: packet.payload }));
+      return true;
     } catch {
-      socket.close(1013, 'video decode enqueue failed');
+      this.forceKeyframeReconnect('映像を再同期しています。');
+      return false;
     }
   }
 
@@ -443,7 +399,7 @@ export class WatchMediaClient {
     this.pendingFrames.push(frame);
     if (this.pendingFrames.length > 90) {
       this.pendingFrames.shift()?.close();
-      this.forceReconnect('映像遅延を再同期しています。');
+      this.forceKeyframeReconnect('映像遅延を再同期しています。');
       return;
     }
     this.pumpVideoFrames();
@@ -455,7 +411,7 @@ export class WatchMediaClient {
     const timestampUs = frame.timestamp;
     if (!Number.isFinite(timestampUs) || timestampUs < 0) {
       this.pendingFrames.shift()?.close();
-      this.forceReconnect('映像時刻を再同期しています。');
+      this.forceKeyframeReconnect('映像時刻を再同期しています。');
       return;
     }
     if (this.videoAnchorMediaUs === null) {
@@ -465,10 +421,7 @@ export class WatchMediaClient {
     const targetMs = this.videoAnchorPerfMs + (timestampUs - this.videoAnchorMediaUs) / 1000;
     const delay = targetMs - performance.now();
     if (delay > 4) {
-      this.renderTimer = window.setTimeout(() => {
-        this.renderTimer = null;
-        this.pumpVideoFrames();
-      }, Math.min(delay, 50));
+      this.renderTimer = window.setTimeout(() => { this.renderTimer = null; this.pumpVideoFrames(); }, Math.min(delay, 50));
       return;
     }
     this.pendingFrames.shift();
@@ -478,39 +431,30 @@ export class WatchMediaClient {
         this.canvas.height = frame.displayHeight;
       }
       this.context.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
-    } finally {
-      frame.close();
-    }
+    } finally { frame.close(); }
     queueMicrotask(() => this.pumpVideoFrames());
   }
 
-  private handleAudio(socket: WebSocket, packet: MediaPacket): void {
+  private handleAudio(socket: WebSocket, packet: MediaPacket): boolean {
     const pcm = parseAudioPCM(packet.payload);
     const timestampUs = mediaMicros(packet.pts, packet.timebaseNum, packet.timebaseDen);
-    if (!pcm || timestampUs === null || timestampUs < 0) { socket.close(1008, 'invalid audio packet'); return; }
-    if (!this.audioEnabled || !this.audioContext || this.audioContext.state !== 'running' || this.videoAnchorMediaUs === null) return;
+    if (!pcm || timestampUs === null || timestampUs < 0) { socket.close(1008, 'invalid audio packet'); return false; }
+    if (!this.audioEnabled || !this.audioContext || this.audioContext.state !== 'running' || this.videoAnchorMediaUs === null) return true;
 
     const context = this.audioContext;
     const nowMediaUs = this.videoAnchorMediaUs + (performance.now() - this.videoAnchorPerfMs) * 1000;
     let deltaSec = (timestampUs - nowMediaUs) / 1_000_000;
     const durationSec = pcm.frames / pcm.sampleRate;
-    if (deltaSec < -Math.max(0.25, durationSec * 2)) return;
-
+    if (deltaSec < -Math.max(0.25, durationSec * 2)) return true;
     let offsetSec = 0;
-    if (deltaSec < 0) {
-      offsetSec = Math.min(durationSec, -deltaSec);
-      deltaSec = 0;
-    }
-    if (offsetSec >= durationSec) return;
+    if (deltaSec < 0) { offsetSec = Math.min(durationSec, -deltaSec); deltaSec = 0; }
+    if (offsetSec >= durationSec) return true;
 
     let buffer: AudioBuffer;
     try {
       buffer = context.createBuffer(pcm.channels, pcm.frames, pcm.sampleRate);
       for (let ch = 0; ch < pcm.channels; ch++) buffer.copyToChannel(pcm.planes[ch], ch);
-    } catch {
-      socket.close(1011, 'audio buffer failed');
-      return;
-    }
+    } catch { socket.close(1011, 'audio buffer failed'); return false; }
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(context.destination);
@@ -519,15 +463,18 @@ export class WatchMediaClient {
       this.scheduledAudio.delete(source);
       try { source.disconnect(); } catch {}
     }, { once: true });
-    try { source.start(context.currentTime + deltaSec, offsetSec); } catch {
+    try { source.start(context.currentTime + deltaSec, offsetSec); }
+    catch {
       this.scheduledAudio.delete(source);
       try { source.disconnect(); } catch {}
     }
+    return true;
   }
 
-  private forceReconnect(message: string): void {
+  private forceKeyframeReconnect(message: string): void {
     if (this.stopping) return;
     this.setStatus(message);
+    this.resetMediaState(false);
     const socket = this.socket;
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1013, 'media resync required');
   }
@@ -535,23 +482,14 @@ export class WatchMediaClient {
   private scheduleReconnect(): void {
     if (this.stopping || this.reconnectTimer !== null || this.grant.expiresAt <= Date.now()) return;
     const delay = reconnectDelay(this.reconnectAttempt++);
-    this.reconnectTimer = window.setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect();
-    }, delay);
+    this.reconnectTimer = window.setTimeout(() => { this.reconnectTimer = null; this.connect(); }, delay);
   }
 
   private resetVideoDecoder(): void {
-    if (this.decoder) {
-      try { this.decoder.close(); } catch {}
-      this.decoder = null;
-    }
+    if (this.decoder) { try { this.decoder.close(); } catch {}; this.decoder = null; }
     this.decoderCodec = '';
     for (const frame of this.pendingFrames.splice(0)) frame.close();
-    if (this.renderTimer !== null) {
-      clearTimeout(this.renderTimer);
-      this.renderTimer = null;
-    }
+    if (this.renderTimer !== null) { clearTimeout(this.renderTimer); this.renderTimer = null; }
   }
 
   private clearScheduledAudio(): void {
@@ -575,10 +513,10 @@ export class WatchMediaClient {
   private finishStream(): void {
     if (this.stopping) return;
     this.stopping = true;
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
+    if (this.reconnectTimer !== null) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    const socket = this.socket;
+    this.socket = null;
+    if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, 'stream ended');
     this.resetMediaState(true);
     this.setStatus('配信が終了しました。');
     this.endedHandler?.();
