@@ -4,6 +4,7 @@ const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
 const supportedModes=new Set(["radio","standing"]);
 let selectedMode="radio";
+let outputReady=false;
 
 const modeCopy={
   radio:{title:"ラジオ配信",copy:"音声を中心に配信するテストモードです。"},
@@ -15,6 +16,11 @@ function setState(name,text,state="waiting"){
   if(!el)return;
   el.textContent=text;
   el.dataset.state=state;
+}
+
+function updateStartButton(){
+  const button=document.querySelector("[data-stream-start]");
+  if(button)button.disabled=!compatibility.supported||!outputReady||!supportedModes.has(selectedMode);
 }
 
 function applyMode(mode,emit=true){
@@ -31,6 +37,7 @@ function applyMode(mode,emit=true){
   if(title)title.textContent=copy.title;
   if(text)text.textContent=copy.copy;
   document.documentElement.dataset.streamMode=mode;
+  updateStartButton();
   if(emit)window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 }
 
@@ -38,7 +45,7 @@ if(compatibility.supported){
   setState("transport","対応","ready");
   setState("session","接続待ち");
   setState("composition","接続待ち");
-  setState("audio","停止中");
+  setState("audio","接続待ち");
   setState("output","接続待ち");
 }
 
@@ -67,34 +74,19 @@ function stopClock(){
   timer=0;
 }
 
-function syncAudioState(){
-  const status=document.querySelector("[data-audio-status]");
-  if(!status)return;
-  const text=(status.textContent||"").trim();
-  if(text.includes("マイク送信中"))setState("audio","送信中","ready");
-  else if(text.includes("停止中"))setState("audio","停止中","waiting");
-  else if(text.includes("接続")||text.includes("確認"))setState("audio","接続中","waiting");
-  else if(text)setState("audio",text,"waiting");
-}
-
-const audioStatus=document.querySelector("[data-audio-status]");
-if(audioStatus){
-  syncAudioState();
-  new MutationObserver(syncAudioState).observe(audioStatus,{childList:true,characterData:true,subtree:true});
-}
-
-document.addEventListener("orikuro:service-ready",()=>{
-  setState("session","認可済み","ready");
-  startClock();
-},{once:true});
 window.addEventListener("orikuro:transport-ready",()=>{
   setState("session","接続済み","ready");
   setState("transport","接続済み","ready");
 });
 window.addEventListener("orikuro:composition-ready",()=>setState("composition","準備完了","ready"));
 window.addEventListener("orikuro:audio-ready",()=>setState("audio","準備完了","ready"));
-window.addEventListener("orikuro:output-ready",()=>setState("output","送出可能","ready"));
+window.addEventListener("orikuro:output-ready",()=>{
+  outputReady=true;
+  setState("output","送出可能","ready");
+  updateStartButton();
+});
 window.addEventListener("orikuro:stream-live",()=>{
+  startClock();
   const status=document.querySelector("[data-stream-status]");
   if(status)status.textContent="配信中";
 });
@@ -103,5 +95,14 @@ window.addEventListener("orikuro:stream-ended",event=>{
   const reason=event?.detail?.reason||"ended";
   location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}`);
 });
+
+const startButton=document.querySelector("[data-stream-start]");
+if(startButton){
+  startButton.addEventListener("click",()=>{
+    if(!supportedModes.has(selectedMode)||!outputReady)return;
+    startButton.disabled=true;
+    window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode}}));
+  });
+}
 
 if(!compatibility.supported&&root)root.hidden=true;
