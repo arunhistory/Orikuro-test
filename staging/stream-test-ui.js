@@ -2,12 +2,43 @@ import{applyStreamingCompatibility}from"./stream-compat.js";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
+const supportedModes=new Set(["radio","standing"]);
+let selectedMode="radio";
+let outputReady=false;
+
+const modeCopy={
+  radio:{title:"ラジオ配信",copy:"音声を中心に配信するテストモードです。"},
+  standing:{title:"立ち絵配信",copy:"立ち絵を使用して配信するテストモードです。"}
+};
 
 function setState(name,text,state="waiting"){
   const el=document.querySelector(`[data-stream-state="${name}"]`);
   if(!el)return;
   el.textContent=text;
   el.dataset.state=state;
+}
+
+function updateStartButton(){
+  const button=document.querySelector("[data-stream-start]");
+  if(button)button.disabled=!compatibility.supported||!outputReady||!supportedModes.has(selectedMode);
+}
+
+function applyMode(mode,emit=true){
+  if(!supportedModes.has(mode))return;
+  selectedMode=mode;
+  document.querySelectorAll("[data-stream-mode]").forEach(button=>{
+    const active=button.dataset.streamMode===mode;
+    button.classList.toggle("is-selected",active);
+    button.setAttribute("aria-pressed",active?"true":"false");
+  });
+  const copy=modeCopy[mode];
+  const title=document.querySelector("[data-stream-preview-title]");
+  const text=document.querySelector("[data-stream-preview-copy]");
+  if(title)title.textContent=copy.title;
+  if(text)text.textContent=copy.copy;
+  document.documentElement.dataset.streamMode=mode;
+  updateStartButton();
+  if(emit)window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 }
 
 if(compatibility.supported){
@@ -17,6 +48,11 @@ if(compatibility.supported){
   setState("audio","接続待ち");
   setState("output","接続待ち");
 }
+
+for(const button of document.querySelectorAll("[data-stream-mode]")){
+  button.addEventListener("click",()=>applyMode(button.dataset.streamMode||""));
+}
+applyMode(selectedMode,false);
 
 let startedAt=0;
 let timer=0;
@@ -45,9 +81,9 @@ window.addEventListener("orikuro:transport-ready",()=>{
 window.addEventListener("orikuro:composition-ready",()=>setState("composition","準備完了","ready"));
 window.addEventListener("orikuro:audio-ready",()=>setState("audio","準備完了","ready"));
 window.addEventListener("orikuro:output-ready",()=>{
+  outputReady=true;
   setState("output","送出可能","ready");
-  const button=document.querySelector("[data-stream-start]");
-  if(button)button.disabled=false;
+  updateStartButton();
 });
 window.addEventListener("orikuro:stream-live",()=>{
   startClock();
@@ -63,8 +99,9 @@ window.addEventListener("orikuro:stream-ended",event=>{
 const startButton=document.querySelector("[data-stream-start]");
 if(startButton){
   startButton.addEventListener("click",()=>{
+    if(!supportedModes.has(selectedMode)||!outputReady)return;
     startButton.disabled=true;
-    window.dispatchEvent(new CustomEvent("orikuro:stream-start-request"));
+    window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode}}));
   });
 }
 
