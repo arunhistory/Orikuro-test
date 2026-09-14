@@ -10,7 +10,7 @@ let outputReady=false;
 
 const modeCopy={
   radio:{title:"ラジオ配信",copy:"音声を中心に配信するテストモードです。"},
-  standing:{title:"立ち絵配信",copy:"立ち絵を使用して配信するテストモードです。"}
+  standing:{title:"立ち絵配信",copy:"カメラで顔の位置だけを追跡し、立ち絵を動かすテストモードです。"}
 };
 
 function setState(name,text,state="waiting"){
