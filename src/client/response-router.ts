@@ -1,4 +1,5 @@
 import { clearServiceFlowToken } from './service-flow.js';
+import { clearStreamRealtimeGrant, storeStreamRealtimeGrant } from './realtime-grant.js';
 import { identifyPageSignature } from '../../assets/wasm/page-signature.js';
 
 type PageKind = 'preregister' | 'contact' | 'test';
@@ -48,6 +49,7 @@ function safeServiceDestination(value: unknown): string {
 
 function timeoutToHome(statusTarget?: HTMLElement | null): void {
   setStatus(statusTarget, 'タイムアウトしました。');
+  clearStreamRealtimeGrant();
   clearServiceFlowToken();
   setTimeout(() => location.replace('./index.html'), 1100);
 }
@@ -73,6 +75,16 @@ export async function handleFinalResponse(
   if (status === 'saved') {
     if (page === 'test') {
       const destination = safeServiceDestination(payload.destination);
+      if (destination === './stream-test.html') {
+        try {
+          storeStreamRealtimeGrant(payload.realtimeGrant);
+        } catch {
+          clearStreamRealtimeGrant();
+          throw new Error('配信接続情報を確認できません。');
+        }
+      } else {
+        clearStreamRealtimeGrant();
+      }
       setStatus(statusTarget, '同意を確認しました。移動します。');
       location.assign(destination);
       return;
@@ -84,6 +96,9 @@ export async function handleFinalResponse(
     return;
   }
 
+  if (page === 'test') {
+    clearStreamRealtimeGrant();
+  }
   if (page === 'test' && payload.code === 'FLOW_TIMEOUT') {
     timeoutToHome(statusTarget);
     return;
