@@ -52,10 +52,10 @@
                   <div class="stream-check"><span class="stream-check-label">WebTransport / QUIC</span><span class="stream-check-value" data-stream-state="transport">確認中</span></div>
                   <div class="stream-check"><span class="stream-check-label">配信セッション</span><span class="stream-check-value" data-stream-state="session">待機中</span></div>
                   <div class="stream-check"><span class="stream-check-label">二次合成</span><span class="stream-check-value" data-stream-state="composition">待機中</span></div>
-                  <div class="stream-check"><span class="stream-check-label">音声</span><span class="stream-check-value" data-stream-state="audio">待機中</span></div>
+                  <div class="stream-check"><span class="stream-check-label">音声</span><span class="stream-check-value" data-stream-state="audio" data-audio-status>待機中</span></div>
                   <div class="stream-check"><span class="stream-check-label">最終送出</span><span class="stream-check-value" data-stream-state="output">待機中</span></div>
                 </div>
-                <div class="stream-control-grid"><button class="stream-control" type="button" disabled>配信設定</button><button class="stream-control" type="button" disabled>音声設定</button><button class="stream-control stream-control-primary" type="button" data-stream-start disabled>配信を開始</button></div>
+                <div class="stream-control-grid"><button class="stream-control" type="button" disabled>配信設定</button><button class="stream-control" type="button" data-audio-stop disabled>配信を停止</button><button class="stream-control stream-control-primary" type="button" data-stream-start data-audio-start disabled>配信を開始</button></div>
               </div>
             </aside>
           </div>
@@ -64,7 +64,8 @@
     </section>
   </main>
   <script type="module" src="./assets/js/service-destination.js?v=20260914-service-ready1"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260914-radio1"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260914-phase5-staging1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260914-test-scope1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260914-radio1"></script>
 </body>
 </html>
