@@ -6,6 +6,7 @@
 .stream-mode-option.is-selected{border-color:rgba(124,92,255,.5);background:linear-gradient(135deg,rgba(255,79,147,.08),rgba(124,92,255,.08));box-shadow:0 0 0 2px rgba(124,92,255,.08)}
 .stream-mode-option.is-selected span{color:var(--stream-accent-2)}
 .stream-mode-option:disabled{cursor:not-allowed;opacity:.48;background:#f5f7fa}
+.stream-audio-status{margin:12px 0 0;padding:10px 12px;border:1px solid var(--stream-line);border-radius:14px;background:#f9fbfe;color:var(--stream-muted);font-size:12px;font-weight:850;line-height:1.5}
 html[data-stream-mode="radio"] [data-stream-preview]{background:radial-gradient(circle at 50% 42%,rgba(124,92,255,.24),transparent 34%),linear-gradient(135deg,#0c1423,#1b2740)}
 html[data-stream-mode="standing"] [data-stream-preview]{background:radial-gradient(circle at 50% 38%,rgba(255,79,147,.22),transparent 34%),linear-gradient(135deg,#0c1423,#1b2740)}
 @media(max-width:640px){.stream-mode-grid{grid-template-columns:1fr 1fr}.stream-mode-option{min-height:58px;padding:9px 10px}}
