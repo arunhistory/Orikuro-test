@@ -1,9 +1,11 @@
+import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
 const supportedModes=new Set(["radio","standing"]);
 let selectedMode="radio";
+let grantReady=false;
 let outputReady=false;
 
 const modeCopy={
@@ -20,7 +22,14 @@ function setState(name,text,state="waiting"){
 
 function updateStartButton(){
   const button=document.querySelector("[data-stream-start]");
-  if(button)button.disabled=!compatibility.supported||!outputReady||!supportedModes.has(selectedMode);
+  if(button)button.disabled=!compatibility.supported||!grantReady||selectedMode!=="radio";
+}
+
+function refreshGrantState(){
+  const grant=getStreamRealtimeGrant();
+  grantReady=!!grant;
+  setState("session",grantReady?"認可済み":"認可情報なし",grantReady?"ready":"waiting");
+  updateStartButton();
 }
 
 function applyMode(mode,emit=true){
@@ -43,7 +52,7 @@ function applyMode(mode,emit=true){
 
 if(compatibility.supported){
   setState("transport","対応","ready");
-  setState("session","接続待ち");
+  setState("session","認可確認待ち");
   setState("composition","接続待ち");
   setState("audio","接続待ち");
   setState("output","接続待ち");
@@ -74,8 +83,10 @@ function stopClock(){
   timer=0;
 }
 
+document.addEventListener("orikuro:service-ready",refreshGrantState,{once:true});
+if(document.querySelector("[data-service-content]")?.hidden===false)refreshGrantState();
+
 window.addEventListener("orikuro:transport-ready",()=>{
-  setState("session","接続済み","ready");
   setState("transport","接続済み","ready");
 });
 window.addEventListener("orikuro:composition-ready",()=>setState("composition","準備完了","ready"));
@@ -83,7 +94,6 @@ window.addEventListener("orikuro:audio-ready",()=>setState("audio","準備完了
 window.addEventListener("orikuro:output-ready",()=>{
   outputReady=true;
   setState("output","送出可能","ready");
-  updateStartButton();
 });
 window.addEventListener("orikuro:stream-live",()=>{
   startClock();
@@ -99,8 +109,10 @@ window.addEventListener("orikuro:stream-ended",event=>{
 const startButton=document.querySelector("[data-stream-start]");
 if(startButton){
   startButton.addEventListener("click",()=>{
-    if(!supportedModes.has(selectedMode)||!outputReady)return;
+    if(selectedMode!=="radio"||!grantReady)return;
     startButton.disabled=true;
+    const status=document.querySelector("[data-stream-status]");
+    if(status)status.textContent="開始処理中";
     window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode}}));
   });
 }
