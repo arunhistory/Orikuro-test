@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./business.css?v=20260823-0958"/>
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223"/>
   <link rel="stylesheet" href="./streaming-test.css?v=20260913-1"/>
-  <link rel="stylesheet" href="./streaming-test-scope.css?v=20260914-test-scope1"/>
+  <link rel="stylesheet" href="./streaming-test-scope.css?v=20260914-stream1"/>
 </head>
 <body class="stream-page">
   <header class="page-header"><a class="page-brand" href="./index.html" aria-label="Original Create ホームページへ戻る"><img class="brand-symbol" src="./assets/oc-symbol-user.jpg" alt=""/><span>Original Create</span></a></header>
@@ -30,9 +30,9 @@
                 <div class="stream-live-row"><span class="stream-badge">TEST LIVE</span><span class="stream-clock" data-stream-clock>00:00</span></div>
               </div>
               <div class="stream-viewport" data-stream-preview>
-                <div class="stream-status-pill"><span class="stream-status-dot"></span><span data-stream-status>準備中</span></div>
+                <div class="stream-status-pill"><span class="stream-status-dot"></span><span data-stream-status data-realtime-status>準備中</span></div>
                 <div class="stream-video-placeholder"><div><strong data-stream-preview-title>ラジオ配信</strong><span data-stream-preview-copy>音声を中心に配信するテストモードです。</span></div></div>
-                <div class="stream-actions"><button class="stream-action" type="button" disabled>マイク</button><button class="stream-action" type="button" disabled>配信設定</button></div>
+                <div class="stream-actions"><button class="stream-action" type="button" disabled>配信方式</button><button class="stream-action" type="button" disabled>音声</button></div>
               </div>
             </section>
             <aside class="stream-side-card">
@@ -45,6 +45,8 @@
                   <button class="stream-mode-option" type="button" disabled><strong>3D</strong><span>利用不可</span></button>
                   <button class="stream-mode-option" type="button" disabled><strong>キャプチャー</strong><span>利用不可</span></button>
                 </div>
+                <p class="stream-audio-status" role="status" aria-live="polite" data-audio-status>マイク停止中</p>
+                <div class="stream-control-grid"><button class="stream-control" type="button" data-audio-start>マイク開始</button><button class="stream-control" type="button" data-audio-stop disabled>マイク停止</button></div>
               </div>
               <div class="stream-panel stream-panel-separated">
                 <h2 class="stream-panel-title">配信接続状態</h2>
@@ -55,7 +57,6 @@
                   <div class="stream-check"><span class="stream-check-label">音声</span><span class="stream-check-value" data-stream-state="audio">待機中</span></div>
                   <div class="stream-check"><span class="stream-check-label">最終送出</span><span class="stream-check-value" data-stream-state="output">待機中</span></div>
                 </div>
-                <div class="stream-control-grid"><button class="stream-control" type="button" disabled>配信設定</button><button class="stream-control" type="button" disabled>音声設定</button><button class="stream-control stream-control-primary" type="button" data-stream-start disabled>配信を開始</button></div>
               </div>
             </aside>
           </div>
@@ -63,7 +64,9 @@
       </article>
     </section>
   </main>
-  <script type="module" src="./assets/js/service-destination.js?v=20260912-flow-cache1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260914-test-scope1"></script>
+  <script type="module" src="./assets/js/service-destination.js?v=20260914-stream1"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260914-stream1"></script>
+  <script type="module" src="./assets/js/stream-lifecycle.js?v=20260914-stream1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260914-stream1"></script>
 </body>
 </html>
