@@ -57,7 +57,8 @@ let audioStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
 let audioWorklet: AudioWorkletNode | null = null;
 let silentGain: GainNode | null = null;
-let audioEpochNS = 0n;
+let audioPerfOriginMs = 0;
+let streamStartedAtPerfMs = 0;
 
 let videoSocket: WebSocket | null = null;
 let videoStream: MediaStream | null = null;
@@ -207,8 +208,9 @@ function buildAudioPacket(packet: WorkletPacket): ArrayBuffer | null {
   view.setUint16(12, AUDIO_FRAMES, false);
   view.setUint16(14, 0, false);
   view.setUint32(16, audioSequence, false);
-  const frameOffsetNS = BigInt(Math.round(packet.startFrame * 1_000_000_000 / packet.sampleRate));
-  view.setBigInt64(20, audioEpochNS + frameOffsetNS, false);
+  const packetPerfMs = audioPerfOriginMs + (packet.startFrame * 1000 / packet.sampleRate);
+  const relativeNs = Math.max(0, Math.round((packetPerfMs - streamStartedAtPerfMs) * 1_000_000));
+  view.setBigInt64(20, BigInt(relativeNs), false);
   view.setUint32(28, payloadBytes, false);
 
   let offset = AUDIO_HEADER_BYTES;
@@ -305,8 +307,7 @@ async function startAudio(current: StreamRealtimeGrant): Promise<void> {
   gain.connect(context.destination);
   audioWorklet = worklet;
   silentGain = gain;
-  const epochMs = performance.timeOrigin + performance.now() - context.currentTime * 1000;
-  audioEpochNS = BigInt(Math.max(0, Math.round(epochMs * 1_000_000)));
+  audioPerfOriginMs = performance.now() - context.currentTime * 1000;
   worklet.port.onmessage = (event: MessageEvent<unknown>) => {
     const data = objectValue(event.data);
     if (!data || data.type !== 'audio-packet') return;
@@ -544,7 +545,7 @@ async function startVideo(current: StreamRealtimeGrant): Promise<void> {
   await connectVideo(current);
   videoSequence = 0;
   videoFrameIndex = 0;
-  videoStartedAt = performance.now();
+  videoStartedAt = streamStartedAtPerfMs;
   const configPayload = encoderText.encode(JSON.stringify({
     codec: 'h264-annexb',
     profile: H264_CODEC,
@@ -589,13 +590,18 @@ async function startStreaming(mode: string): Promise<void> {
     return;
   }
   selectedMode = mode === 'standing' ? 'standing' : 'radio';
+  if (selectedMode === 'standing') {
+    setText('[data-realtime-status]', '2.5D Character Engine 入力経路を確認中です。');
+    window.dispatchEvent(new CustomEvent('orikuro:standing-engine-required'));
+    return;
+  }
+  streamStartedAtPerfMs = performance.now();
   streamWanted = true;
   setText('[data-realtime-status]', '配信開始処理中');
   try {
     await startAudio(current);
-    if (selectedMode === 'standing') await startVideo(current);
     window.dispatchEvent(new CustomEvent('orikuro:stream-live'));
-    if (selectedMode === 'radio') setText('[data-stream-state="output"]', '音声テスト中');
+    setText('[data-stream-state="output"]', '音声テスト中');
   } catch (error) {
     setText('[data-realtime-status]', error instanceof Error ? error.message : '配信開始エラー');
     await stopStreaming(true);
