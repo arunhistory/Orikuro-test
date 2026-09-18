@@ -244,6 +244,7 @@ export class WatchMediaClient {
     const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
     if (!context) throw new WatchMediaError('CANVAS_UNAVAILABLE', '映像表示を開始できません。');
     this.context = context;
+    this.status = status;
   }
 
   onEnded(handler: () => void): void { this.endedHandler = handler; }
