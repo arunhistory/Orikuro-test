@@ -49,6 +49,21 @@ function currentPath(){
   return './'+file;
 }
 function clearFlowToken(){sessionStorage.removeItem(FLOW_KEY);}
+async function checkFlow(){
+  const token=sessionStorage.getItem(FLOW_KEY)||'';
+  if(!TOKEN_RE.test(token))throw new Error('FLOW_MISSING');
+  const response=await fetch(FLOW_URL,{
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({action:'touch',token}),
+    credentials:'omit',
+    cache:'no-store',
+    referrerPolicy:'no-referrer',
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.ok!==true)throw new Error(typeof data.code==='string'?data.code:'FLOW_FAILED');
+  if(data.status!=='delivery_ready')throw new Error('FLOW_NOT_READY');
+}
 function validGrant(value){
   if(!value||typeof value!=='object')return false;
   const g=value.realtimeGrant;
@@ -166,16 +181,17 @@ async function requestMedia(){
   await videoEl.play();
 }
 async function startStreaming(){
-  if(!grant||stopped===false&&ws?.readyState===WebSocket.OPEN)return;
-  if(Date.now()>Number(grant.realtimeGrant.expiresAt)-15000){
-    setStatus('配信開始用の権限が期限切れです。最初からやり直してください。','error');
-    startButton.disabled=true;
-    return;
-  }
+  if(stopped===false&&ws?.readyState===WebSocket.OPEN)return;
   startButton.disabled=true;
   setStatus('カメラを準備しています。');
   try{
     await requestMedia();
+    if(!grant){
+      setStatus('配信権限と送信経路を確定しています。');
+      grant=await consumeGrant();
+      if(streamIdEl)streamIdEl.textContent=grant.streamId;
+    }
+    if(Date.now()>Number(grant.realtimeGrant.expiresAt)-15000)throw new Error('STREAM_GRANT_EXPIRED');
     canvas=document.createElement('canvas');
     canvas.width=TARGET_WIDTH;
     canvas.height=TARGET_HEIGHT;
@@ -234,15 +250,15 @@ async function stopStreaming(notifyServer=true){
   setDetail('再開するには配信テストを最初から開始してください。');
 }
 async function initialize(){
-  setStatus('配信権限と送信経路を確認しています。');
+  setStatus('配信利用状態を確認しています。');
   try{
-    grant=await consumeGrant();
+    await checkFlow();
     if(gateEl)gateEl.textContent='';
     if(contentEl)contentEl.hidden=false;
-    if(streamIdEl)streamIdEl.textContent=grant.streamId;
+    if(streamIdEl)streamIdEl.textContent='開始時に発行';
     startButton.disabled=false;
     setStatus('配信開始の準備ができました。');
-    setDetail('現在は映像送信経路の実地テストです。音声送出はまだ接続しません。');
+    setDetail('配信開始を押すまでは Cloudflare / Northflank の配信セッションを起動しません。現在は映像送信経路の実地テストです。音声送出はまだ接続しません。');
   }catch(error){
     clearFlowToken();
     if(gateEl)gateEl.textContent=error?.message==='FLOW_MISSING'?'このサービスを直接開くことはできません。':'配信準備を完了できませんでした。';
