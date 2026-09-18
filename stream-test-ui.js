@@ -22,7 +22,7 @@ function setState(name,text,state="waiting"){
 
 function updateStartButton(){
   const button=document.querySelector("[data-stream-start]");
-  if(button)button.disabled=!compatibility.supported||!grantReady||selectedMode!=="radio";
+  if(button)button.disabled=!compatibility.supported||!grantReady||!supportedModes.has(selectedMode);
 }
 
 function refreshGrantState(){
@@ -109,7 +109,7 @@ window.addEventListener("orikuro:stream-ended",event=>{
 const startButton=document.querySelector("[data-stream-start]");
 if(startButton){
   startButton.addEventListener("click",()=>{
-    if(selectedMode!=="radio"||!grantReady)return;
+    if(!supportedModes.has(selectedMode)||!grantReady)return;
     startButton.disabled=true;
     const status=document.querySelector("[data-stream-status]");
     if(status)status.textContent="開始処理中";
