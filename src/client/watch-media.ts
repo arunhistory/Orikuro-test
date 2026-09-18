@@ -317,6 +317,7 @@ export class WatchMediaClient {
       if (event.code === 1008 || this.grant.expiresAt <= Date.now()) { this.setStatus('視聴認可が終了しました。'); return; }
       if (event.code === 1001 && event.reason === 'stream ended') { this.finishStream(); return; }
       this.setStatus('配信へ再接続しています。');
+      window.dispatchEvent(new CustomEvent('orikuro:transport-reconnecting', { detail: { streamId: this.grant.streamId } }));
       this.scheduleReconnect();
     });
 
@@ -339,6 +340,7 @@ export class WatchMediaClient {
       this.authenticated = true;
       this.reconnectAttempt = 0;
       this.setStatus('視聴中');
+      window.dispatchEvent(new CustomEvent('orikuro:transport-ready', { detail: { streamId: this.grant.streamId } }));
       return;
     }
     if (payload.type === 'media_ended') { this.finishStream(); return; }
@@ -520,6 +522,7 @@ export class WatchMediaClient {
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, 'stream ended');
     this.resetMediaState(true);
     this.setStatus('配信が終了しました。');
+    window.dispatchEvent(new CustomEvent('orikuro:transport-ended', { detail: { streamId: this.grant.streamId } }));
     this.endedHandler?.();
   }
 }
