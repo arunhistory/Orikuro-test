@@ -8,9 +8,9 @@ const TARGET_HEIGHT=360;
 const TARGET_FPS=5;
 const FRAME_INTERVAL_MS=Math.round(1000/TARGET_FPS);
 const AUDIO_FRAMES=1024;
-const MAX_FRAME_BYTES=1024*1024;
 const MAX_WS_BUFFER=2*1024*1024;
 const MAX_AUDIO_WS_BUFFER=512*1024;
+const H264_CODEC='avc1.42001E';
 
 const $=(s)=>document.querySelector(s);
 const statusEl=$('[data-stream-status]');
@@ -33,6 +33,8 @@ let audioWs=null;
 let timer=null;
 let canvas=null;
 let ctx=null;
+let videoEncoder=null;
+let h264ParameterSets=null;
 let videoSequence=1;
 let audioSequence=1;
 let videoSent=0;
@@ -108,8 +110,7 @@ async function consumeGrant(){
   clearFlowToken();
   return data;
 }
-function buildVideoPacket(kind,payload,keyframe=false){
-  const pts=Math.max(0,Math.floor(performance.now()-startedAt));
+function buildVideoPacket(kind,payload,keyframe=false,ptsUs=0,dtsUs=ptsUs){
   const buffer=new ArrayBuffer(44+payload.byteLength);
   const view=new DataView(buffer);
   view.setUint32(0,0x4f52494b,false);
@@ -120,9 +121,9 @@ function buildVideoPacket(kind,payload,keyframe=false){
   view.setUint16(12,0,false);
   view.setUint16(14,0,false);
   view.setUint32(16,1,false);
-  view.setUint32(20,1000,false);
-  view.setBigInt64(24,BigInt(pts),false);
-  view.setBigInt64(32,BigInt(pts),false);
+  view.setUint32(20,1_000_000,false);
+  view.setBigInt64(24,BigInt(Math.max(0,Math.round(ptsUs))),false);
+  view.setBigInt64(32,BigInt(Math.max(0,Math.round(dtsUs))),false);
   view.setUint32(40,payload.byteLength,false);
   new Uint8Array(buffer,44).set(payload);
   return buffer;
@@ -156,25 +157,118 @@ function buildAudioPacket(planes,sampleRate,timestampSeconds){
   }
   return buffer;
 }
-async function frameBytes(){
-  if(!videoEl||!ctx||!canvas)return null;
-  ctx.drawImage(videoEl,0,0,TARGET_WIDTH,TARGET_HEIGHT);
-  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.72));
-  if(!blob||blob.size<1||blob.size>MAX_FRAME_BYTES)return null;
-  return new Uint8Array(await blob.arrayBuffer());
+function annexBHasStartCode(bytes){
+  for(let i=0;i+3<bytes.length;i++){
+    if(bytes[i]===0&&bytes[i+1]===0&&bytes[i+2]===1)return true;
+    if(i+4<=bytes.length&&bytes[i]===0&&bytes[i+1]===0&&bytes[i+2]===0&&bytes[i+3]===1)return true;
+  }
+  return false;
 }
-async function sendFrame(){
-  if(sending||!videoWs||videoWs.readyState!==WebSocket.OPEN||Date.now()<backpressureUntil)return;
-  if(videoWs.bufferedAmount>MAX_WS_BUFFER){setStatus('映像送信を一時待機しています。','warning');return;}
+function parseAvcC(description){
+  if(!(description instanceof ArrayBuffer)&&!ArrayBuffer.isView(description))return null;
+  const bytes=description instanceof ArrayBuffer?new Uint8Array(description):new Uint8Array(description.buffer,description.byteOffset,description.byteLength);
+  if(bytes.length<7||bytes[0]!==1)return null;
+  let offset=5;
+  const spsCount=bytes[offset++]&31;
+  const units=[];
+  for(let i=0;i<spsCount;i++){
+    if(offset+2>bytes.length)return null;
+    const len=(bytes[offset]<<8)|bytes[offset+1];offset+=2;
+    if(len<1||offset+len>bytes.length)return null;
+    units.push(bytes.slice(offset,offset+len));offset+=len;
+  }
+  if(offset>=bytes.length)return null;
+  const ppsCount=bytes[offset++];
+  for(let i=0;i<ppsCount;i++){
+    if(offset+2>bytes.length)return null;
+    const len=(bytes[offset]<<8)|bytes[offset+1];offset+=2;
+    if(len<1||offset+len>bytes.length)return null;
+    units.push(bytes.slice(offset,offset+len));offset+=len;
+  }
+  if(units.length<2)return null;
+  const total=units.reduce((n,u)=>n+4+u.byteLength,0);
+  const out=new Uint8Array(total);
+  let p=0;
+  for(const unit of units){
+    out.set([0,0,0,1],p);p+=4;out.set(unit,p);p+=unit.byteLength;
+  }
+  return out;
+}
+function prependParameterSets(payload){
+  if(!h264ParameterSets)return payload;
+  const out=new Uint8Array(h264ParameterSets.byteLength+payload.byteLength);
+  out.set(h264ParameterSets,0);
+  out.set(payload,h264ParameterSets.byteLength);
+  return out;
+}
+async function videoConfig(){
+  if(typeof VideoEncoder!=='function'||typeof VideoFrame!=='function')throw new Error('WEBCODECS_H264_UNAVAILABLE');
+  const config={
+    codec:H264_CODEC,
+    width:TARGET_WIDTH,
+    height:TARGET_HEIGHT,
+    framerate:TARGET_FPS,
+    latencyMode:'realtime',
+    avc:{format:'annexb'},
+  };
+  const support=await VideoEncoder.isConfigSupported(config);
+  if(!support?.supported)throw new Error('H264_ANNEXB_UNSUPPORTED');
+  return support.config||config;
+}
+function createVideoEncoder(config){
+  h264ParameterSets=null;
+  videoEncoder=new VideoEncoder({
+    output:(chunk,metadata)=>{
+      if(stopped||!videoWs||videoWs.readyState!==WebSocket.OPEN)return;
+      if(metadata?.decoderConfig?.description){
+        const parsed=parseAvcC(metadata.decoderConfig.description);
+        if(parsed)h264ParameterSets=parsed;
+      }
+      const payload=new Uint8Array(chunk.byteLength);
+      chunk.copyTo(payload);
+      if(!annexBHasStartCode(payload)){
+        setStatus('H.264 Annex-B形式を取得できませんでした。','error');
+        void stopStreaming(true);
+        return;
+      }
+      const keyframe=chunk.type==='key';
+      const wirePayload=keyframe?prependParameterSets(payload):payload;
+      if(videoWs.bufferedAmount>MAX_WS_BUFFER){
+        setStatus('映像送信先が混雑しています。配信を停止します。','error');
+        void stopStreaming(true);
+        return;
+      }
+      videoWs.send(buildVideoPacket(1,wirePayload,keyframe,chunk.timestamp,chunk.timestamp));
+      videoSent+=1;
+      updateCounters();
+    },
+    error:(error)=>{
+      setStatus('H.264エンコーダでエラーが発生しました。','error');
+      setDetail(error instanceof Error?error.message:'VIDEO_ENCODER_ERROR');
+      void stopStreaming(true);
+    },
+  });
+  videoEncoder.configure(config);
+}
+async function encodeFrame(){
+  if(sending||stopped||!videoEncoder||videoEncoder.state!=='configured'||!ctx||!canvas||Date.now()<backpressureUntil)return;
+  if(videoEncoder.encodeQueueSize>2)return;
   sending=true;
   try{
-    const payload=await frameBytes();
-    if(!payload)return;
-    videoWs.send(buildVideoPacket(1,payload,true));
-    videoSent+=1;
-    updateCounters();
-  }catch{
-    setStatus('映像フレームの送信に失敗しました。','error');
+    ctx.drawImage(videoEl,0,0,TARGET_WIDTH,TARGET_HEIGHT);
+    const timestampUs=Math.max(0,Math.round((performance.now()-startedAt)*1000));
+    const frame=new VideoFrame(canvas,{timestamp:timestampUs});
+    try{
+      // Public-test path deliberately requests an IDR for every 5fps test frame.
+      // This avoids inventing a production GOP policy while keeping replay deterministic.
+      videoEncoder.encode(frame,{keyFrame:true});
+    }finally{
+      frame.close();
+    }
+  }catch(error){
+    setStatus('映像フレームのH.264符号化に失敗しました。','error');
+    setDetail(error instanceof Error?error.message:'VIDEO_ENCODE_FAILED');
+    void stopStreaming(true);
   }finally{
     sending=false;
   }
@@ -285,6 +379,7 @@ async function startStreaming(){
   try{
     await prepareAudioContext();
     await requestMedia();
+    const encoderConfig=await videoConfig();
     if(!grant){
       setStatus('配信権限と送信経路を確定しています。');
       grant=await consumeGrant();
@@ -319,15 +414,18 @@ async function startStreaming(){
     audioAcked=0;
     updateCounters();
 
+    createVideoEncoder(encoderConfig);
     await startAudioCapture();
-    const config=new TextEncoder().encode(JSON.stringify({codec:'jpeg-test-v1',width:TARGET_WIDTH,height:TARGET_HEIGHT,fps:TARGET_FPS}));
-    videoWs.send(buildVideoPacket(2,config,false));
+
+    const configPayload=new TextEncoder().encode(JSON.stringify({codec:'h264-annexb',profile:H264_CODEC,width:TARGET_WIDTH,height:TARGET_HEIGHT,fps:TARGET_FPS,testAllKeyframes:true}));
+    videoWs.send(buildVideoPacket(2,configPayload,false,0,0));
     videoSent+=1;
     updateCounters();
-    timer=setInterval(()=>{void sendFrame();},FRAME_INTERVAL_MS);
+    timer=setInterval(()=>{void encodeFrame();},FRAME_INTERVAL_MS);
+    await encodeFrame();
     stopButton.disabled=false;
     setStatus('映像・音声を送信中です。','live');
-    setDetail('映像は Cloudflare → Northflank、音声はマイクから Northflank の1024-frame float32-planar入力へ送信しています。');
+    setDetail('映像は H.264 Annex-B で Cloudflare → Northflank、音声は1024-frame float32-planarで Northflank へ送信しています。');
   }catch(error){
     const denied=error?.name==='NotAllowedError';
     setStatus(denied?'カメラまたはマイクの利用が許可されませんでした。':'配信開始に失敗しました。','error');
@@ -343,6 +441,8 @@ function stopTracks(){
 }
 async function cleanupLocal(){
   if(timer){clearInterval(timer);timer=null;}
+  if(videoEncoder){try{if(videoEncoder.state!=='closed')videoEncoder.close();}catch{}videoEncoder=null;}
+  h264ParameterSets=null;
   if(audioNode){try{audioNode.disconnect();}catch{}audioNode.port.onmessage=null;audioNode=null;}
   if(audioSource){try{audioSource.disconnect();}catch{}audioSource=null;}
   if(audioContext){try{await audioContext.close();}catch{}audioContext=null;}
@@ -396,6 +496,7 @@ stopButton?.addEventListener('click',()=>{void stopStreaming(true);});
 window.addEventListener('pagehide',()=>{
   stopped=true;
   if(timer)clearInterval(timer);
+  if(videoEncoder){try{videoEncoder.close();}catch{}}
   if(videoWs){try{videoWs.close();}catch{}}
   if(audioWs){try{audioWs.close();}catch{}}
   stopTracks();
