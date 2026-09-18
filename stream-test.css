@@ -1,4 +1,4 @@
-.stream-test-card{max-width:760px}
+.stream-test-card{max-width:860px}
 .stream-test-lead{margin:0 0 18px;color:#445268;line-height:1.8}
 .stream-preview-wrap{position:relative;overflow:hidden;border:1px solid #d7deea;border-radius:18px;background:#10151d;aspect-ratio:16/9;margin:18px 0}
 .stream-preview{display:block;width:100%;height:100%;object-fit:cover;background:#10151d}
@@ -11,9 +11,9 @@
 .stream-control{appearance:none;border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:800;cursor:pointer;background:#1867d2;color:#fff}
 .stream-control.secondary{background:#e8edf5;color:#26364d}
 .stream-control:disabled{opacity:.45;cursor:not-allowed}
-.stream-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0}
+.stream-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:18px 0}
 .stream-metric{padding:12px;border:1px solid #dce3ed;border-radius:14px;background:#fff}
 .stream-metric span{display:block;color:#6a7789;font-size:12px;margin-bottom:5px}
 .stream-metric strong{display:block;overflow-wrap:anywhere;color:#1c2a3b}
 .stream-detail{margin:14px 0 0;color:#627086;line-height:1.7;font-size:14px}
-@media(max-width:640px){.stream-metrics{grid-template-columns:1fr}.stream-controls{display:grid}.stream-control{width:100%}}
+@media(max-width:760px){.stream-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.stream-metric:first-child{grid-column:1/-1}.stream-controls{display:grid}.stream-control{width:100%}}
