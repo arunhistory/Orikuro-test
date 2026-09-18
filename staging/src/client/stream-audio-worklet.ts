@@ -1,16 +1,11 @@
-const TARGET_PACKET_MS = 20;
+const TARGET_FRAMES = 1024;
 
 class OrikuroAudioCaptureProcessor extends AudioWorkletProcessor {
-  private readonly targetFrames: number;
+  private readonly targetFrames = TARGET_FRAMES;
   private channelCount = 0;
   private planes: Float32Array[] = [];
   private writeOffset = 0;
   private packetStartFrame = 0;
-
-  constructor() {
-    super();
-    this.targetFrames = Math.max(1, Math.round(sampleRate * TARGET_PACKET_MS / 1000));
-  }
 
   private resetChannels(channels: number): void {
     this.channelCount = channels;
