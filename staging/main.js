@@ -109,7 +109,7 @@ document.querySelectorAll('[data-service-entry]').forEach(link=>link.addEventLis
   try{
     const entry=link.dataset.serviceEntry;
     if(!['stream','watch','algorithm'].includes(entry)) throw new Error('サービス入口を確認できません。');
-    const {startServiceFlow}=await import('./assets/js/service-flow.js?v=20260827-flow1');
+    const {startServiceFlow}=await import('./assets/js/service-flow.js?v=20260918-flow3');
     await startServiceFlow(entry);
     location.assign('./test.html');
   }catch(error){

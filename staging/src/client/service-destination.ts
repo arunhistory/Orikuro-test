@@ -1,4 +1,4 @@
-import { clearServiceFlowToken, consumeServiceFlow, isFlowTimeout } from './service-flow.js?v=20260918-flow2';
+import { clearServiceFlowToken, consumeServiceFlow, isFlowTimeout } from './service-flow.js?v=20260918-flow3';
 import { clearStreamRealtimeGrant, storeStreamRealtimeGrant } from './realtime-grant.js';
 
 function currentRelativePath(): string {
