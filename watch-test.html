@@ -30,8 +30,8 @@
               </div>
               <div class="stream-viewport" data-model-stream-surface>
                 <div class="stream-status-pill"><span class="stream-status-dot"></span><span>視聴テスト</span></div>
-                <div class="stream-video-placeholder"><div><strong>モデル配信</strong><span>視聴テスト用のモデル配信をここで視聴します。配信テストの出力とは接続しません。</span></div></div>
-                <div class="stream-actions"><button class="stream-action" type="button" disabled>画質</button><button class="stream-action" type="button" disabled>音量</button><button class="stream-action stream-action-like" type="button" disabled><span class="stream-heart">♥</span> いいね</button></div>
+                <canvas class="stream-media-canvas" data-watch-media-canvas width="640" height="360" hidden></canvas><div class="stream-video-placeholder" data-watch-placeholder><div><strong>モデル配信</strong><span>視聴テスト用の配信へ接続します。</span></div></div>
+                <div class="stream-actions"><button class="stream-action" type="button" disabled>画質</button><button class="stream-action" type="button" data-watch-audio disabled>音量</button><button class="stream-action stream-action-like" type="button" disabled><span class="stream-heart">♥</span> いいね</button></div>
               </div>
             </section>
             <aside class="stream-side-card stream-chat">
@@ -47,7 +47,7 @@
       </article>
     </section>
   </main>
-  <script type="module" src="./assets/js/service-destination.js?v=20260912-flow-cache1"></script>
-  <script type="module" src="./watch-test-ui.js?v=20260913-1"></script>
+  <script type="module" src="./assets/js/service-destination.js?v=20260918-flow2"></script>
+  <script type="module" src="./watch-test-ui.js?v=20260918-media2"></script>
 </body>
 </html>
