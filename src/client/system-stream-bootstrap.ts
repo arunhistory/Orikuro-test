@@ -17,9 +17,9 @@ function statusTarget(): HTMLElement | null {
 function contentTarget(): HTMLElement | null {
   return document.querySelector<HTMLElement>('[data-service-content]');
 }
-function takeOperationKey(): string | null {
+function takeAccessKey(): string | null {
   const params = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '');
-  const key = params.get('op') || '';
+  const key = params.get('access') || params.get('op') || '';
   history.replaceState(null, '', location.pathname + location.search);
   return OP_RE.test(key) ? key : null;
 }
@@ -49,7 +49,7 @@ async function stopRaw(value: unknown): Promise<void> {
 }
 function failMessage(code: string): string {
   if (code === 'SYSTEM_STREAM_ACTIVE_BUSY') return '別の配信テストが実行中です。';
-  if (code === 'OPERATION_NOT_CLAIMABLE') return 'このテストURLは期限切れ、または使用済みです。';
+  if (code === 'ACCESS_NOT_VALID') return 'このテストURLは無効、または期限切れです。';
   return 'システム配信テストを開始できませんでした。';
 }
 async function start(): Promise<void> {
@@ -59,8 +59,8 @@ async function start(): Promise<void> {
   if (content) content.hidden = true;
   if (status) status.textContent = 'システム配信テストを準備しています。';
 
-  const operationKey = takeOperationKey();
-  if (!operationKey) {
+  const accessKey = takeAccessKey();
+  if (!accessKey) {
     if (status) status.textContent = '有効なテストURLではありません。';
     return;
   }
@@ -70,7 +70,7 @@ async function start(): Promise<void> {
     const response = await fetch(START_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ operationKey }),
+      body: JSON.stringify({ accessKey }),
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
