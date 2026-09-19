@@ -1,5 +1,5 @@
 import{WatchMediaClient}from"./assets/js/watch-media.js?v=20260918-media2";
-import{applyStreamingCompatibility}from"./stream-compat.js?v=20260919-compat2";
+import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 
 const compatibility=applyStreamingCompatibility(document);
 let transportReady=false;

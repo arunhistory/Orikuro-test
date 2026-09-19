@@ -1,5 +1,5 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
-import{applyStreamingCompatibility}from"./stream-compat.js?v=20260919-compat2";
+import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
