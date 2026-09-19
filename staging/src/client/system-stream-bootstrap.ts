@@ -1,0 +1,104 @@
+import { clearStreamRealtimeGrant, storeStreamRealtimeGrant } from './realtime-grant.js';
+
+const START_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/system-stream-test';
+const STOP_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/service-flow';
+const OP_RE = /^[a-f0-9]{64}$/;
+const CAP_RE = /^[A-Za-z0-9_-]{8,4096}\.[A-Za-z0-9_-]{8,8192}\.[A-Za-z0-9_-]{32,256}$/;
+const SID_RE = /^[A-Za-z0-9_-]{16,128}$/;
+
+type JsonObject = Record<string, unknown>;
+
+function asObject(value: unknown): JsonObject | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : null;
+}
+function statusTarget(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-service-gate-status]');
+}
+function contentTarget(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-service-content]');
+}
+function takeOperationKey(): string | null {
+  const params = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '');
+  const key = params.get('op') || '';
+  history.replaceState(null, '', location.pathname + location.search);
+  return OP_RE.test(key) ? key : null;
+}
+async function stopRaw(value: unknown): Promise<void> {
+  const raw = asObject(value);
+  if (!raw) return;
+  const streamId = raw.streamId;
+  const controlCapability = raw.controlCapability;
+  if (
+    typeof streamId !== 'string'
+    || !SID_RE.test(streamId)
+    || typeof controlCapability !== 'string'
+    || controlCapability.length > 12_000
+    || !CAP_RE.test(controlCapability)
+  ) return;
+  try {
+    await fetch(STOP_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'stream_stop', streamId, controlCapability }),
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      keepalive: true,
+    });
+  } catch {}
+}
+function failMessage(code: string): string {
+  if (code === 'SYSTEM_STREAM_ACTIVE_BUSY') return '別の配信テストが実行中です。';
+  if (code === 'OPERATION_NOT_CLAIMABLE') return 'このテストURLは期限切れ、または使用済みです。';
+  return 'システム配信テストを開始できませんでした。';
+}
+async function start(): Promise<void> {
+  clearStreamRealtimeGrant();
+  const status = statusTarget();
+  const content = contentTarget();
+  if (content) content.hidden = true;
+  if (status) status.textContent = 'システム配信テストを準備しています。';
+
+  const operationKey = takeOperationKey();
+  if (!operationKey) {
+    if (status) status.textContent = '有効なテストURLではありません。';
+    return;
+  }
+
+  let rawGrant: unknown = null;
+  try {
+    const response = await fetch(START_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ operationKey }),
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+    });
+    const payload = asObject(await response.json().catch(() => null));
+    if (!response.ok || !payload || payload.ok !== true) {
+      const code = payload && typeof payload.code === 'string' ? payload.code : 'SYSTEM_STREAM_START_FAILED';
+      throw new Error(failMessage(code));
+    }
+    const result = asObject(payload.result);
+    if (!result) throw new Error('SYSTEM_STREAM_RESULT_INVALID');
+    rawGrant = result.realtimeGrant;
+    const grant = storeStreamRealtimeGrant(rawGrant);
+    if (status) status.textContent = '';
+    if (content) content.hidden = false;
+    document.dispatchEvent(new CustomEvent('orikuro:service-ready', {
+      detail: { path: './system-stream-test.html', streamId: grant.streamId, systemTest: true },
+    }));
+  } catch (error) {
+    if (rawGrant) await stopRaw(rawGrant);
+    clearStreamRealtimeGrant();
+    if (status) status.textContent = error instanceof Error && error.message
+      ? error.message
+      : 'システム配信テストを開始できませんでした。';
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { void start(); }, { once: true });
+} else {
+  void start();
+}

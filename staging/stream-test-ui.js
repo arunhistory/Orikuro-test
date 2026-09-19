@@ -99,12 +99,23 @@ window.addEventListener("orikuro:stream-live",()=>{
   startClock();
   const status=document.querySelector("[data-stream-status]");
   if(status)status.textContent="配信中";
+  const stop=document.querySelector("[data-audio-stop]");
+  if(stop)stop.disabled=false;
 });
 window.addEventListener("orikuro:stream-ended",event=>{
   stopClock();
   const reason=event?.detail?.reason||"ended";
   location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}`);
 });
+
+const stopButton=document.querySelector("[data-audio-stop]");
+if(stopButton){
+  stopButton.addEventListener("click",()=>{
+    stopButton.disabled=true;
+    const status=document.querySelector("[data-stream-status]");
+    if(status)status.textContent="停止処理中";
+  });
+}
 
 const startButton=document.querySelector("[data-stream-start]");
 if(startButton){
