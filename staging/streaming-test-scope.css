@@ -27,7 +27,6 @@ html[data-stream-mode="standing"] [data-stream-preview]{background:radial-gradie
 @media(max-width:640px){
   .stream-broadcast-page .stream-main{padding:calc(var(--stream-header) + 8px) 8px calc(18px + env(safe-area-inset-bottom))}
   .stream-broadcast-page .stream-layout{gap:10px}
-  .stream-broadcast-page .stream-side-card{order:-1}
   .stream-broadcast-page .stream-stage-card,.stream-broadcast-page .stream-side-card{border-radius:16px}
   .stream-broadcast-page .stream-viewport{aspect-ratio:16/9;max-height:none}
   .stream-broadcast-page .stream-panel{padding:11px}
@@ -42,4 +41,37 @@ html[data-stream-mode="standing"] [data-stream-preview]{background:radial-gradie
   .stream-broadcast-page .stream-control-primary{min-height:58px;font-size:17px}
   .stream-broadcast-page .stream-stage-head{padding:9px 10px}
   .stream-broadcast-page .stream-subtitle{font-size:10px}
+}
+
+.stream-debug-details{margin-top:2px}
+.stream-debug-details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:42px;padding:0 2px;color:var(--stream-muted);font-size:12px;font-weight:900}
+.stream-debug-details>summary::-webkit-details-marker{display:none}
+.stream-debug-details>summary::after{content:"＋";font-size:18px;line-height:1}
+.stream-debug-details[open]>summary::after{content:"−"}
+.stream-debug-details[open]>.stream-checks{margin-top:6px}
+@media(max-width:640px){
+  .stream-broadcast-page .stream-side-card{order:2}
+  .stream-broadcast-page .stream-mode-future{display:none}
+  .stream-broadcast-page .stream-mode-grid{grid-template-columns:1fr 1fr}
+  .stream-broadcast-page .stream-debug-details{order:2}
+  .stream-broadcast-page .stream-start-feedback{order:3;margin-bottom:2px}
+  .stream-broadcast-page .stream-main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  .stream-broadcast-page .stream-control-grid{
+    position:fixed;
+    z-index:60;
+    left:10px;
+    right:10px;
+    bottom:calc(10px + env(safe-area-inset-bottom));
+    grid-template-columns:2fr 1fr;
+    gap:8px;
+    margin:0;
+    padding:8px;
+    border:1px solid rgba(203,213,225,.9);
+    border-radius:18px;
+    background:rgba(255,255,255,.94);
+    box-shadow:0 16px 44px rgba(15,23,42,.22);
+    backdrop-filter:blur(14px)
+  }
+  .stream-broadcast-page .stream-control-primary{order:-1;grid-column:auto;grid-row:auto;min-height:56px}
+  .stream-broadcast-page [data-audio-stop]{min-height:56px}
 }

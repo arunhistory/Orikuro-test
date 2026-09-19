@@ -19,7 +19,7 @@ const MAX_AUDIO_BUFFERED_BYTES = 512 * 1024;
 const MAX_VIDEO_BUFFERED_BYTES = 2 * 1024 * 1024;
 const MAX_COMMENT_BYTES = 4096;
 const MAX_RECONNECT_DELAY_MS = 2_000;
-const WORKLET_URL = './assets/js/stream-audio-worklet.js?v=20260918-audio2';
+const WORKLET_URL = './assets/js/stream-audio-worklet.js?v=20260919-audio3';
 const TARGET_WIDTH = 640;
 const TARGET_HEIGHT = 360;
 const TARGET_FPS = 5;

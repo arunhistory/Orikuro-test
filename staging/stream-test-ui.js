@@ -3,14 +3,14 @@ import{applyStreamingCompatibility}from"./stream-compat.js?v=20260919-compat2";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
-const supportedModes=new Set(["radio","standing"]);
+const supportedModes=new Set(["radio"]);
 let selectedMode="radio";
 let grantReady=false;
 let outputReady=false;
 
 const modeCopy={
   radio:{title:"ラジオ配信",copy:"音声を中心に配信するテストモードです。"},
-  standing:{title:"立ち絵配信",copy:"カメラで人体の動きを追跡し、通常の2D立ち絵を2.5Dキャラクターとして動かすテストモードです。"}
+  standing:{title:"立ち絵配信",copy:"2.5D Character Engine 接続後に有効化します。"}
 };
 
 function setState(name,text,state="waiting"){
