@@ -75,3 +75,5 @@ html[data-stream-mode="standing"] [data-stream-preview]{background:radial-gradie
   .stream-broadcast-page .stream-control-primary{order:-1;grid-column:auto;grid-row:auto;min-height:56px}
   .stream-broadcast-page [data-audio-stop]{min-height:56px}
 }
+
+.stream-broadcast-page .stream-actions{display:none}
