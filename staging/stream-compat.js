@@ -10,8 +10,8 @@ export function checkStreamingCompatibility(){
   if(!window.isSecureContext){
     return {supported:false,reason:"secure-context-required"};
   }
-  if(typeof globalThis.WebTransport!=="function"){
-    return {supported:false,reason:"webtransport-unavailable"};
+  if(typeof globalThis.WebSocket!=="function"){
+    return {supported:false,reason:"websocket-unavailable"};
   }
   return {supported:true,reason:"ok"};
 }

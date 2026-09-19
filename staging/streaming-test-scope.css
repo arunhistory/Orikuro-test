@@ -13,3 +13,33 @@ html[data-stream-mode="standing"] [data-stream-preview]{background:radial-gradie
 
 .stream-media-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;background:#0b1119;object-fit:contain}
 .stream-media-canvas[hidden]{display:none}
+
+.stream-start-feedback{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#f7f9fc;color:var(--stream-muted);font-size:12px;font-weight:800;line-height:1.55}
+.stream-start-feedback[data-state="ready"]{background:#ecfbf5;color:#0d7f59}
+.stream-start-feedback[data-state="working"]{background:#fff8e8;color:#9a6815}
+.stream-start-feedback[data-state="error"]{background:#fff0f4;color:#b4235a}
+.stream-broadcast-page .stream-panel-separated{display:flex;flex-direction:column}
+.stream-broadcast-page .stream-panel-separated>.stream-panel-title{order:0}
+.stream-broadcast-page .stream-panel-separated>.stream-control-grid{order:1;margin-top:0;margin-bottom:12px}
+.stream-broadcast-page .stream-panel-separated>.stream-checks{order:2}
+.stream-broadcast-page .stream-panel-separated>.stream-start-feedback{order:3}
+.stream-broadcast-page .stream-control-primary{grid-row:1;grid-column:1/-1;min-height:54px;font-size:16px}
+@media(max-width:640px){
+  .stream-broadcast-page .stream-main{padding:calc(var(--stream-header) + 8px) 8px calc(18px + env(safe-area-inset-bottom))}
+  .stream-broadcast-page .stream-layout{gap:10px}
+  .stream-broadcast-page .stream-side-card{order:-1}
+  .stream-broadcast-page .stream-stage-card,.stream-broadcast-page .stream-side-card{border-radius:16px}
+  .stream-broadcast-page .stream-viewport{aspect-ratio:16/9;max-height:none}
+  .stream-broadcast-page .stream-panel{padding:11px}
+  .stream-broadcast-page .stream-panel-title{margin-bottom:9px}
+  .stream-broadcast-page .stream-mode-grid{gap:7px}
+  .stream-broadcast-page .stream-mode-option{min-height:52px;padding:8px 9px}
+  .stream-broadcast-page .stream-checks{grid-template-columns:1fr 1fr;gap:7px}
+  .stream-broadcast-page .stream-check{min-width:0;padding:9px 10px;align-items:flex-start;flex-direction:column;gap:3px}
+  .stream-broadcast-page .stream-check-label{font-size:11px}
+  .stream-broadcast-page .stream-check-value{font-size:11px}
+  .stream-broadcast-page .stream-control{min-height:48px}
+  .stream-broadcast-page .stream-control-primary{min-height:58px;font-size:17px}
+  .stream-broadcast-page .stream-stage-head{padding:9px 10px}
+  .stream-broadcast-page .stream-subtitle{font-size:10px}
+}

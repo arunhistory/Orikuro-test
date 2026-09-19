@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="./business.css?v=20260823-0958"/>
   <link rel="stylesheet" href="./navigation.css?v=20260822-2223"/>
   <link rel="stylesheet" href="./streaming-test.css?v=20260913-1"/>
-  <link rel="stylesheet" href="./streaming-test-scope.css?v=20260914-test-scope1"/>
+  <link rel="stylesheet" href="./streaming-test-scope.css?v=20260919-mobile2"/>
 </head>
-<body class="stream-page">
+<body class="stream-page stream-broadcast-page">
   <header class="page-header"><a class="page-brand" href="./index.html" aria-label="Original Create ホームページへ戻る"><img class="brand-symbol" src="./assets/oc-symbol-user.jpg" alt=""/><span>Original Create</span></a></header>
   <main class="stream-main">
     <section class="stream-gate">
@@ -49,13 +49,13 @@
               <div class="stream-panel stream-panel-separated">
                 <h2 class="stream-panel-title">配信接続状態</h2>
                 <div class="stream-checks">
-                  <div class="stream-check"><span class="stream-check-label">WebTransport / QUIC</span><span class="stream-check-value" data-stream-state="transport">確認中</span></div>
+                  <div class="stream-check"><span class="stream-check-label">WebSocket / HTTPS</span><span class="stream-check-value" data-stream-state="transport">確認中</span></div>
                   <div class="stream-check"><span class="stream-check-label">配信セッション</span><span class="stream-check-value" data-stream-state="session">待機中</span></div>
                   <div class="stream-check"><span class="stream-check-label">二次合成</span><span class="stream-check-value" data-stream-state="composition">待機中</span></div>
                   <div class="stream-check"><span class="stream-check-label">音声</span><span class="stream-check-value" data-stream-state="audio" data-audio-status>待機中</span></div>
                   <div class="stream-check"><span class="stream-check-label">最終送出</span><span class="stream-check-value" data-stream-state="output">待機中</span></div>
                 </div>
-                <div class="stream-control-grid"><button class="stream-control" type="button" disabled>配信設定</button><button class="stream-control" type="button" data-audio-stop disabled>配信を停止</button><button class="stream-control stream-control-primary" type="button" data-stream-start data-audio-start disabled>配信を開始</button></div>
+                <div class="stream-control-grid"><button class="stream-control" type="button" disabled>配信設定</button><button class="stream-control" type="button" data-audio-stop disabled>配信を停止</button><button class="stream-control stream-control-primary" type="button" data-stream-start data-audio-start disabled>配信を開始</button></div><p class="stream-start-feedback" data-stream-feedback role="status" aria-live="polite">ラジオ配信はマイクだけで開始できます。</p>
               </div>
             </aside>
           </div>
@@ -64,8 +64,8 @@
     </section>
   </main>
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
-  <script type="module" src="./assets/js/stream-realtime.js?v=20260918-av3"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260919-av4"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260914-phase5-staging1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260919-flow4"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260919-ui2"></script>
 </body>
 </html>

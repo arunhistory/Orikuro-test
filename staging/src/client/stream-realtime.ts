@@ -82,6 +82,19 @@ function setText(selector: string, value: string): void {
   if (target) target.textContent = value;
 }
 
+function startErrorMessage(error: unknown): string {
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError') return 'マイクの使用が許可されていません。ブラウザのマイク許可を確認してください。';
+    if (error.name === 'NotFoundError') return '使用できるマイクが見つかりません。';
+    if (error.name === 'NotReadableError' || error.name === 'AbortError') return 'マイクを開始できません。ほかのアプリで使用中でないか確認してください。';
+    if (error.name === 'SecurityError') return 'このブラウザではマイクを使用できません。';
+  }
+  const code = error instanceof Error ? error.message : '';
+  if (code === 'AUDIO_CAPTURE_UNAVAILABLE') return 'このブラウザはマイク配信に対応していません。';
+  if (code === 'WEBSOCKET_TIMEOUT') return '音声サーバーへの接続がタイムアウトしました。';
+  return code ? `配信開始エラー: ${code}` : '配信を開始できませんでした。';
+}
+
 function validGrant(): StreamRealtimeGrant | null {
   const current = grant ?? getStreamRealtimeGrant();
   if (!current || current.expiresAt <= Date.now()) {
@@ -603,8 +616,10 @@ async function startStreaming(mode: string): Promise<void> {
     window.dispatchEvent(new CustomEvent('orikuro:stream-live'));
     setText('[data-stream-state="output"]', '音声テスト中');
   } catch (error) {
-    setText('[data-realtime-status]', error instanceof Error ? error.message : '配信開始エラー');
-    await stopStreaming(true);
+    const message = startErrorMessage(error);
+    setText('[data-realtime-status]', message);
+    await stopStreaming(false);
+    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
   }
 }
 
