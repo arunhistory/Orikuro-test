@@ -1,5 +1,5 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
-import{applyStreamingCompatibility}from"./stream-compat.js";
+import{applyStreamingCompatibility}from"./stream-compat.js?v=20260919-compat2";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
@@ -15,6 +15,13 @@ const modeCopy={
 
 function setState(name,text,state="waiting"){
   const el=document.querySelector(`[data-stream-state="${name}"]`);
+  if(!el)return;
+  el.textContent=text;
+  el.dataset.state=state;
+}
+
+function setFeedback(text,state="info"){
+  const el=document.querySelector("[data-stream-feedback]");
   if(!el)return;
   el.textContent=text;
   el.dataset.state=state;
@@ -46,6 +53,13 @@ function applyMode(mode,emit=true){
   if(title)title.textContent=copy.title;
   if(text)text.textContent=copy.copy;
   document.documentElement.dataset.streamMode=mode;
+  if(mode==="radio"){
+    setState("composition","対象外","ready");
+    setFeedback("ラジオ配信はマイクだけで開始できます。");
+  }else{
+    setState("composition","接続待ち");
+    setFeedback("立ち絵配信は2.5D Character Engineの入力経路を確認してから開始します。");
+  }
   updateStartButton();
   if(emit)window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 }
@@ -99,9 +113,18 @@ window.addEventListener("orikuro:stream-live",()=>{
   startClock();
   const status=document.querySelector("[data-stream-status]");
   if(status)status.textContent="配信中";
+  setFeedback("配信中です。終了するときは「配信を停止」を押してください。","ready");
   const stop=document.querySelector("[data-audio-stop]");
   if(stop)stop.disabled=false;
 });
+window.addEventListener("orikuro:stream-start-failed",event=>{
+  const message=event?.detail?.message||"配信を開始できませんでした。";
+  setFeedback(message,"error");
+  refreshGrantState();
+  const stop=document.querySelector("[data-audio-stop]");
+  if(stop)stop.disabled=true;
+});
+
 window.addEventListener("orikuro:stream-ended",event=>{
   stopClock();
   const reason=event?.detail?.reason||"ended";
@@ -124,6 +147,7 @@ if(startButton){
     startButton.disabled=true;
     const status=document.querySelector("[data-stream-status]");
     if(status)status.textContent="開始処理中";
+    setFeedback(selectedMode==="radio"?"マイクの許可を確認します。":"立ち絵配信の入力経路を確認します。","working");
     window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode}}));
   });
 }
