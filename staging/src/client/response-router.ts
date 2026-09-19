@@ -1,5 +1,6 @@
 import { clearServiceFlowToken } from './service-flow.js';
 import { clearStreamRealtimeGrant, storeStreamRealtimeGrant } from './realtime-grant.js';
+import { clearWatchRealtimeGrant, storeWatchRealtimeGrant } from './watch-grant.js';
 import { identifyPageSignature } from '../../assets/wasm/page-signature.js';
 
 type PageKind = 'preregister' | 'contact' | 'test';
@@ -50,6 +51,7 @@ function safeServiceDestination(value: unknown): string {
 function timeoutToHome(statusTarget?: HTMLElement | null): void {
   setStatus(statusTarget, 'タイムアウトしました。');
   clearStreamRealtimeGrant();
+  clearWatchRealtimeGrant();
   clearServiceFlowToken();
   setTimeout(() => location.replace('./index.html'), 1100);
 }
@@ -75,15 +77,23 @@ export async function handleFinalResponse(
   if (status === 'saved') {
     if (page === 'test') {
       const destination = safeServiceDestination(payload.destination);
-      if (destination === './stream-test.html') {
-        try {
+      try {
+        if (destination === './stream-test.html') {
+          clearWatchRealtimeGrant();
           storeStreamRealtimeGrant(payload.realtimeGrant);
-        } catch {
+          clearServiceFlowToken();
+        } else if (destination === './watch-test.html') {
           clearStreamRealtimeGrant();
-          throw new Error('配信接続情報を確認できません。');
+          storeWatchRealtimeGrant(payload.watchGrant);
+          clearServiceFlowToken();
+        } else {
+          clearStreamRealtimeGrant();
+          clearWatchRealtimeGrant();
         }
-      } else {
+      } catch {
         clearStreamRealtimeGrant();
+        clearWatchRealtimeGrant();
+        throw new Error('サービス接続情報を確認できません。');
       }
       setStatus(statusTarget, '同意を確認しました。移動します。');
       location.assign(destination);
@@ -98,6 +108,7 @@ export async function handleFinalResponse(
 
   if (page === 'test') {
     clearStreamRealtimeGrant();
+    clearWatchRealtimeGrant();
   }
   if (page === 'test' && payload.code === 'FLOW_TIMEOUT') {
     timeoutToHome(statusTarget);
