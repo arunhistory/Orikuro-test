@@ -1,4 +1,4 @@
-# Client pipeline v14: branch-isolated main + staging builds with realtime viewer/lifecycle modules
+# Client pipeline v15: branch-isolated main + staging builds with realtime viewer/lifecycle modules
 name: Build client submission pipeline
 
 on:
@@ -76,6 +76,23 @@ jobs:
               --unicode-escape-sequence false
           }
 
+          build_worklet() {
+            local src="$1"
+            local name="$2"
+            local out="assets/js/${name}.js"
+
+            # AudioWorkletGlobalScope has no window/document. Keep this artifact
+            # as a plain minified ES module so processor registration executes
+            # before AudioWorkletNode is created on Safari/WebKit.
+            npx esbuild "$src" \
+              --outfile="$out" \
+              --format=esm \
+              --target=es2022 \
+              --minify \
+              --legal-comments=none \
+              --charset=utf8
+          }
+
           build_one src/client/input-router.ts input-router
           build_one src/client/b-verify.ts b-verify
           build_one src/client/cloudflare-submit.ts cloudflare-submit
@@ -86,7 +103,7 @@ jobs:
           build_one src/client/watch-grant.ts watch-grant
           build_one src/client/system-stream-bootstrap.ts system-stream-bootstrap
           build_one src/client/stream-realtime.ts stream-realtime
-          build_one src/client/stream-audio-worklet.ts stream-audio-worklet
+          build_worklet src/client/stream-audio-worklet.ts stream-audio-worklet
           build_one src/client/stream-lifecycle.ts stream-lifecycle
           build_one src/client/watch-media.ts watch-media
           build_one src/client/email-delete.ts email-delete
