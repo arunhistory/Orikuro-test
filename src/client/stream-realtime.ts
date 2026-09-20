@@ -78,6 +78,7 @@ let monitorReconnectTimer: number | null = null;
 let monitorReconnectAttempt = 0;
 let monitorLastCursor = 0;
 let stopPromise: Promise<boolean> | null = null;
+let serverStopPromise: Promise<boolean> | null = null;
 let serverStopped = false;
 
 let videoSocket: WebSocket | null = null;
@@ -828,31 +829,48 @@ async function startVideo(current: StreamRealtimeGrant): Promise<void> {
 }
 
 async function requestServerStop(keepalive = false): Promise<boolean> {
+  if (serverStopped) return true;
+  if (serverStopPromise) return await serverStopPromise;
   const current = grant ?? getStreamRealtimeGrant();
   if (!current) return true;
+
+  serverStopPromise = (async () => {
+    try {
+      const response = await fetch(FLOW_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'stream_stop',
+          streamId: current.streamId,
+          controlCapability: current.controlCapability,
+        }),
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        keepalive,
+      });
+      const payload = objectValue(await response.json().catch(() => null));
+      const result = objectValue(payload?.result);
+      const stopped = response.ok
+        && payload?.ok === true
+        && result?.streamId === current.streamId
+        && result?.cloudflareStopped === true
+        && result?.northflankRevoked === true;
+      if (stopped) {
+        serverStopped = true;
+        clearStreamRealtimeGrant();
+        grant = null;
+      }
+      return stopped;
+    } catch {
+      return false;
+    }
+  })();
+
   try {
-    const response = await fetch(FLOW_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        action: 'stream_stop',
-        streamId: current.streamId,
-        controlCapability: current.controlCapability,
-      }),
-      credentials: 'omit',
-      cache: 'no-store',
-      referrerPolicy: 'no-referrer',
-      keepalive,
-    });
-    const payload = objectValue(await response.json().catch(() => null));
-    const result = objectValue(payload?.result);
-    return response.ok
-      && payload?.ok === true
-      && result?.streamId === current.streamId
-      && result?.cloudflareStopped === true
-      && result?.northflankRevoked === true;
-  } catch {
-    return false;
+    return await serverStopPromise;
+  } finally {
+    serverStopPromise = null;
   }
 }
 
@@ -952,9 +970,20 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
       audioStream.getTracks().forEach((track) => track.stop());
       audioStream = null;
     }
-    if (audioContext) {
-      await audioContext.close().catch(() => undefined);
-      audioContext = null;
+    const closingAudioContext = audioContext;
+    audioContext = null;
+
+    if (endReason === 'user_stop') {
+      if (closingAudioContext) void closingAudioContext.close().catch(() => undefined);
+      if (shouldNotify) void requestServerStop(true);
+      setText('[data-audio-status]', '待機中');
+      setText('[data-stream-state="output"]', '待機中');
+      window.dispatchEvent(new CustomEvent('orikuro:stream-ended', { detail: { reason: endReason } }));
+      return true;
+    }
+
+    if (closingAudioContext) {
+      await closingAudioContext.close().catch(() => undefined);
     }
 
     if (shouldNotify) {
@@ -965,9 +994,6 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
         window.dispatchEvent(new CustomEvent('orikuro:stream-stop-failed'));
         return false;
       }
-      serverStopped = true;
-      clearStreamRealtimeGrant();
-      grant = null;
     }
 
     setText('[data-audio-status]', '待機中');
@@ -1047,12 +1073,7 @@ function shutdown(): void {
   commentsSocket = null;
   void stopStreaming(false);
   if (!serverStopped && (grant ?? getStreamRealtimeGrant())) {
-    void requestServerStop(true).then((ok) => {
-      if (!ok) return;
-      serverStopped = true;
-      clearStreamRealtimeGrant();
-      grant = null;
-    });
+    void requestServerStop(true);
   } else {
     clearStreamRealtimeGrant();
     grant = null;
