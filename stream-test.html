@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-settings1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-automic1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -138,12 +138,12 @@
                     <div class="broadcast-mic-settings">
                       <div class="broadcast-mic-settings-head">
                         <span>マイク入力</span>
-                        <button type="button" data-mic-discover>機材を確認</button>
+                        <small>自動認識</small>
                       </div>
                       <select data-mic-device aria-label="使用するマイク" disabled>
-                        <option value="">機材を確認してください</option>
+                        <option value="">マイクを確認中...</option>
                       </select>
-                      <p data-mic-device-status data-state="waiting">「機材を確認」を押すと、ブラウザが認識できるマイク入力を取得します。</p>
+                      <p data-mic-device-status data-state="waiting">この画面を開くと、ブラウザが認識できるマイク入力を自動で取得します。</p>
                     </div>
                   </div>
                   <div class="broadcast-detail-list broadcast-detail-list-compact">
@@ -230,6 +230,6 @@
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-mic3"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-settings1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-automic1"></script>
 </body>
 </html>

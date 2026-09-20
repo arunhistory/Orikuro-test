@@ -495,6 +495,7 @@ body.broadcast-app-page{
 .broadcast-settings{display:grid;gap:9px}
 .broadcast-setting-field{display:grid;gap:5px}
 .broadcast-setting-field>span,.broadcast-mic-settings-head>span{font-size:10px;font-weight:950;color:rgba(255,255,255,.72)}
+.broadcast-mic-settings-head>small{color:rgba(255,255,255,.44);font-size:9px;font-weight:850}
 .broadcast-setting-field input,.broadcast-mic-settings select{
   width:100%;min-height:42px;padding:0 12px;
   border:1px solid var(--oc-line);border-radius:12px;
@@ -505,11 +506,10 @@ body.broadcast-app-page{
 .broadcast-setting-field input::placeholder{color:rgba(255,255,255,.34)}
 .broadcast-mic-settings{display:grid;gap:6px;padding:10px;border:1px solid var(--oc-line);border-radius:13px;background:rgba(255,255,255,.035)}
 .broadcast-mic-settings-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.broadcast-mic-settings-head button,.broadcast-mic-toggle{
+.broadcast-mic-toggle{
   min-height:36px;padding:0 12px;border:1px solid rgba(145,118,255,.35);border-radius:10px;
   background:rgba(121,93,255,.12);color:#d9d0ff;font:inherit;font-size:10px;font-weight:950;
 }
-.broadcast-mic-settings-head button:disabled{opacity:.5}
 .broadcast-mic-settings p{margin:0;color:rgba(255,255,255,.48);font-size:9px;font-weight:750;line-height:1.45}
 .broadcast-mic-settings p[data-state="ready"]{color:#6ee2b0}
 .broadcast-mic-settings p[data-state="working"]{color:#ffd182}

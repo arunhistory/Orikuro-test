@@ -118,6 +118,7 @@ function goStep(step){
   if(step<1||step>5)return;
   currentStep=step;
   updateWizard();
+  if(step===4&&!micDevicesKnown)void refreshAudioInputs(true);
 }
 
 function applyMode(mode){
@@ -289,13 +290,6 @@ document.querySelector("[data-wizard-back]")?.addEventListener("click",()=>{
 });
 document.querySelector("[data-stream-title]")?.addEventListener("input",()=>updateWizard());
 document.querySelector("[data-stream-subtitle]")?.addEventListener("input",()=>updateWizard());
-document.querySelector("[data-mic-discover]")?.addEventListener("click",async event=>{
-  const button=event.currentTarget;
-  if(button instanceof HTMLButtonElement)button.disabled=true;
-  try{await refreshAudioInputs(true);}finally{
-    if(button instanceof HTMLButtonElement)button.disabled=false;
-  }
-});
 document.querySelector("[data-mic-device]")?.addEventListener("change",event=>{
   const select=event.currentTarget;
   if(!(select instanceof HTMLSelectElement))return;
@@ -340,6 +334,7 @@ if(document.querySelector("[data-service-content]")?.hidden===false){
     updateWizard();
   }else refreshGrantState();
 }
+void refreshAudioInputs(false);
 
 window.addEventListener("orikuro:transport-ready",()=>setState("transport","接続済み","ready"));
 window.addEventListener("orikuro:composition-ready",()=>setState("composition","準備完了","ready"));
