@@ -405,3 +405,7 @@ html[data-broadcast-phase="live"] .stream-start-feedback{margin-top:0}
   .broadcast-mic-meter{margin-top:5px;height:6px}
   .stream-start-feedback{display:none}
 }
+
+/* mic3: delivery meter is a live-session diagnostic, never a prep control */
+.broadcast-mic-test[hidden]{display:none!important}
+html:not([data-broadcast-phase="live"]) .broadcast-mic-test{display:none!important}

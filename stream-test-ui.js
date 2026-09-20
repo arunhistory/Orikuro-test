@@ -149,6 +149,8 @@ window.addEventListener("orikuro:output-ready",()=>{
 });
 window.addEventListener("orikuro:stream-live",()=>{
   document.documentElement.dataset.broadcastPhase="live";
+  const micTest=document.querySelector("[data-mic-test]");
+  if(micTest)micTest.hidden=false;
   startClock();
   const status=document.querySelector("[data-stream-status]");
   if(status)status.textContent="配信中";
@@ -158,6 +160,9 @@ window.addEventListener("orikuro:stream-live",()=>{
 });
 window.addEventListener("orikuro:stream-start-failed",event=>{
   document.documentElement.dataset.broadcastPhase="prep";
+  const micTest=document.querySelector("[data-mic-test]");
+  if(micTest)micTest.hidden=true;
+  setMicMonitor();
   const message=event?.detail?.message||"配信を開始できませんでした。";
   setFeedback(message,"error");
   if(systemTest){
@@ -197,6 +202,8 @@ if(startButton){
     if(!supportedModes.has(selectedMode)||!ready)return;
     startButton.disabled=true;
     document.documentElement.dataset.broadcastPhase="starting";
+    const micTest=document.querySelector("[data-mic-test]");
+    if(micTest)micTest.hidden=true;
     const status=document.querySelector("[data-stream-status]");
     if(status)status.textContent="開始処理中";
     setFeedback(selectedMode==="radio"?"マイクを確認しています…":"立ち絵の入力経路を確認しています…","working");
