@@ -4,6 +4,7 @@ const WARNING_LEAD_MS = 2 * 60_000;
 const STOP_LEAD_MS = 5_000;
 
 let warningTimer: number | null = null;
+let stopTimer: number | null = null;
 let endTimer: number | null = null;
 let stopped = false;
 
@@ -14,8 +15,10 @@ function setStatus(message: string): void {
 
 function clearTimers(): void {
   if (warningTimer !== null) clearTimeout(warningTimer);
+  if (stopTimer !== null) clearTimeout(stopTimer);
   if (endTimer !== null) clearTimeout(endTimer);
   warningTimer = null;
+  stopTimer = null;
   endTimer = null;
 }
 
@@ -57,7 +60,7 @@ function scheduleLifecycle(): void {
     warningTimer = window.setTimeout(showWarning, warningDelay);
   }
   const stopDelay = Math.max(0, endDelay - STOP_LEAD_MS);
-  window.setTimeout(requestTimedStop, stopDelay);
+  stopTimer = window.setTimeout(requestTimedStop, stopDelay);
   endTimer = window.setTimeout(forceHome, endDelay);
 }
 

@@ -139,6 +139,7 @@ window.addEventListener('orikuro:system-start-request', (event) => {
 
 window.addEventListener('orikuro:stream-live', () => { starting = false; });
 window.addEventListener('orikuro:stream-start-failed', () => { starting = false; });
+window.addEventListener('orikuro:stream-stop-failed', () => { starting = false; });
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => { void revealPrep(); }, { once: true });

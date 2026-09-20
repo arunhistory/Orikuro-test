@@ -630,9 +630,11 @@ async function startStreaming(mode: string): Promise<void> {
     const message = startErrorMessage(error);
     setText('[data-realtime-status]', message);
     const cleaned = await stopStreaming(true);
-    const finalMessage = cleaned ? message : `${message} 配信セッションの終了確認にも失敗しました。もう一度「配信を終了」を押してください。`;
-    setText('[data-realtime-status]', finalMessage);
-    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message: finalMessage } }));
+    if (cleaned) {
+      window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
+    } else {
+      setText('[data-realtime-status]', `${message} 配信セッションの終了確認にも失敗しました。`);
+    }
   }
 }
 
@@ -642,6 +644,14 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
     const current = grant ?? getStreamRealtimeGrant();
     const shouldNotify = notifyServer && !!current && !serverStopped;
     streamWanted = false;
+
+    if (commentsReconnectTimer !== null) { clearTimeout(commentsReconnectTimer); commentsReconnectTimer = null; }
+    if (audioReconnectTimer !== null) { clearTimeout(audioReconnectTimer); audioReconnectTimer = null; }
+    commentsAuthenticated = false;
+    if (commentsSocket) {
+      try { commentsSocket.close(1000, 'stream stopped'); } catch {}
+      commentsSocket = null;
+    }
 
     if (videoTimer !== null) { clearInterval(videoTimer); videoTimer = null; }
     if (videoEncoder) {
