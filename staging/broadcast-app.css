@@ -86,7 +86,7 @@ body.broadcast-app-page{
 }
 .broadcast-progress{
   display:grid;
-  grid-template-columns:auto 1fr auto 1fr auto 1fr auto 1fr auto;
+  grid-template-columns:auto 1fr auto 1fr auto 1fr auto;
   align-items:start;
   gap:5px;
   padding:5px 16px 6px;

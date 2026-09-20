@@ -17,7 +17,6 @@ const radioPresets=new Map([
 let currentStep=1;
 let selectedMode="";
 let backgroundChoice="";
-let standingChoice="";
 let selectedAudioInputDeviceId="";
 let micDevicesKnown=false;
 let micPermissionConfirmed=false;
@@ -57,9 +56,8 @@ function micReady(){
 function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode)&&micReady();
   if(step===2)return radioPresets.has(backgroundChoice);
-  if(step===3)return standingChoice==="none";
-  if(step===4)return streamTitleValue().length>0&&micReady();
-  if(step===5)return readyForStep(1)&&readyForStep(2)&&readyForStep(3)&&readyForStep(4);
+  if(step===3)return streamTitleValue().length>0&&micReady();
+  if(step===4)return readyForStep(1)&&readyForStep(2)&&readyForStep(3);
   return false;
 }
 
@@ -95,11 +93,9 @@ function updateStreamIdentity(){
 function updateSummary(){
   const mode=document.querySelector("[data-summary-mode]");
   const background=document.querySelector("[data-summary-background]");
-  const standing=document.querySelector("[data-summary-standing]");
   const mic=document.querySelector("[data-summary-mic]");
   if(mode)mode.textContent=selectedMode==="radio"?"ラジオ":"未選択";
   if(background)background.textContent=radioPresets.get(backgroundChoice)?.label||"未選択";
-  if(standing)standing.textContent=standingChoice==="none"?"なし":"未選択";
   if(mic)mic.textContent=currentMicLabel();
   updateStreamIdentity();
 }
@@ -120,18 +116,18 @@ function updateWizard(){
   footer?.classList.toggle("is-first-step",currentStep===1);
   if(back)back.hidden=currentStep===1;
   if(next){
-    next.hidden=currentStep===5;
+    next.hidden=currentStep===4;
     next.disabled=!readyForStep(currentStep);
   }
   if(start){
-    start.hidden=currentStep!==5;
-    start.disabled=currentStep!==5||!readyForStep(5)||!sessionReady()||!compatibility.supported;
+    start.hidden=currentStep!==4;
+    start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported;
   }
   updateSummary();
 }
 
 function goStep(step){
-  if(step<1||step>5)return;
+  if(step<1||step>4)return;
   currentStep=step;
   updateWizard();
 }
@@ -382,17 +378,6 @@ function applyBackgroundPreset(presetId){
   window.dispatchEvent(new CustomEvent("orikuro:radio-background-change",{detail:{presetId,color:preset.color}}));
 }
 
-function applyStanding(choice){
-  if(choice!=="none")return;
-  standingChoice=choice;
-  document.querySelectorAll("[data-standing-choice]").forEach(button=>{
-    const active=button.dataset.standingChoice===choice;
-    button.classList.toggle("is-selected",active);
-    button.setAttribute("aria-pressed",active?"true":"false");
-  });
-  updateWizard();
-}
-
 function refreshGrantState(){
   grantReady=!!getStreamRealtimeGrant();
   if(!grantReady)realtimeReady=false;
@@ -434,9 +419,6 @@ document.querySelectorAll("[data-stream-mode]").forEach(button=>{
 });
 document.querySelectorAll("[data-radio-preset]").forEach(button=>{
   button.addEventListener("click",()=>applyBackgroundPreset(button.dataset.radioPreset||""));
-});
-document.querySelectorAll("[data-standing-choice]").forEach(button=>{
-  button.addEventListener("click",()=>applyStanding(button.dataset.standingChoice||""));
 });
 document.querySelector("[data-wizard-next]")?.addEventListener("click",()=>{
   if(readyForStep(currentStep))goStep(currentStep+1);
@@ -513,7 +495,7 @@ window.addEventListener("orikuro:stream-prepared",()=>{
   setState("session","準備完了","ready");
   setState("audio","開始待機","ready");
   setState("output","開始待機","ready");
-  if(currentStep===5)setFeedback("配信準備完了","ready");
+  if(currentStep===4)setFeedback("配信準備完了","ready");
   updateWizard();
 });
 window.addEventListener("orikuro:stream-prepare-failed",event=>{
@@ -585,7 +567,7 @@ window.addEventListener("orikuro:stream-start-failed",event=>{
   }
   setMicMonitor();
   const message=event?.detail?.message||"配信を開始できませんでした。";
-  goStep(5);
+  goStep(4);
   setFeedback(message,"error");
   if(systemTest){
     grantReady=!!getStreamRealtimeGrant();
@@ -614,7 +596,7 @@ stopButton?.addEventListener("click",()=>{
 
 const startButton=document.querySelector("[data-stream-start]");
 startButton?.addEventListener("click",()=>{
-  if(currentStep!==5||!readyForStep(5)||!sessionReady()||!supportedModes.has(selectedMode))return;
+  if(currentStep!==4||!readyForStep(4)||!sessionReady()||!supportedModes.has(selectedMode))return;
   startButton.disabled=true;
   document.documentElement.dataset.broadcastPhase="starting";
   setFeedback("配信を開始しています…","working");

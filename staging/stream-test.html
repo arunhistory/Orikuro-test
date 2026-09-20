@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-formats1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-wizard4step1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -34,17 +34,15 @@
                 <i></i>
                 <span data-progress-step="2"><b>2</b><small>背景</small></span>
                 <i></i>
-                <span data-progress-step="3"><b>3</b><small>立ち絵</small></span>
+                <span data-progress-step="3"><b>3</b><small>詳細</small></span>
                 <i></i>
-                <span data-progress-step="4"><b>4</b><small>詳細</small></span>
-                <i></i>
-                <span data-progress-step="5"><b>5</b><small>開始</small></span>
+                <span data-progress-step="4"><b>4</b><small>開始</small></span>
               </nav>
 
               <div class="broadcast-step-area">
                 <section class="broadcast-step" data-wizard-step="1">
                   <div class="broadcast-step-head">
-                    <small>STEP 1 / 5</small>
+                    <small>STEP 1 / 4</small>
                     <h1>配信形式を選択</h1>
                     <p>最初に配信の種類を決めます。</p>
                   </div>
@@ -80,7 +78,7 @@
 
                 <section class="broadcast-step" data-wizard-step="2" hidden>
                   <div class="broadcast-step-head">
-                    <small>STEP 2 / 5</small>
+                    <small>STEP 2 / 4</small>
                     <h1>背景を選択</h1>
                     <p>ラジオ画面に使う背景を決めます。</p>
                   </div>
@@ -118,27 +116,7 @@
 
                 <section class="broadcast-step" data-wizard-step="3" hidden>
                   <div class="broadcast-step-head">
-                    <small>STEP 3 / 5</small>
-                    <h1>立ち絵を選択</h1>
-                    <p>ラジオ配信では立ち絵を使わない設定にできます。</p>
-                  </div>
-                  <div class="broadcast-choice-grid">
-                    <button class="broadcast-choice" type="button" data-standing-choice="none" aria-pressed="false">
-                      <span class="broadcast-choice-icon">—</span>
-                      <strong>立ち絵なし</strong>
-                      <small>ラジオ背景のみ</small>
-                    </button>
-                    <button class="broadcast-choice" type="button" data-standing-choice="character" aria-pressed="false" disabled>
-                      <span class="broadcast-choice-icon">♙</span>
-                      <strong>立ち絵を使う</strong>
-                      <small>2.5D Character Engine 準備中</small>
-                    </button>
-                  </div>
-                </section>
-
-                <section class="broadcast-step" data-wizard-step="4" hidden>
-                  <div class="broadcast-step-head">
-                    <small>STEP 4 / 5</small>
+                    <small>STEP 3 / 4</small>
                     <h1>詳細設定</h1>
                     <p>枠情報と使用するマイクを設定します。</p>
                   </div>
@@ -165,14 +143,13 @@
                   <div class="broadcast-detail-list broadcast-detail-list-compact">
                     <div><span>配信形式</span><strong data-summary-mode>未選択</strong></div>
                     <div><span>背景</span><strong data-summary-background>未選択</strong></div>
-                    <div><span>立ち絵</span><strong data-summary-standing>未選択</strong></div>
                     <div><span>使用マイク</span><strong data-summary-mic>未確認</strong></div>
                   </div>
                 </section>
 
-                <section class="broadcast-step" data-wizard-step="5" hidden>
+                <section class="broadcast-step" data-wizard-step="4" hidden>
                   <div class="broadcast-step-head">
-                    <small>STEP 5 / 5</small>
+                    <small>STEP 4 / 4</small>
                     <h1>配信を開始</h1>
                     <p>準備内容を確認して配信を開始します。</p>
                   </div>
@@ -256,6 +233,6 @@
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-formats1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-wizard4step1"></script>
 </body>
 </html>
