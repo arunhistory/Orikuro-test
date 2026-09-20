@@ -103,6 +103,20 @@ function setText(selector: string, value: string): void {
   if (target) target.textContent = value;
 }
 
+type PreparedAudioWindow = Window & {
+  __orikuroPreparedAudioStream?: MediaStream | null;
+};
+
+function takePreparedAudioStream(): MediaStream {
+  const holder = window as PreparedAudioWindow;
+  const stream = holder.__orikuroPreparedAudioStream;
+  const track = stream?.getAudioTracks()[0];
+  if (!stream || !track || track.readyState !== 'live') throw new Error('AUDIO_PREPARED_STREAM_MISSING');
+  holder.__orikuroPreparedAudioStream = null;
+  track.enabled = true;
+  return stream;
+}
+
 function startErrorMessage(error: unknown): string {
   if (error instanceof DOMException) {
     if (error.name === 'NotAllowedError') return 'マイクの使用が許可されていません。ブラウザのマイク許可を確認してください。';
@@ -113,6 +127,7 @@ function startErrorMessage(error: unknown): string {
   }
   const code = error instanceof Error ? error.message : '';
   if (code === 'AUDIO_CAPTURE_UNAVAILABLE') return 'このブラウザはマイク配信に対応していません。';
+  if (code === 'AUDIO_PREPARED_STREAM_MISSING') return '事前に準備したマイク入力を使用できません。配信形式を選び直してください。';
   if (code === 'WEBSOCKET_TIMEOUT') return '音声サーバーへの接続がタイムアウトしました。';
   if (code === 'AUDIO_DELIVERY_ACK_TIMEOUT') return '音声サーバーへの到達確認がタイムアウトしました。';
   if (code === 'AUDIO_LISTENER_PATH_TIMEOUT') return 'リスナー側の音声配信経路まで届いたことを確認できませんでした。';
@@ -531,27 +546,20 @@ async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
 }
 
 async function startAudio(current: StreamRealtimeGrant): Promise<void> {
-  if (!navigator.mediaDevices?.getUserMedia || typeof AudioContext === 'undefined' || typeof AudioWorkletNode === 'undefined') {
+  if (typeof AudioContext === 'undefined' || typeof AudioWorkletNode === 'undefined') {
     throw new Error('AUDIO_CAPTURE_UNAVAILABLE');
   }
   audioSequence = 0;
-  setText('[data-audio-status]', 'マイクの利用許可を確認しています。');
+  setText('[data-audio-status]', '音声送信を準備しています。');
+  const stream = takePreparedAudioStream();
+  audioStream = stream;
+  const activeTrack = stream.getAudioTracks()[0];
+
   const context = new AudioContext({ latencyHint: 'interactive' });
   audioContext = context;
   await context.resume();
   await context.audioWorklet.addModule(WORKLET_URL);
-  const audioConstraints: MediaTrackConstraints = {
-    echoCancellation: false,
-    noiseSuppression: false,
-    autoGainControl: false,
-  };
-  if (selectedAudioInputDeviceId) audioConstraints.deviceId = { exact: selectedAudioInputDeviceId };
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: audioConstraints,
-    video: false,
-  });
-  audioStream = stream;
-  const activeTrack = stream.getAudioTracks()[0];
+
   window.dispatchEvent(new CustomEvent('orikuro:audio-device-active', {
     detail: {
       deviceId: activeTrack?.getSettings().deviceId ?? selectedAudioInputDeviceId,
