@@ -218,24 +218,45 @@ body.broadcast-app-page{
 }
 .broadcast-radio-background{
   position:absolute;inset:0;z-index:0;overflow:hidden;
-  background:
-    radial-gradient(circle at 50% 35%,rgba(255,91,131,.18),transparent 42%),
-    radial-gradient(circle at 45% 55%,rgba(139,103,255,.28),transparent 62%),
-    linear-gradient(180deg,#151827 0%,#0e101a 100%);
+  background:var(--radio-background-color,#151827);
 }
 .broadcast-radio-background::after{
   content:"";position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(8,9,15,.05),rgba(8,9,15,.28));
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
+  pointer-events:none;
 }
-.broadcast-radio-background img{width:100%;height:100%;object-fit:cover}
-.broadcast-background-swatch{
-  width:40px;height:40px;border-radius:12px;
-  background:radial-gradient(circle at 50% 35%,rgba(255,91,131,.6),transparent 43%),linear-gradient(135deg,#252a43,#7053b8);
+.broadcast-preset-grid{
+  width:100%;
+  align-self:center;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
 }
-.broadcast-background-photo{
-  display:grid;place-items:center;
-  width:40px;height:40px;border-radius:12px;
-  background:rgba(255,255,255,.08);font-size:25px;
+.broadcast-preset-choice{
+  appearance:none;
+  min-width:0;
+  min-height:72px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px;
+  border:1px solid var(--oc-line);
+  border-radius:14px;
+  background:var(--oc-panel);
+  color:#fff;
+}
+.broadcast-preset-swatch{
+  width:38px;height:38px;border-radius:11px;
+  background:var(--preset-color);
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 2px 8px rgba(0,0,0,.22);
+}
+.broadcast-preset-choice strong{font-size:11px;font-weight:950}
+.broadcast-preset-choice.is-selected{
+  border-color:rgba(255,91,131,.72);
+  box-shadow:0 0 0 1px rgba(255,91,131,.18) inset;
 }
 
 .broadcast-detail-list{
@@ -408,7 +429,8 @@ body.broadcast-app-page{
   .broadcast-choice{min-height:105px;padding:8px}
   .broadcast-choice-icon{width:36px;height:36px;font-size:18px}
   .broadcast-background-preview{height:min(23dvh,145px)}
-  .broadcast-choice-grid-compact .broadcast-choice{min-height:70px}
+  .broadcast-preset-choice{min-height:60px}
+  .broadcast-preset-swatch{width:31px;height:31px}
   .broadcast-detail-list{gap:5px}
   .broadcast-detail-list>div{min-height:36px;padding:6px 10px}
   .broadcast-final-preview{height:min(22dvh,145px)}

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-wizard1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-preset1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -71,20 +71,29 @@
                   </div>
                   <div class="broadcast-background-preview" data-stream-preview>
                     <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
-                      <img data-radio-background-image alt="" hidden/>
+                      
                     </div>
                     <span>背景プレビュー</span>
                   </div>
-                  <div class="broadcast-choice-grid broadcast-choice-grid-compact">
-                    <button class="broadcast-choice" type="button" data-background-default aria-pressed="false">
-                      <span class="broadcast-background-swatch" aria-hidden="true"></span>
-                      <strong>標準背景</strong>
+                  <div class="broadcast-preset-grid" role="group" aria-label="ラジオ背景">
+                    <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-1" aria-pressed="false" style="--preset-color:#000000">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>黒</strong>
                     </button>
-                    <label class="broadcast-choice" data-background-custom-label>
-                      <span class="broadcast-background-photo" aria-hidden="true">＋</span>
-                      <strong>端末から選択</strong>
-                      <input type="file" accept="image/*" data-background-file hidden/>
-                    </label>
+                    <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-2" aria-pressed="false" style="--preset-color:#FFFFFF">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>白</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-3" aria-pressed="false" style="--preset-color:#C62828">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>赤</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-4" aria-pressed="false" style="--preset-color:#1565C0">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>青</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-5" aria-pressed="false" style="--preset-color:#2E7D32">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>緑</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-6" aria-pressed="false" style="--preset-color:#6A1B9A">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>紫</strong>
+                    </button>
                   </div>
                 </section>
 
@@ -131,7 +140,7 @@
                   </div>
                   <div class="broadcast-final-preview">
                     <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
-                      <img data-radio-background-image alt="" hidden/>
+                      
                     </div>
                     <div class="broadcast-final-center">
                       <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
@@ -153,7 +162,7 @@
             <section class="broadcast-live-screen" data-live-screen hidden>
               <div class="broadcast-live-preview">
                 <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
-                  <img data-radio-background-image alt="" hidden/>
+                  
                 </div>
                 <div class="broadcast-live-center">
                   <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
@@ -196,6 +205,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-stop1"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-mic2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-wizard1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-preset1"></script>
 </body>
 </html>
