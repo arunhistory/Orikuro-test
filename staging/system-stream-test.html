@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-compacthud1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-rankpoint1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -245,23 +245,28 @@
                     <button type="button" data-live-support-close aria-label="閉じる">×</button>
                   </header>
                   <div class="broadcast-support-current">
-                    <span>現在</span>
+                    <span>現在の応援スコア</span>
                     <strong data-support-score>0</strong>
+                  </div>
+                  <div class="broadcast-daily-rank-point">
+                    <span>本日のランクポイント</span>
+                    <strong>+<b data-daily-rank-points>1</b>pt</strong>
+                    <small>暫定</small>
                   </div>
                   <div class="broadcast-support-next">
                     <div>
-                      <span>次のスコア</span>
+                      <span>次は +<b data-next-rank-points>2</b>pt</span>
                       <strong data-support-next>0</strong>
                     </div>
                     <div>
                       <span>あと</span>
-                      <strong data-support-remaining>0</strong>
+                      <strong><b data-support-remaining>0</b> スコア</strong>
                     </div>
                   </div>
-                  <div class="broadcast-support-progress" role="progressbar" aria-label="次のスコアまでの進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-support-progress>
+                  <div class="broadcast-support-progress" role="progressbar" aria-label="次のランクポイントまでの進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-support-progress>
                     <span data-support-progress-fill></span>
                   </div>
-                  <small>※お試し用の仮計算値</small>
+                  <small>※同ランク帯との比較を仮ボーダーで再現したお試し表示</small>
                 </aside>
 
                 <aside class="broadcast-compact-panel broadcast-ranking-panel" data-live-ranking-panel hidden aria-label="イベントランキング">
@@ -283,9 +288,9 @@
                     </div>
                     <button type="button" data-live-listeners-close aria-label="閉じる">×</button>
                   </header>
-                  <section class="broadcast-listener-special" data-listener-special-section>
-                    <h3>特別表示</h3>
-                    <ol data-listener-special-list></ol>
+                  <section class="broadcast-listener-background" data-listener-background-section>
+                    <h3>バックグラウンド</h3>
+                    <ol data-listener-background-list></ol>
                   </section>
                   <section class="broadcast-listener-normal">
                     <h3>リスナー</h3>
@@ -331,6 +336,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-compacthud1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-rankpoint1"></script>
 </body>
 </html>
