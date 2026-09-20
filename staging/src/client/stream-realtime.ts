@@ -52,6 +52,7 @@ let grant: StreamRealtimeGrant | null = null;
 let pageStopping = false;
 let streamWanted = false;
 let selectedMode = 'radio';
+let selectedAudioInputDeviceId = '';
 
 let commentsSocket: WebSocket | null = null;
 let commentsAuthenticated = false;
@@ -107,6 +108,7 @@ function startErrorMessage(error: unknown): string {
     if (error.name === 'NotFoundError') return '使用できるマイクが見つかりません。';
     if (error.name === 'NotReadableError' || error.name === 'AbortError') return 'マイクを開始できません。ほかのアプリで使用中でないか確認してください。';
     if (error.name === 'SecurityError') return 'このブラウザではマイクを使用できません。';
+    if (error.name === 'OverconstrainedError') return '選択したマイクを使用できません。機材を確認し直してください。';
   }
   const code = error instanceof Error ? error.message : '';
   if (code === 'AUDIO_CAPTURE_UNAVAILABLE') return 'このブラウザはマイク配信に対応していません。';
@@ -537,11 +539,24 @@ async function startAudio(current: StreamRealtimeGrant): Promise<void> {
   audioContext = context;
   await context.resume();
   await context.audioWorklet.addModule(WORKLET_URL);
+  const audioConstraints: MediaTrackConstraints = {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+  };
+  if (selectedAudioInputDeviceId) audioConstraints.deviceId = { exact: selectedAudioInputDeviceId };
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    audio: audioConstraints,
     video: false,
   });
   audioStream = stream;
+  const activeTrack = stream.getAudioTracks()[0];
+  window.dispatchEvent(new CustomEvent('orikuro:audio-device-active', {
+    detail: {
+      deviceId: activeTrack?.getSettings().deviceId ?? selectedAudioInputDeviceId,
+      label: activeTrack?.label ?? '',
+    },
+  }));
   const source = context.createMediaStreamSource(stream);
   const worklet = new AudioWorkletNode(context, 'orikuro-audio-capture', {
     numberOfInputs: 1,
@@ -981,6 +996,12 @@ function bindUI(): void {
       sendComment(input.value);
       input.value = '';
     }
+  });
+  window.addEventListener('orikuro:audio-input-change', (event) => {
+    if (streamWanted) return;
+    const detail = objectValue((event as CustomEvent).detail);
+    const deviceId = typeof detail?.deviceId === 'string' ? detail.deviceId : '';
+    selectedAudioInputDeviceId = deviceId.length <= 512 ? deviceId : '';
   });
   window.addEventListener('orikuro:stream-start-request', (event) => {
     const detail = objectValue((event as CustomEvent).detail);

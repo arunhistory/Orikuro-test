@@ -489,3 +489,33 @@ body.broadcast-app-page{
   .broadcast-background-public-note>span{width:25px;height:25px;font-size:16px}
   .broadcast-background-public-note small{display:none}
 }
+
+
+/* Streaming setup: frame identity + real audio input selection */
+.broadcast-settings{display:grid;gap:9px}
+.broadcast-setting-field{display:grid;gap:5px}
+.broadcast-setting-field>span,.broadcast-mic-settings-head>span{font-size:10px;font-weight:950;color:rgba(255,255,255,.72)}
+.broadcast-setting-field input,.broadcast-mic-settings select{
+  width:100%;min-height:42px;padding:0 12px;
+  border:1px solid var(--oc-line);border-radius:12px;
+  background:rgba(255,255,255,.055);color:#fff;
+  font:inherit;font-size:13px;font-weight:800;outline:none;
+}
+.broadcast-setting-field input:focus,.broadcast-mic-settings select:focus{border-color:rgba(145,118,255,.75);box-shadow:0 0 0 3px rgba(121,93,255,.12)}
+.broadcast-setting-field input::placeholder{color:rgba(255,255,255,.34)}
+.broadcast-mic-settings{display:grid;gap:6px;padding:10px;border:1px solid var(--oc-line);border-radius:13px;background:rgba(255,255,255,.035)}
+.broadcast-mic-settings-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.broadcast-mic-settings-head button,.broadcast-mic-toggle{
+  min-height:36px;padding:0 12px;border:1px solid rgba(145,118,255,.35);border-radius:10px;
+  background:rgba(121,93,255,.12);color:#d9d0ff;font:inherit;font-size:10px;font-weight:950;
+}
+.broadcast-mic-settings-head button:disabled{opacity:.5}
+.broadcast-mic-settings p{margin:0;color:rgba(255,255,255,.48);font-size:9px;font-weight:750;line-height:1.45}
+.broadcast-mic-settings p[data-state="ready"]{color:#6ee2b0}
+.broadcast-mic-settings p[data-state="working"]{color:#ffd182}
+.broadcast-mic-settings p[data-state="error"]{color:#ff88a3}
+.broadcast-detail-list-compact{margin-top:1px}
+.broadcast-final-center>small,.broadcast-live-subtitle{display:block;max-width:82%;margin-top:5px;color:rgba(255,255,255,.74);font-size:10px;font-weight:800;text-align:center;overflow-wrap:anywhere}
+.broadcast-final-center>[data-stream-preview-copy]{display:block;margin-top:7px;color:rgba(255,255,255,.5);font-size:9px;font-weight:800}
+.broadcast-final-center>strong,.broadcast-live-center>strong{max-width:84%;text-align:center;overflow-wrap:anywhere}
+.broadcast-mic-toggle{width:100%;margin-bottom:8px}
