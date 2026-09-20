@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-livememo1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-formats1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -48,15 +48,30 @@
                     <h1>配信形式を選択</h1>
                     <p>最初に配信の種類を決めます。</p>
                   </div>
-                  <div class="broadcast-choice-grid">
+                  <div class="broadcast-choice-grid broadcast-format-grid" role="group" aria-label="配信形式">
                     <button class="broadcast-choice" type="button" data-stream-mode="radio" aria-pressed="false">
                       <span class="broadcast-choice-icon">◉</span>
                       <strong>ラジオ</strong>
-                      <small>音声を中心に配信</small>
+                      <small>音声のみ</small>
                     </button>
-                    <button class="broadcast-choice" type="button" data-stream-mode="standing" aria-pressed="false" disabled>
+                    <button class="broadcast-choice" type="button" data-stream-mode="standing" aria-pressed="false" aria-disabled="true" disabled>
                       <span class="broadcast-choice-icon">♙</span>
-                      <strong>立ち絵配信</strong>
+                      <strong>立ち絵</strong>
+                      <small>準備中</small>
+                    </button>
+                    <button class="broadcast-choice" type="button" data-stream-mode="live2d" aria-pressed="false" aria-disabled="true" disabled>
+                      <span class="broadcast-choice-icon">◇</span>
+                      <strong>Live2D</strong>
+                      <small>準備中</small>
+                    </button>
+                    <button class="broadcast-choice" type="button" data-stream-mode="3d" aria-pressed="false" aria-disabled="true" disabled>
+                      <span class="broadcast-choice-icon">⬡</span>
+                      <strong>3Dモデル</strong>
+                      <small>準備中</small>
+                    </button>
+                    <button class="broadcast-choice broadcast-format-wide" type="button" data-stream-mode="camera" aria-pressed="false" aria-disabled="true" disabled>
+                      <span class="broadcast-choice-icon">▣</span>
+                      <strong>実写キャプチャー</strong>
                       <small>準備中</small>
                     </button>
                   </div>
@@ -241,6 +256,6 @@
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-livememo1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-formats1"></script>
 </body>
 </html>
