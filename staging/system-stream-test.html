@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-subtitlefix1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-compacthud1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -173,8 +173,8 @@
                       </div>
                       <div class="broadcast-preview-metrics">
                         <span>応援 <b data-support-score>0</b></span>
-                        <span>ランク <b data-support-rank>D</b></span>
                         <span>イベント <b data-event-rank>--</b>位 / <b data-event-points>0</b>pt</span>
+                        <span>リスナー <b data-listener-count>0</b>人</span>
                       </div>
                     </div>
                     <span class="broadcast-preview-mode" data-stream-preview-copy>ラジオ / 音声配信</span>
@@ -204,7 +204,6 @@
                   <div class="broadcast-live-owner-row">
                     <img class="broadcast-live-owner-icon" src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                     <div class="broadcast-live-owner-copy">
-                      <small>配信者</small>
                       <strong data-live-stream-title>枠タイトル</strong>
                       <div class="broadcast-live-subtitle-row">
                         <span data-live-stream-subtitle>サブタイトル</span>
@@ -212,9 +211,25 @@
                       </div>
                     </div>
                     <span class="broadcast-live-status">
-                      <i></i><span data-stream-status data-realtime-status>配信中</span>
+                      <i></i>
                       <b data-stream-clock>00:00</b>
                     </span>
+                  </div>
+
+                  <div class="broadcast-live-quickbar">
+                    <button type="button" data-live-support-toggle>
+                      <small>応援</small>
+                      <strong data-support-score>0</strong>
+                    </button>
+                    <button type="button" data-live-event-toggle>
+                      <small>イベント</small>
+                      <strong><span data-event-rank>--</span>位</strong>
+                      <span><b data-event-points>0</b>pt</span>
+                    </button>
+                    <button type="button" data-live-listeners-toggle>
+                      <small>リスナー</small>
+                      <strong><span data-listener-count>0</span>人</strong>
+                    </button>
                   </div>
 
                   <form class="broadcast-live-subtitle-form" data-live-subtitle-form hidden>
@@ -222,42 +237,60 @@
                     <button type="submit">保存</button>
                     <button type="button" data-live-subtitle-cancel>取消</button>
                   </form>
-
-                  <div class="broadcast-live-metrics">
-                    <div><small>応援スコア</small><strong data-support-score>0</strong></div>
-                    <div><small>配信ランク</small><strong data-support-rank>D</strong></div>
-                    <button type="button" data-live-listeners-toggle>
-                      <small>リスナー</small>
-                      <strong><span data-listener-count>0</span>人</strong>
-                    </button>
-                  </div>
-
-                  <div class="broadcast-live-event">
-                    <div>
-                      <small>お試しイベント</small>
-                      <strong><span data-event-rank>--</span>位</strong>
-                    </div>
-                    <div>
-                      <small>イベントポイント</small>
-                      <strong><span data-event-points>0</span>pt</strong>
-                    </div>
-                    <span>最大 <b data-listener-max>0</b>人</span>
-                  </div>
                 </div>
 
-                <aside class="broadcast-listener-panel" data-live-listener-panel hidden aria-label="リスナー一覧">
+                <aside class="broadcast-compact-panel broadcast-support-panel" data-live-support-panel hidden aria-label="応援スコア詳細">
                   <header>
-                    <strong>リスナー一覧</strong>
+                    <strong>応援スコア</strong>
+                    <button type="button" data-live-support-close aria-label="閉じる">×</button>
+                  </header>
+                  <div class="broadcast-support-current">
+                    <span>現在</span>
+                    <strong data-support-score>0</strong>
+                  </div>
+                  <div class="broadcast-support-next">
+                    <div>
+                      <span>次のスコア</span>
+                      <strong data-support-next>0</strong>
+                    </div>
+                    <div>
+                      <span>あと</span>
+                      <strong data-support-remaining>0</strong>
+                    </div>
+                  </div>
+                  <div class="broadcast-support-progress" role="progressbar" aria-label="次のスコアまでの進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-support-progress>
+                    <span data-support-progress-fill></span>
+                  </div>
+                  <small>※お試し用の仮計算値</small>
+                </aside>
+
+                <aside class="broadcast-compact-panel broadcast-ranking-panel" data-live-ranking-panel hidden aria-label="イベントランキング">
+                  <header>
+                    <div>
+                      <small>お試しイベント</small>
+                      <strong>ランキング</strong>
+                    </div>
+                    <button type="button" data-live-ranking-close aria-label="閉じる">×</button>
+                  </header>
+                  <ol data-event-ranking-list></ol>
+                </aside>
+
+                <aside class="broadcast-compact-panel broadcast-listener-panel" data-live-listener-panel hidden aria-label="リスナー一覧">
+                  <header>
+                    <div>
+                      <small>現在 <b data-listener-count>0</b>人 / 最大 <b data-listener-max>0</b>人</small>
+                      <strong>リスナー一覧</strong>
+                    </div>
                     <button type="button" data-live-listeners-close aria-label="閉じる">×</button>
                   </header>
-                  <ol>
-                    <li><span>テストリスナー 01</span><small>応援中</small></li>
-                    <li><span>テストリスナー 02</span><small>初見</small></li>
-                    <li><span>テストリスナー 03</span><small>応援中</small></li>
-                    <li><span>テストリスナー 04</span><small>視聴中</small></li>
-                    <li><span>テストリスナー 05</span><small>視聴中</small></li>
-                  </ol>
-                  <p>ほか <span data-listener-rest>0</span> 人</p>
+                  <section class="broadcast-listener-special" data-listener-special-section>
+                    <h3>特別表示</h3>
+                    <ol data-listener-special-list></ol>
+                  </section>
+                  <section class="broadcast-listener-normal">
+                    <h3>リスナー</h3>
+                    <ol data-listener-list></ol>
+                  </section>
                 </aside>
 
                 <div class="broadcast-live-notes" data-live-notes aria-label="配信メモ"></div>
@@ -298,6 +331,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-livehud1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-compacthud1"></script>
 </body>
 </html>
