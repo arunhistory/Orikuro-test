@@ -24,6 +24,8 @@ let micPermissionConfirmed=false;
 let micPermissionRequest=null;
 let preparedAudioStream=null;
 let grantReady=false;
+let realtimeReady=false;
+let systemPreparationRequested=false;
 let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
 let startedAt=0;
 let timer=0;
@@ -62,7 +64,7 @@ function readyForStep(step){
 }
 
 function sessionReady(){
-  return systemTest?(grantReady||systemAccessReady):grantReady;
+  return grantReady&&realtimeReady;
 }
 
 function streamTitleValue(){
@@ -312,7 +314,9 @@ async function switchPreparedAudioInput(deviceId){
     micDevicesKnown=true;
     setMicPermissionStatus("マイクの使用を許可しました。","ready");
     setMicDeviceStatus(`使用するマイク: ${currentMicLabel()}`,"ready");
+    realtimeReady=false;
     dispatchAudioInputSelection();
+    window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode:selectedMode||"radio"}}));
   }catch(error){
     select.value=previousId;
     selectedAudioInputDeviceId=previousId;
@@ -340,11 +344,21 @@ async function applyMode(mode){
   updateWizard();
   window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 
+  // Server/network preparation begins immediately while the user continues setup.
+  if(systemTest&&!systemPreparationRequested){
+    systemPreparationRequested=true;
+    window.dispatchEvent(new CustomEvent("orikuro:system-prepare-request",{detail:{mode}}));
+  }
+
   if(!micReady()){
     if(!micPermissionRequest){
       micPermissionRequest=refreshAudioInputs(true).finally(()=>{micPermissionRequest=null;});
     }
     await micPermissionRequest;
+  }
+
+  if(micReady()){
+    window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));
   }
 }
 
@@ -379,7 +393,8 @@ function applyStanding(choice){
 
 function refreshGrantState(){
   grantReady=!!getStreamRealtimeGrant();
-  setState("session",grantReady?"認可済み":"認可情報なし",grantReady?"ready":"waiting");
+  if(!grantReady)realtimeReady=false;
+  setState("session",grantReady?(realtimeReady?"準備完了":"配信経路準備中"):"認可情報なし",grantReady&&realtimeReady?"ready":"waiting");
   updateWizard();
 }
 
@@ -465,10 +480,35 @@ updateWizard();
 
 document.addEventListener("orikuro:system-access-ready",()=>{
   systemAccessReady=true;
-  setState("session","開始時に接続","ready");
+  setState("session","バックグラウンド準備待ち","waiting");
   updateWizard();
 });
-document.addEventListener("orikuro:service-ready",refreshGrantState,{once:true});
+document.addEventListener("orikuro:service-ready",()=>{
+  refreshGrantState();
+  setState("session","配信経路準備中","waiting");
+});
+window.addEventListener("orikuro:stream-preparing",()=>{
+  realtimeReady=false;
+  if(grantReady)setState("session","配信経路準備中","waiting");
+  updateWizard();
+});
+window.addEventListener("orikuro:stream-prepared",()=>{
+  realtimeReady=true;
+  grantReady=!!getStreamRealtimeGrant();
+  setState("session","準備完了","ready");
+  setState("audio","開始待機","ready");
+  setState("output","開始待機","ready");
+  if(currentStep===5)setFeedback("配信準備完了","ready");
+  updateWizard();
+});
+window.addEventListener("orikuro:stream-prepare-failed",event=>{
+  realtimeReady=false;
+  if(systemTest&&!getStreamRealtimeGrant())systemPreparationRequested=false;
+  const message=event?.detail?.message||"配信準備を完了できませんでした。";
+  setState("session","準備失敗","error");
+  setFeedback(message,"error");
+  updateWizard();
+});
 if(document.querySelector("[data-service-content]")?.hidden===false){
   if(systemTest){
     systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
@@ -557,10 +597,6 @@ startButton?.addEventListener("click",()=>{
   startButton.disabled=true;
   document.documentElement.dataset.broadcastPhase="starting";
   setFeedback("配信を開始しています…","working");
-  if(systemTest&&!grantReady){
-    window.dispatchEvent(new CustomEvent("orikuro:system-start-request",{detail:{mode:selectedMode,radioPresetId:backgroundChoice}}));
-    return;
-  }
   window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode,radioPresetId:backgroundChoice}}));
 });
 

@@ -51,6 +51,11 @@ type WorkletPacket = Readonly<{
 let grant: StreamRealtimeGrant | null = null;
 let pageStopping = false;
 let streamWanted = false;
+let liveTransmission = false;
+let realtimePrepared = false;
+let preparationRequestedMode: string | null = null;
+let preparePromise: Promise<void> | null = null;
+let serverLivePromise: Promise<boolean> | null = null;
 let selectedMode = 'radio';
 let selectedAudioInputDeviceId = '';
 
@@ -67,6 +72,8 @@ let audioAuthenticated = false;
 let audioSequence = 0;
 let audioStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
+let audioRuntimePromise: Promise<AudioContext> | null = null;
+let audioSource: MediaStreamAudioSourceNode | null = null;
 let audioWorklet: AudioWorkletNode | null = null;
 let silentGain: GainNode | null = null;
 let audioPerfOriginMs = 0;
@@ -80,6 +87,7 @@ let monitorLastCursor = 0;
 let stopPromise: Promise<boolean> | null = null;
 let serverStopPromise: Promise<boolean> | null = null;
 let serverStopped = false;
+let uiBound = false;
 
 let videoSocket: WebSocket | null = null;
 let videoStream: MediaStream | null = null;
@@ -107,6 +115,12 @@ type PreparedAudioWindow = Window & {
   __orikuroPreparedAudioStream?: MediaStream | null;
 };
 
+function preparedAudioStreamAvailable(): boolean {
+  const stream = (window as PreparedAudioWindow).__orikuroPreparedAudioStream;
+  const track = stream?.getAudioTracks()[0];
+  return !!track && track.readyState === 'live';
+}
+
 function takePreparedAudioStream(): MediaStream {
   const holder = window as PreparedAudioWindow;
   const stream = holder.__orikuroPreparedAudioStream;
@@ -115,6 +129,63 @@ function takePreparedAudioStream(): MediaStream {
   holder.__orikuroPreparedAudioStream = null;
   track.enabled = true;
   return stream;
+}
+
+async function ensureAudioRuntime(): Promise<AudioContext> {
+  if (audioContext && audioContext.state !== 'closed') {
+    if (audioContext.state === 'suspended') await audioContext.resume();
+    return audioContext;
+  }
+  if (audioRuntimePromise) return await audioRuntimePromise;
+  if (typeof AudioContext === 'undefined' || typeof AudioWorkletNode === 'undefined') {
+    throw new Error('AUDIO_CAPTURE_UNAVAILABLE');
+  }
+
+  audioRuntimePromise = (async () => {
+    const context = new AudioContext({ latencyHint: 'interactive' });
+    audioContext = context;
+    await context.resume();
+    await context.audioWorklet.addModule(WORKLET_URL);
+    return context;
+  })();
+
+  try {
+    return await audioRuntimePromise;
+  } catch (error) {
+    if (audioContext) {
+      const failed = audioContext;
+      audioContext = null;
+      void failed.close().catch(() => undefined);
+    }
+    throw error;
+  } finally {
+    audioRuntimePromise = null;
+  }
+}
+
+async function resetAudioCaptureGraph(closeContext = false): Promise<void> {
+  if (audioWorklet) {
+    audioWorklet.port.onmessage = null;
+    try { audioWorklet.disconnect(); } catch {}
+    audioWorklet = null;
+  }
+  if (audioSource) {
+    try { audioSource.disconnect(); } catch {}
+    audioSource = null;
+  }
+  if (silentGain) {
+    try { silentGain.disconnect(); } catch {}
+    silentGain = null;
+  }
+  if (audioStream) {
+    audioStream.getTracks().forEach((track) => track.stop());
+    audioStream = null;
+  }
+  if (closeContext && audioContext) {
+    const context = audioContext;
+    audioContext = null;
+    await context.close().catch(() => undefined);
+  }
 }
 
 function startErrorMessage(error: unknown): string {
@@ -277,7 +348,7 @@ function buildAudioPacket(packet: WorkletPacket): ArrayBuffer | null {
 }
 
 function sendAudioPacket(packet: WorkletPacket): void {
-  if (!streamWanted || !audioAuthenticated || !audioSocket || audioSocket.readyState !== WebSocket.OPEN) return;
+  if (!streamWanted || !liveTransmission || !audioAuthenticated || !audioSocket || audioSocket.readyState !== WebSocket.OPEN) return;
   if (audioSocket.bufferedAmount > MAX_AUDIO_BUFFERED_BYTES) {
     setText('[data-audio-status]', '音声通信が詰まったため停止します。');
     void stopStreaming(true);
@@ -483,28 +554,35 @@ async function connectDeliveryMonitor(current: StreamRealtimeGrant, waitForFirst
   await firstAudio;
 }
 
-async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
-  if (audioSocket && audioSocket.readyState < WebSocket.CLOSING) return;
+async function connectAudio(current: StreamRealtimeGrant, waitForAck = true): Promise<void> {
+  if (audioSocket && audioSocket.readyState === WebSocket.OPEN) {
+    audioAuthenticated = true;
+    return;
+  }
+  if (audioSocket && audioSocket.readyState === WebSocket.CONNECTING) {
+    await waitOpen(audioSocket);
+    audioAuthenticated = true;
+    return;
+  }
   audioPathAcknowledged = false;
-  window.dispatchEvent(new CustomEvent('orikuro:audio-path-waiting'));
 
   let ackResolve: (() => void) | null = null;
   let ackReject: ((error: Error) => void) | null = null;
-  let ackSettled = false;
-  const ackPromise = new Promise<void>((resolve, reject) => {
+  let ackSettled = !waitForAck;
+  const ackPromise = waitForAck ? new Promise<void>((resolve, reject) => {
     ackResolve = resolve;
     ackReject = reject;
-  });
-  const ackTimer = window.setTimeout(() => {
+  }) : Promise.resolve();
+  const ackTimer = waitForAck ? window.setTimeout(() => {
     if (ackSettled) return;
     ackSettled = true;
     ackReject?.(new Error('AUDIO_DELIVERY_ACK_TIMEOUT'));
-  }, AUDIO_ACK_TIMEOUT_MS);
+  }, AUDIO_ACK_TIMEOUT_MS) : null;
 
   const settleAck = (error: Error | null = null): void => {
     if (ackSettled) return;
     ackSettled = true;
-    clearTimeout(ackTimer);
+    if (ackTimer !== null) clearTimeout(ackTimer);
     if (error) ackReject?.(error);
     else ackResolve?.();
   };
@@ -539,26 +617,17 @@ async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
     }
   });
   await waitOpen(socket);
-  // The first real PCM packet must be allowed out so the server can acknowledge
-  // the exact delivery path used by listeners.
   audioAuthenticated = true;
   await ackPromise;
 }
 
-async function startAudio(current: StreamRealtimeGrant): Promise<void> {
-  if (typeof AudioContext === 'undefined' || typeof AudioWorkletNode === 'undefined') {
-    throw new Error('AUDIO_CAPTURE_UNAVAILABLE');
-  }
+async function prepareAudio(current: StreamRealtimeGrant): Promise<void> {
   audioSequence = 0;
-  setText('[data-audio-status]', '音声送信を準備しています。');
+  setText('[data-audio-status]', '音声経路を準備しています。');
+  const context = await ensureAudioRuntime();
   const stream = takePreparedAudioStream();
   audioStream = stream;
   const activeTrack = stream.getAudioTracks()[0];
-
-  const context = new AudioContext({ latencyHint: 'interactive' });
-  audioContext = context;
-  await context.resume();
-  await context.audioWorklet.addModule(WORKLET_URL);
 
   window.dispatchEvent(new CustomEvent('orikuro:audio-device-active', {
     detail: {
@@ -566,6 +635,7 @@ async function startAudio(current: StreamRealtimeGrant): Promise<void> {
       label: activeTrack?.label ?? '',
     },
   }));
+
   const source = context.createMediaStreamSource(stream);
   const worklet = new AudioWorkletNode(context, 'orikuro-audio-capture', {
     numberOfInputs: 1,
@@ -577,6 +647,7 @@ async function startAudio(current: StreamRealtimeGrant): Promise<void> {
   source.connect(worklet);
   worklet.connect(gain);
   gain.connect(context.destination);
+  audioSource = source;
   audioWorklet = worklet;
   silentGain = gain;
   audioPerfOriginMs = performance.now() - context.currentTime * 1000;
@@ -585,9 +656,79 @@ async function startAudio(current: StreamRealtimeGrant): Promise<void> {
     if (!data || data.type !== 'audio-packet') return;
     sendAudioPacket(data as unknown as WorkletPacket);
   };
-  const listenerDelivery = connectDeliveryMonitor(current, true);
-  await connectAudio(current);
-  await listenerDelivery;
+
+  await Promise.all([
+    connectDeliveryMonitor(current, false),
+    connectAudio(current, false),
+  ]);
+  setText('[data-audio-status]', '開始待機中');
+}
+
+async function prepareStreaming(mode: string): Promise<void> {
+  preparationRequestedMode = mode === 'standing' ? 'standing' : 'radio';
+  if (pageStopping || realtimePrepared || preparePromise) {
+    if (preparePromise) await preparePromise;
+    return;
+  }
+  const current = validGrant();
+  if (!current || !preparedAudioStreamAvailable()) return;
+
+  selectedMode = preparationRequestedMode;
+  if (selectedMode === 'standing') {
+    setText('[data-realtime-status]', '2.5D Character Engine 入力経路を確認中です。');
+    window.dispatchEvent(new CustomEvent('orikuro:standing-engine-required'));
+    return;
+  }
+
+  streamWanted = true;
+  liveTransmission = false;
+  serverStopped = false;
+  window.dispatchEvent(new CustomEvent('orikuro:stream-preparing'));
+  setText('[data-realtime-status]', '配信経路をバックグラウンド準備中');
+
+  preparePromise = (async () => {
+    await Promise.all([
+      connectComments(),
+      prepareAudio(current),
+    ]);
+    realtimePrepared = true;
+    setText('[data-realtime-status]', '配信開始できます。');
+    setText('[data-stream-state="output"]', '開始待機中');
+    window.dispatchEvent(new CustomEvent('orikuro:stream-prepared'));
+  })();
+
+  try {
+    await preparePromise;
+  } catch (error) {
+    realtimePrepared = false;
+    streamWanted = false;
+    const message = startErrorMessage(error);
+    setText('[data-realtime-status]', message);
+    await resetAudioCaptureGraph(false);
+    window.dispatchEvent(new CustomEvent('orikuro:stream-prepare-failed', { detail: { message } }));
+  } finally {
+    preparePromise = null;
+  }
+}
+
+async function rebuildPreparedAudio(): Promise<void> {
+  if (pageStopping || liveTransmission || !realtimePrepared) return;
+  const current = validGrant();
+  if (!current || !preparedAudioStreamAvailable()) return;
+  realtimePrepared = false;
+  window.dispatchEvent(new CustomEvent('orikuro:stream-preparing'));
+  setText('[data-realtime-status]', 'マイク入力を再準備しています。');
+  try {
+    await resetAudioCaptureGraph(false);
+    await prepareAudio(current);
+    realtimePrepared = true;
+    setText('[data-realtime-status]', '配信開始できます。');
+    window.dispatchEvent(new CustomEvent('orikuro:stream-prepared'));
+  } catch (error) {
+    const message = startErrorMessage(error);
+    setText('[data-realtime-status]', message);
+    window.dispatchEvent(new CustomEvent('orikuro:stream-prepare-failed', { detail: { message } }));
+  }
 }
 
 function buildVideoPacket(kind: number, payload: Uint8Array, keyframe: boolean, ptsUs: number): ArrayBuffer {
@@ -737,7 +878,7 @@ function createEncoder(config: VideoEncoderConfig): void {
   videoEncoder = new VideoEncoder({
     output: (chunk, metadata) => {
       const socket = videoSocket;
-      if (!streamWanted || !socket || socket.readyState !== WebSocket.OPEN) return;
+      if (!streamWanted || !liveTransmission || !socket || socket.readyState !== WebSocket.OPEN) return;
       if (metadata?.decoderConfig?.description) {
         const parsed = parseAvcC(metadata.decoderConfig.description);
         if (parsed) h264ParameterSets = parsed;
@@ -769,6 +910,7 @@ function createEncoder(config: VideoEncoderConfig): void {
 function encodeVideoFrame(): void {
   if (
     !streamWanted
+    || !liveTransmission
     || selectedMode !== 'standing'
     || Date.now() < videoBackpressureUntil
     || !videoEncoder
@@ -836,6 +978,44 @@ async function startVideo(current: StreamRealtimeGrant): Promise<void> {
   window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
 }
 
+async function requestServerLive(): Promise<boolean> {
+  if (serverLivePromise) return await serverLivePromise;
+  const current = validGrant();
+  if (!current) return false;
+
+  serverLivePromise = (async () => {
+    try {
+      const response = await fetch(FLOW_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'stream_live',
+          streamId: current.streamId,
+          controlCapability: current.controlCapability,
+        }),
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+      });
+      const payload = objectValue(await response.json().catch(() => null));
+      const result = objectValue(payload?.result);
+      return response.ok
+        && payload?.ok === true
+        && result?.streamId === current.streamId
+        && result?.running === true
+        && result?.live === true;
+    } catch {
+      return false;
+    }
+  })();
+
+  try {
+    return await serverLivePromise;
+  } finally {
+    serverLivePromise = null;
+  }
+}
+
 async function requestServerStop(keepalive = false): Promise<boolean> {
   if (serverStopped) return true;
   if (serverStopPromise) return await serverStopPromise;
@@ -883,10 +1063,12 @@ async function requestServerStop(keepalive = false): Promise<boolean> {
 }
 
 async function startStreaming(mode: string): Promise<void> {
-  if (streamWanted) return;
+  if (liveTransmission) return;
   const current = validGrant();
-  if (!current) {
-    setText('[data-realtime-status]', '配信接続情報を確認できません。');
+  if (!current || !realtimePrepared) {
+    const message = '配信準備が完了していません。';
+    setText('[data-realtime-status]', message);
+    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
     return;
   }
   selectedMode = mode === 'standing' ? 'standing' : 'radio';
@@ -895,23 +1077,24 @@ async function startStreaming(mode: string): Promise<void> {
     window.dispatchEvent(new CustomEvent('orikuro:standing-engine-required'));
     return;
   }
-  streamStartedAtPerfMs = performance.now();
-  streamWanted = true;
-  setText('[data-realtime-status]', '配信開始処理中');
-  try {
-    await startAudio(current);
-    window.dispatchEvent(new CustomEvent('orikuro:stream-live'));
-    setText('[data-stream-state="output"]', '音声テスト中');
-  } catch (error) {
-    const message = startErrorMessage(error);
+
+  setText('[data-realtime-status]', '公開を開始しています。');
+  const activated = await requestServerLive();
+  if (!activated) {
+    const message = '配信公開を開始できませんでした。';
     setText('[data-realtime-status]', message);
-    const cleaned = await stopStreaming(true);
-    if (cleaned) {
-      window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
-    } else {
-      setText('[data-realtime-status]', `${message} 配信セッションの終了確認にも失敗しました。`);
-    }
+    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
+    return;
   }
+
+  streamStartedAtPerfMs = performance.now();
+  liveTransmission = true;
+  setText('[data-realtime-status]', '配信中');
+  setText('[data-stream-state="output"]', '送出中');
+  window.dispatchEvent(new CustomEvent('orikuro:stream-live'));
+
+  // Delivery confirmation remains diagnostic and must never block the start UI.
+  window.dispatchEvent(new CustomEvent('orikuro:audio-path-waiting'));
 }
 
 async function stopStreaming(notifyServer: boolean, endReason: string | null = null): Promise<boolean> {
@@ -919,6 +1102,9 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
   stopPromise = (async () => {
     const current = grant ?? getStreamRealtimeGrant();
     const shouldNotify = notifyServer && !!current && !serverStopped;
+    liveTransmission = false;
+    realtimePrepared = false;
+    preparationRequestedMode = null;
     streamWanted = false;
 
     if (commentsReconnectTimer !== null) { clearTimeout(commentsReconnectTimer); commentsReconnectTimer = null; }
@@ -961,6 +1147,10 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
       audioWorklet.port.onmessage = null;
       try { audioWorklet.disconnect(); } catch {}
       audioWorklet = null;
+    }
+    if (audioSource) {
+      try { audioSource.disconnect(); } catch {}
+      audioSource = null;
     }
     if (silentGain) {
       try { silentGain.disconnect(); } catch {}
@@ -1020,6 +1210,8 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
 }
 
 function bindUI(): void {
+  if (uiBound) return;
+  uiBound = true;
   const stop = document.querySelector<HTMLButtonElement>('[data-audio-stop]');
   const form = document.querySelector<HTMLFormElement>('[data-comment-form]');
   const input = document.querySelector<HTMLInputElement>('[data-comment-input]');
@@ -1031,11 +1223,28 @@ function bindUI(): void {
       input.value = '';
     }
   });
+  window.addEventListener('orikuro:stream-mode-change', (event) => {
+    const detail = objectValue((event as CustomEvent).detail);
+    const mode = typeof detail?.mode === 'string' ? detail.mode : 'radio';
+    selectedMode = mode === 'standing' ? 'standing' : 'radio';
+    if (selectedMode === 'radio') void ensureAudioRuntime().catch(() => undefined);
+  });
   window.addEventListener('orikuro:audio-input-change', (event) => {
-    if (streamWanted) return;
+    if (liveTransmission) return;
     const detail = objectValue((event as CustomEvent).detail);
     const deviceId = typeof detail?.deviceId === 'string' ? detail.deviceId : '';
     selectedAudioInputDeviceId = deviceId.length <= 512 ? deviceId : '';
+    if (realtimePrepared && preparedAudioStreamAvailable()) {
+      void rebuildPreparedAudio();
+    } else if (preparationRequestedMode && validGrant() && preparedAudioStreamAvailable()) {
+      void prepareStreaming(preparationRequestedMode);
+    }
+  });
+  window.addEventListener('orikuro:stream-prepare-request', (event) => {
+    const detail = objectValue((event as CustomEvent).detail);
+    const mode = typeof detail?.mode === 'string' ? detail.mode : 'radio';
+    preparationRequestedMode = mode === 'standing' ? 'standing' : 'radio';
+    void prepareStreaming(preparationRequestedMode);
   });
   window.addEventListener('orikuro:stream-start-request', (event) => {
     const detail = objectValue((event as CustomEvent).detail);
@@ -1052,14 +1261,11 @@ function bindUI(): void {
 async function startRealtime(): Promise<void> {
   if (pageStopping) return;
   grant = getStreamRealtimeGrant();
-  if (!grant) {
-    setText('[data-realtime-status]', 'リアルタイム接続情報を確認できません。');
-    return;
+  if (!grant) return;
+  setText('[data-realtime-status]', '配信経路を準備できます。');
+  if (preparationRequestedMode && preparedAudioStreamAvailable()) {
+    await prepareStreaming(preparationRequestedMode);
   }
-  setText('[data-realtime-status]', 'リアルタイム処理を準備しています。');
-  bindUI();
-  await connectComments();
-  setText('[data-realtime-status]', '配信開始できます。');
 }
 
 function serviceReady(): boolean {
@@ -1069,6 +1275,8 @@ function serviceReady(): boolean {
 
 function shutdown(): void {
   pageStopping = true;
+  liveTransmission = false;
+  realtimePrepared = false;
   if (commentsReconnectTimer !== null) clearTimeout(commentsReconnectTimer);
   if (audioReconnectTimer !== null) clearTimeout(audioReconnectTimer);
   if (monitorReconnectTimer !== null) clearTimeout(monitorReconnectTimer);
@@ -1088,6 +1296,7 @@ function shutdown(): void {
   }
 }
 
-document.addEventListener('orikuro:service-ready', () => { void startRealtime(); }, { once: true });
-if (serviceReady()) void startRealtime();
+bindUI();
+document.addEventListener('orikuro:service-ready', () => { void startRealtime(); });
+if (serviceReady() && getStreamRealtimeGrant()) void startRealtime();
 window.addEventListener('pagehide', shutdown, { once: true });
