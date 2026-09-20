@@ -4,14 +4,16 @@ import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
 const supportedModes=new Set(["radio"]);
+const systemTest=document.documentElement.dataset.systemTest==="true";
 let selectedMode="radio";
 let grantReady=false;
+let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
 let outputReady=false;
 document.documentElement.dataset.broadcastPhase="prep";
 
 const modeCopy={
-  radio:{title:"ラジオ配信",copy:"音声を中心に配信するテストモードです。"},
-  standing:{title:"立ち絵配信",copy:"2.5D Character Engine 接続後に有効化します。"}
+  radio:{title:"ラジオ",copy:"音声だけで配信します。"},
+  standing:{title:"立ち絵",copy:"2.5D Character Engine 接続後に利用できます。"}
 };
 
 function setState(name,text,state="waiting"){
@@ -30,7 +32,8 @@ function setFeedback(text,state="info"){
 
 function updateStartButton(){
   const button=document.querySelector("[data-stream-start]");
-  if(button)button.disabled=!compatibility.supported||!grantReady||!supportedModes.has(selectedMode);
+  const ready=systemTest?(grantReady||systemAccessReady):grantReady;
+  if(button)button.disabled=!compatibility.supported||!ready||!supportedModes.has(selectedMode);
 }
 
 function refreshGrantState(){
@@ -56,11 +59,13 @@ function applyMode(mode,emit=true){
   document.documentElement.dataset.streamMode=mode;
   if(mode==="radio"){
     setState("composition","対象外","ready");
-    setFeedback("ラジオ配信はマイクだけで開始できます。");
+    setFeedback("マイクを使って音声だけで配信します。");
   }else{
     setState("composition","接続待ち");
-    setFeedback("立ち絵配信は2.5D Character Engineの入力経路を確認してから開始します。");
+    setFeedback("立ち絵は2.5D Character Engine接続後に利用できます。");
   }
+  const start=document.querySelector("[data-stream-start]");
+  if(start)start.textContent=mode==="radio"?"ラジオ配信スタート":"配信スタート";
   updateStartButton();
   if(emit)window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 }
@@ -98,8 +103,18 @@ function stopClock(){
   timer=0;
 }
 
+document.addEventListener("orikuro:system-access-ready",()=>{
+  systemAccessReady=true;
+  setState("session","開始時に接続","ready");
+  updateStartButton();
+});
 document.addEventListener("orikuro:service-ready",refreshGrantState,{once:true});
-if(document.querySelector("[data-service-content]")?.hidden===false)refreshGrantState();
+if(document.querySelector("[data-service-content]")?.hidden===false){
+  if(systemTest){
+    systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
+    updateStartButton();
+  }else refreshGrantState();
+}
 
 window.addEventListener("orikuro:transport-ready",()=>{
   setState("transport","接続済み","ready");
@@ -115,7 +130,7 @@ window.addEventListener("orikuro:stream-live",()=>{
   startClock();
   const status=document.querySelector("[data-stream-status]");
   if(status)status.textContent="配信中";
-  setFeedback("配信中です。終了するときは「配信を停止」を押してください。","ready");
+  setFeedback("配信中","ready");
   const stop=document.querySelector("[data-audio-stop]");
   if(stop)stop.disabled=false;
 });
@@ -146,12 +161,17 @@ if(stopButton){
 const startButton=document.querySelector("[data-stream-start]");
 if(startButton){
   startButton.addEventListener("click",()=>{
-    if(!supportedModes.has(selectedMode)||!grantReady)return;
+    const ready=systemTest?(grantReady||systemAccessReady):grantReady;
+    if(!supportedModes.has(selectedMode)||!ready)return;
     startButton.disabled=true;
     document.documentElement.dataset.broadcastPhase="starting";
     const status=document.querySelector("[data-stream-status]");
     if(status)status.textContent="開始処理中";
-    setFeedback(selectedMode==="radio"?"マイクの許可を確認します。":"立ち絵配信の入力経路を確認します。","working");
+    setFeedback(selectedMode==="radio"?"マイクを確認しています…":"立ち絵の入力経路を確認しています…","working");
+    if(systemTest&&!grantReady){
+      window.dispatchEvent(new CustomEvent("orikuro:system-start-request",{detail:{mode:selectedMode}}));
+      return;
+    }
     window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode}}));
   });
 }

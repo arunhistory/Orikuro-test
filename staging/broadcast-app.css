@@ -67,3 +67,25 @@ html[data-broadcast-phase="live"] .broadcast-mode-tabs{display:none}
 html[data-broadcast-phase="live"] .stream-control-primary{display:none}
 html[data-broadcast-phase="live"] .broadcast-sheet{min-height:auto}
 @media(min-width:700px){.broadcast-shell{width:min(480px,100%);margin:0 auto;box-shadow:0 0 70px rgba(0,0,0,.4)}}
+/* app3: radio prep uses cover-style preview; test/prod surfaces stay visually identical */
+.broadcast-heading span{display:none}
+.broadcast-avatar-ring{
+  width:min(58vw,230px);
+  border-radius:24px;
+  background:#fff;
+  padding:0;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.34)
+}
+.broadcast-avatar-ring img{
+  width:100%;
+  height:100%;
+  border-radius:0;
+  object-fit:cover;
+  box-shadow:none
+}
+.broadcast-mode-chip{display:none}
+.broadcast-preview-title{margin-top:18px;font-size:20px}
+.broadcast-preview-copy{margin-top:5px}
+.broadcast-sheet-title-row{margin-bottom:9px}
+.broadcast-diagnostics>summary{font-size:10px}

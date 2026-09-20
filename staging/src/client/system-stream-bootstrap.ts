@@ -8,6 +8,10 @@ const SID_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
 type JsonObject = Record<string, unknown>;
 
+let accessKey: string | null = null;
+let starting = false;
+let rawGrant: unknown = null;
+
 function asObject(value: unknown): JsonObject | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : null;
 }
@@ -50,22 +54,29 @@ async function stopRaw(value: unknown): Promise<void> {
 function failMessage(code: string): string {
   if (code === 'SYSTEM_STREAM_ACTIVE_BUSY') return '別の配信テストが実行中です。';
   if (code === 'ACCESS_NOT_VALID') return 'このテストURLは無効、または期限切れです。';
-  return 'システム配信テストを開始できませんでした。';
+  return '配信を開始できませんでした。';
 }
-async function start(): Promise<void> {
+
+function revealPrep(): void {
   clearStreamRealtimeGrant();
   const status = statusTarget();
   const content = contentTarget();
-  if (content) content.hidden = true;
-  if (status) status.textContent = 'システム配信テストを準備しています。';
-
-  const accessKey = takeAccessKey();
+  accessKey = takeAccessKey();
   if (!accessKey) {
     if (status) status.textContent = '有効なテストURLではありません。';
+    if (content) content.hidden = true;
     return;
   }
+  document.documentElement.dataset.systemAccessReady = 'true';
+  if (status) status.textContent = '';
+  if (content) content.hidden = false;
+  document.dispatchEvent(new CustomEvent('orikuro:system-access-ready'));
+}
 
-  let rawGrant: unknown = null;
+async function beginSystemStream(mode: string): Promise<void> {
+  if (starting || !accessKey) return;
+  starting = true;
+  rawGrant = null;
   try {
     const response = await fetch(START_URL, {
       method: 'POST',
@@ -84,21 +95,31 @@ async function start(): Promise<void> {
     if (!result) throw new Error('SYSTEM_STREAM_RESULT_INVALID');
     rawGrant = result.realtimeGrant;
     const grant = storeStreamRealtimeGrant(rawGrant);
-    if (status) status.textContent = '';
-    if (content) content.hidden = false;
     document.dispatchEvent(new CustomEvent('orikuro:service-ready', {
       detail: { path: './system-stream-test.html', streamId: grant.streamId, systemTest: true },
     }));
+    window.dispatchEvent(new CustomEvent('orikuro:stream-start-request', { detail: { mode } }));
   } catch (error) {
     if (rawGrant) await stopRaw(rawGrant);
+    rawGrant = null;
     clearStreamRealtimeGrant();
-    if (status) status.textContent = error instanceof Error && error.message
-      ? error.message
-      : 'システム配信テストを開始できませんでした。';
+    starting = false;
+    const message = error instanceof Error && error.message ? error.message : '配信を開始できませんでした。';
+    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
   }
 }
+
+window.addEventListener('orikuro:system-start-request', (event) => {
+  const detail = asObject((event as CustomEvent).detail);
+  const mode = typeof detail?.mode === 'string' ? detail.mode : 'radio';
+  void beginSystemStream(mode);
+});
+
+window.addEventListener('orikuro:stream-live', () => { starting = false; });
+window.addEventListener('orikuro:stream-start-failed', () => { starting = false; });
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => { void start(); }, { once: true });
+  document.addEventListener('DOMContentLoaded', revealPrep, { once: true });
 } else {
-  void start();
+  revealPrep();
 }
