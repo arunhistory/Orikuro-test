@@ -185,6 +185,14 @@ body.broadcast-app-page{
   background:#242839;
   font-size:22px;
 }
+.broadcast-mic-permission-status{
+  margin:0 auto;max-width:320px;text-align:center;
+  color:rgba(255,255,255,.48);font-size:9px;font-weight:800;line-height:1.45;
+}
+.broadcast-mic-permission-status[data-state="ready"]{color:#6ee2b0}
+.broadcast-mic-permission-status[data-state="working"]{color:#ffd182}
+.broadcast-mic-permission-status[data-state="error"]{color:#ff88a3}
+
 .broadcast-choice.is-selected{
   border-color:rgba(255,91,131,.66);
   background:linear-gradient(145deg,rgba(255,91,131,.15),rgba(139,103,255,.16));

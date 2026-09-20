@@ -41,11 +41,15 @@ function setFeedback(text,state="info"){
   el.dataset.state=state;
 }
 
+function micReady(){
+  return micPermissionConfirmed&&micDevicesKnown&&selectedAudioInputDeviceId.length>0;
+}
+
 function readyForStep(step){
-  if(step===1)return supportedModes.has(selectedMode);
+  if(step===1)return supportedModes.has(selectedMode)&&micReady();
   if(step===2)return radioPresets.has(backgroundChoice);
   if(step===3)return standingChoice==="none";
-  if(step===4)return streamTitleValue().length>0&&micPermissionConfirmed&&micDevicesKnown&&selectedAudioInputDeviceId.length>0;
+  if(step===4)return streamTitleValue().length>0&&micReady();
   if(step===5)return readyForStep(1)&&readyForStep(2)&&readyForStep(3)&&readyForStep(4);
   return false;
 }
@@ -119,14 +123,16 @@ function goStep(step){
   if(step<1||step>5)return;
   currentStep=step;
   updateWizard();
-  if(step===4&&!micPermissionConfirmed)void refreshAudioInputs(true);
 }
 
-function applyMode(mode){
-  if(!supportedModes.has(mode))return;
-  selectedMode=mode;
-  document.documentElement.dataset.streamMode=mode;
-  function setMicDeviceStatus(text,state="waiting"){
+function setMicPermissionStatus(text,state="waiting"){
+  const el=document.querySelector("[data-mic-permission-status]");
+  if(!el)return;
+  el.textContent=text;
+  el.dataset.state=state;
+}
+
+function setMicDeviceStatus(text,state="waiting"){
   const el=document.querySelector("[data-mic-device-status]");
   if(!el)return;
   el.textContent=text;
@@ -141,10 +147,16 @@ async function refreshAudioInputs(requestPermission=false){
   const media=navigator.mediaDevices;
   const select=document.querySelector("[data-mic-device]");
   if(!(select instanceof HTMLSelectElement)||!media?.enumerateDevices||!media?.getUserMedia){
+    micPermissionConfirmed=false;
+    micDevicesKnown=false;
+    selectedAudioInputDeviceId="";
     if(select)select.disabled=true;
+    setMicPermissionStatus("このブラウザではマイクを使用できません。","error");
     setMicDeviceStatus("このブラウザではマイク機材の取得に対応していません。","error");
+    updateWizard();
     return;
   }
+
   let permissionStream=null;
   let activeDeviceId="";
   try{
@@ -152,15 +164,21 @@ async function refreshAudioInputs(requestPermission=false){
       micPermissionConfirmed=false;
       micDevicesKnown=false;
       selectedAudioInputDeviceId="";
+      setMicPermissionStatus("マイクの使用許可を確認しています…","working");
       setMicDeviceStatus("マイクの利用許可と機材を確認しています…","working");
       updateWizard();
+
       permissionStream=await media.getUserMedia({audio:true,video:false});
+      const track=permissionStream.getAudioTracks()[0];
+      if(!track)throw new DOMException("AUDIO_TRACK_MISSING","NotFoundError");
       micPermissionConfirmed=true;
-      activeDeviceId=permissionStream.getAudioTracks()[0]?.getSettings?.().deviceId||"";
+      activeDeviceId=track.getSettings?.().deviceId||"";
     }
+
     const devices=(await media.enumerateDevices()).filter(device=>device.kind==="audioinput");
     const previous=selectedAudioInputDeviceId||activeDeviceId;
     select.replaceChildren();
+
     if(devices.length===0){
       const option=document.createElement("option");
       option.value="";
@@ -169,32 +187,40 @@ async function refreshAudioInputs(requestPermission=false){
       select.disabled=true;
       selectedAudioInputDeviceId="";
       micDevicesKnown=true;
+      setMicPermissionStatus("マイク入力を認識できません。","error");
       setMicDeviceStatus("ブラウザが認識できるマイク入力がありません。","error");
       updateWizard();
       dispatchAudioInputSelection();
       return;
     }
+
     devices.forEach((device,index)=>{
       const option=document.createElement("option");
       option.value=device.deviceId;
       option.textContent=device.label||`マイク ${index+1}`;
       select.append(option);
     });
+
     const selected=devices.find(device=>device.deviceId===previous)
       ||devices.find(device=>device.deviceId==="default")
       ||devices[0];
+
     selectedAudioInputDeviceId=selected?.deviceId||"";
     select.value=selectedAudioInputDeviceId;
     select.disabled=false;
     micDevicesKnown=true;
     const label=selected?.label||select.options[select.selectedIndex]?.textContent||"マイク";
+
+    if(micPermissionConfirmed){
+      setMicPermissionStatus("マイクの使用を許可しました。","ready");
+    }
     setMicDeviceStatus(`${devices.length}台のマイク入力を認識しました。使用: ${label}`,"ready");
     updateWizard();
     dispatchAudioInputSelection();
   }catch(error){
     const name=error instanceof DOMException?error.name:"";
     const message=name==="NotAllowedError"
-      ?"マイクの利用が許可されていません。Safariのマイク許可を確認してください。"
+      ?"マイクの使用が許可されていません。Safariのマイク許可を確認してください。"
       :name==="NotFoundError"
         ?"使用できるマイクが見つかりません。"
         :"マイク機材を確認できませんでした。";
@@ -202,6 +228,7 @@ async function refreshAudioInputs(requestPermission=false){
     micDevicesKnown=false;
     selectedAudioInputDeviceId="";
     select.disabled=true;
+    setMicPermissionStatus(message,"error");
     setMicDeviceStatus(message,"error");
     updateWizard();
   }finally{
@@ -209,7 +236,11 @@ async function refreshAudioInputs(requestPermission=false){
   }
 }
 
-document.querySelectorAll("[data-stream-mode]").forEach(button=>{
+async function applyMode(mode){
+  if(!supportedModes.has(mode))return;
+  selectedMode=mode;
+  document.documentElement.dataset.streamMode=mode;
+  document.querySelectorAll("[data-stream-mode]").forEach(button=>{
     const active=button.dataset.streamMode===mode;
     button.classList.toggle("is-selected",active);
     button.setAttribute("aria-pressed",active?"true":"false");
@@ -217,6 +248,8 @@ document.querySelectorAll("[data-stream-mode]").forEach(button=>{
   setState("composition","対象外","ready");
   updateWizard();
   window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
+
+  if(!micReady())await refreshAudioInputs(true);
 }
 
 function applyBackgroundPreset(presetId){
@@ -284,7 +317,7 @@ function setMicMonitor(level=0,status="配信開始後に確認",state="waiting"
 }
 
 document.querySelectorAll("[data-stream-mode]").forEach(button=>{
-  button.addEventListener("click",()=>applyMode(button.dataset.streamMode||""));
+  button.addEventListener("click",()=>{void applyMode(button.dataset.streamMode||"");});
 });
 document.querySelectorAll("[data-radio-preset]").forEach(button=>{
   button.addEventListener("click",()=>applyBackgroundPreset(button.dataset.radioPreset||""));
