@@ -138,9 +138,18 @@ window.addEventListener("orikuro:stream-start-failed",event=>{
   document.documentElement.dataset.broadcastPhase="prep";
   const message=event?.detail?.message||"配信を開始できませんでした。";
   setFeedback(message,"error");
-  refreshGrantState();
+  if(systemTest){
+    grantReady=!!getStreamRealtimeGrant();
+    updateStartButton();
+  }else refreshGrantState();
   const stop=document.querySelector("[data-audio-stop]");
   if(stop)stop.disabled=true;
+});
+window.addEventListener("orikuro:stream-stop-failed",()=>{
+  document.documentElement.dataset.broadcastPhase="live";
+  setFeedback("配信終了を確認できませんでした。もう一度終了してください。","error");
+  const stop=document.querySelector("[data-audio-stop]");
+  if(stop)stop.disabled=false;
 });
 
 window.addEventListener("orikuro:stream-ended",event=>{

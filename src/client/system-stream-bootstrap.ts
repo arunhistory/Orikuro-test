@@ -1,4 +1,4 @@
-import { clearStreamRealtimeGrant, storeStreamRealtimeGrant } from './realtime-grant.js';
+import { clearStreamRealtimeGrant, getStreamRealtimeGrant, storeStreamRealtimeGrant } from './realtime-grant.js';
 
 const START_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/system-stream-test';
 const STOP_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/service-flow';
@@ -27,9 +27,9 @@ function takeAccessKey(): string | null {
   history.replaceState(null, '', location.pathname + location.search);
   return OP_RE.test(key) ? key : null;
 }
-async function stopRaw(value: unknown): Promise<void> {
+async function stopRaw(value: unknown, keepalive = false): Promise<boolean> {
   const raw = asObject(value);
-  if (!raw) return;
+  if (!raw) return false;
   const streamId = raw.streamId;
   const controlCapability = raw.controlCapability;
   if (
@@ -38,27 +38,36 @@ async function stopRaw(value: unknown): Promise<void> {
     || typeof controlCapability !== 'string'
     || controlCapability.length > 12_000
     || !CAP_RE.test(controlCapability)
-  ) return;
+  ) return false;
   try {
-    await fetch(STOP_URL, {
+    const response = await fetch(STOP_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ action: 'stream_stop', streamId, controlCapability }),
       credentials: 'omit',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
-      keepalive: true,
+      keepalive,
     });
-  } catch {}
+    const payload = asObject(await response.json().catch(() => null));
+    const result = asObject(payload?.result);
+    return response.ok
+      && payload?.ok === true
+      && result?.streamId === streamId
+      && result?.cloudflareStopped === true
+      && result?.northflankRevoked === true;
+  } catch {
+    return false;
+  }
 }
+
 function failMessage(code: string): string {
   if (code === 'SYSTEM_STREAM_ACTIVE_BUSY') return '別の配信テストが実行中です。';
   if (code === 'ACCESS_NOT_VALID') return 'このテストURLは無効、または期限切れです。';
   return '配信を開始できませんでした。';
 }
 
-function revealPrep(): void {
-  clearStreamRealtimeGrant();
+async function revealPrep(): Promise<void> {
   const status = statusTarget();
   const content = contentTarget();
   accessKey = takeAccessKey();
@@ -67,6 +76,19 @@ function revealPrep(): void {
     if (content) content.hidden = true;
     return;
   }
+
+  const previous = getStreamRealtimeGrant();
+  if (previous) {
+    if (status) status.textContent = '前回の配信を終了しています…';
+    const cleaned = await stopRaw(previous);
+    if (!cleaned) {
+      if (status) status.textContent = '前回の配信終了を確認できません。もう一度開いてください。';
+      if (content) content.hidden = true;
+      return;
+    }
+  }
+  clearStreamRealtimeGrant();
+
   document.documentElement.dataset.systemAccessReady = 'true';
   if (status) status.textContent = '';
   if (content) content.hidden = false;
@@ -119,7 +141,7 @@ window.addEventListener('orikuro:stream-live', () => { starting = false; });
 window.addEventListener('orikuro:stream-start-failed', () => { starting = false; });
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', revealPrep, { once: true });
+  document.addEventListener('DOMContentLoaded', () => { void revealPrep(); }, { once: true });
 } else {
-  revealPrep();
+  void revealPrep();
 }
