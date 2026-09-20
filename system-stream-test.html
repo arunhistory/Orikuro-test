@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-micfirst1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-livememo1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -201,7 +201,17 @@
               </div>
 
               <div class="broadcast-live-controls">
-                <button class="broadcast-mic-toggle" type="button" data-mic-test-toggle aria-expanded="false">マイクテストを表示</button>
+                <div class="broadcast-live-tools">
+                  <button class="broadcast-mic-toggle" type="button" data-mic-test-toggle aria-expanded="false">マイクテスト</button>
+                  <button class="broadcast-memo-toggle" type="button" data-live-memo-toggle aria-expanded="false">メモ</button>
+                </div>
+                <div class="broadcast-live-memo" data-live-memo-panel hidden>
+                  <div class="broadcast-live-memo-head">
+                    <strong>配信メモ</strong>
+                    <small>この端末の配信画面だけに表示</small>
+                  </div>
+                  <textarea data-live-memo spellcheck="true" placeholder="話したいこと、次に読む内容、忘れたくないこと…"></textarea>
+                </div>
                 <div class="broadcast-mic-test" data-mic-test data-state="waiting" hidden>
                   <div class="broadcast-mic-head">
                     <strong>マイクテスト</strong>
@@ -232,6 +242,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-instantlive2"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-livememo1"></script>
 </body>
 </html>
