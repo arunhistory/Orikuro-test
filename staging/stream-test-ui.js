@@ -14,6 +14,67 @@ const radioPresets=new Map([
   ["solid-6",{label:"紫",color:"#6A1B9A"}],
 ]);
 
+// Prototype-only values. These are local/deterministic so the support-score
+// and rank UI can be exercised without creating production persistence.
+const TEST_METRICS_BASE=Object.freeze({
+  listeners:12,
+  maxListeners:18,
+  comments:38,
+  follows:3,
+  shares:6,
+  newListeners:5,
+  giftPoints:2600,
+  superchatPoints:800,
+});
+let testMetrics={...TEST_METRICS_BASE};
+
+function calculateSupportScore(metrics){
+  return Math.max(0,
+    metrics.listeners*45+
+    metrics.maxListeners*20+
+    metrics.comments*12+
+    metrics.follows*120+
+    metrics.shares*60+
+    metrics.newListeners*80+
+    metrics.giftPoints+
+    metrics.superchatPoints
+  );
+}
+
+function calculateSupportRank(score){
+  if(score>=9000)return "S";
+  if(score>=6000)return "A";
+  if(score>=4000)return "B";
+  if(score>=2000)return "C";
+  return "D";
+}
+
+function calculateEventPoints(score){
+  return Math.max(0,Math.floor(score*0.72));
+}
+
+function calculateEventRank(points){
+  return Math.max(1,70-Math.floor(points/100));
+}
+
+function formatMetric(value){
+  return new Intl.NumberFormat("ja-JP").format(Math.max(0,Math.floor(Number(value)||0)));
+}
+
+function updateTestMetrics(){
+  const score=calculateSupportScore(testMetrics);
+  const rank=calculateSupportRank(score);
+  const eventPoints=calculateEventPoints(score);
+  const eventRank=calculateEventRank(eventPoints);
+  document.querySelectorAll("[data-support-score]").forEach(el=>el.textContent=formatMetric(score));
+  document.querySelectorAll("[data-support-rank]").forEach(el=>el.textContent=rank);
+  document.querySelectorAll("[data-event-points]").forEach(el=>el.textContent=formatMetric(eventPoints));
+  document.querySelectorAll("[data-event-rank]").forEach(el=>el.textContent=formatMetric(eventRank));
+  document.querySelectorAll("[data-listener-count]").forEach(el=>el.textContent=formatMetric(testMetrics.listeners));
+  document.querySelectorAll("[data-listener-max]").forEach(el=>el.textContent=formatMetric(testMetrics.maxListeners));
+  document.querySelectorAll("[data-listener-rest]").forEach(el=>el.textContent=formatMetric(Math.max(0,testMetrics.listeners-5)));
+}
+
 let currentStep=1;
 let selectedMode="";
 let backgroundChoice="";
@@ -90,6 +151,40 @@ function updateStreamIdentity(){
   });
 }
 
+function updateScenePreview(){
+  const labels={
+    radio:"ラジオ / 音声配信",
+    standing:"立ち絵配信",
+    live2d:"Live2D配信",
+    "3d":"3Dモデル配信",
+    camera:"実写キャプチャー",
+  };
+  const characterLabels={
+    standing:"立ち絵プレビュー",
+    live2d:"Live2Dプレビュー",
+    "3d":"3Dモデルプレビュー",
+    camera:"カメラプレビュー",
+  };
+  document.querySelectorAll("[data-stream-preview-copy]").forEach(el=>{
+    el.textContent=labels[selectedMode]||"配信形式未選択";
+  });
+  document.querySelectorAll("[data-radio-scene-main]").forEach(el=>{
+    el.hidden=selectedMode!==""&&selectedMode!=="radio";
+  });
+  document.querySelectorAll("[data-preview-character-layer]").forEach(el=>{
+    el.hidden=!characterLabels[selectedMode];
+  });
+  document.querySelectorAll("[data-preview-character-label]").forEach(el=>{
+    el.textContent=characterLabels[selectedMode]||"配信モデルプレビュー";
+  });
+  document.querySelectorAll("[data-live-character-layer]").forEach(el=>{
+    el.hidden=!characterLabels[selectedMode];
+  });
+  document.querySelectorAll("[data-live-character-label]").forEach(el=>{
+    el.textContent=characterLabels[selectedMode]?.replace("プレビュー","")||"配信モデル";
+  });
+}
+
 function updateSummary(){
   const mode=document.querySelector("[data-summary-mode]");
   const background=document.querySelector("[data-summary-background]");
@@ -98,6 +193,8 @@ function updateSummary(){
   if(background)background.textContent=radioPresets.get(backgroundChoice)?.label||"未選択";
   if(mic)mic.textContent=currentMicLabel();
   updateStreamIdentity();
+  updateScenePreview();
+  updateTestMetrics();
 }
 
 function updateWizard(){
@@ -442,94 +539,223 @@ document.querySelector("[data-mic-test-toggle]")?.addEventListener("click",event
   button.setAttribute("aria-expanded",show?"true":"false");
   button.textContent=show?"マイクテストを隠す":"マイクテスト";
 });
-const liveBoard=document.querySelector("[data-live-board]");
-const liveBoardText=document.querySelector("[data-live-board-text]");
-const liveBoardDrag=document.querySelector("[data-live-board-drag]");
-const liveBoardRemove=document.querySelector("[data-live-board-remove]");
-const liveBoardToggle=document.querySelector("[data-live-memo-toggle]");
+const liveNotes=document.querySelector("[data-live-notes]");
+const liveMemoToggle=document.querySelector("[data-live-memo-toggle]");
+const liveListenerPanel=document.querySelector("[data-live-listener-panel]");
+const liveListenerToggle=document.querySelector("[data-live-listeners-toggle]");
+const liveSubtitleForm=document.querySelector("[data-live-subtitle-form]");
+const liveSubtitleInput=document.querySelector("[data-live-subtitle-input]");
+let liveNoteSequence=0;
+let liveNoteZ=20;
 
-function setLiveBoardEditing(editing){
-  if(!(liveBoard instanceof HTMLElement)||!(liveBoardToggle instanceof HTMLButtonElement))return;
-  liveBoard.classList.toggle("is-editing",editing);
-  liveBoardToggle.setAttribute("aria-expanded",editing?"true":"false");
-  liveBoardToggle.textContent=editing?"メモ完了":liveBoard.hidden?"メモ":"メモ編集";
-  if(editing&&liveBoardText instanceof HTMLTextAreaElement){
-    requestAnimationFrame(()=>liveBoardText.focus({preventScroll:true}));
-  }
+function previewBoundsFor(element){
+  const preview=element.closest(".broadcast-live-preview");
+  return preview instanceof HTMLElement?preview:null;
 }
 
-function clampLiveBoard(){
-  if(!(liveBoard instanceof HTMLElement)||liveBoard.hidden)return;
-  const preview=liveBoard.closest(".broadcast-live-preview");
-  if(!(preview instanceof HTMLElement))return;
+function clampLiveNote(note){
+  if(!(note instanceof HTMLElement))return;
+  const preview=previewBoundsFor(note);
+  if(!preview)return;
   const parent=preview.getBoundingClientRect();
-  const rect=liveBoard.getBoundingClientRect();
-  let left=rect.left-parent.left;
-  let top=rect.top-parent.top;
-  left=Math.max(0,Math.min(left,parent.width-rect.width));
-  top=Math.max(0,Math.min(top,parent.height-rect.height));
-  liveBoard.style.transform="none";
-  liveBoard.style.left=`${left}px`;
-  liveBoard.style.top=`${top}px`;
+  const rect=note.getBoundingClientRect();
+  const left=Math.max(0,Math.min(rect.left-parent.left,Math.max(0,parent.width-rect.width)));
+  const top=Math.max(0,Math.min(rect.top-parent.top,Math.max(0,parent.height-rect.height)));
+  note.style.left=`${left}px`;
+  note.style.top=`${top}px`;
 }
 
-liveBoardToggle?.addEventListener("click",()=>{
-  if(!(liveBoard instanceof HTMLElement))return;
-  if(liveBoard.hidden){
-    liveBoard.hidden=false;
-    liveBoard.style.left="50%";
-    liveBoard.style.top="16%";
-    liveBoard.style.transform="translateX(-50%)";
-    setLiveBoardEditing(true);
-    return;
-  }
-  setLiveBoardEditing(!liveBoard.classList.contains("is-editing"));
-  requestAnimationFrame(clampLiveBoard);
-});
+function bringLiveNoteFront(note){
+  liveNoteZ+=1;
+  note.style.zIndex=String(liveNoteZ);
+}
 
-liveBoardRemove?.addEventListener("click",()=>{
-  if(!(liveBoard instanceof HTMLElement))return;
-  if(liveBoardText instanceof HTMLTextAreaElement)liveBoardText.value="";
-  liveBoard.hidden=true;
-  liveBoard.classList.remove("is-editing");
-  if(liveBoardToggle instanceof HTMLButtonElement){
-    liveBoardToggle.setAttribute("aria-expanded","false");
-    liveBoardToggle.textContent="メモ";
-  }
-});
+function autosizeLiveNote(note,textarea){
+  if(!(note instanceof HTMLElement)||!(textarea instanceof HTMLTextAreaElement))return;
+  if(note.dataset.userResized==="true")return;
+  const preview=previewBoundsFor(note);
+  const maxHeight=preview?Math.max(60,preview.clientHeight-note.offsetTop-12):260;
+  textarea.style.height="auto";
+  const next=Math.min(Math.max(42,textarea.scrollHeight),Math.max(42,maxHeight-18));
+  textarea.style.height=`${next}px`;
+  textarea.style.overflowY=textarea.scrollHeight>next?"auto":"hidden";
+  requestAnimationFrame(()=>clampLiveNote(note));
+}
 
-liveBoardDrag?.addEventListener("pointerdown",event=>{
-  if(!(liveBoard instanceof HTMLElement))return;
-  const preview=liveBoard.closest(".broadcast-live-preview");
+function setLiveNoteEditing(note,editing){
+  if(!(note instanceof HTMLElement))return;
+  note.classList.toggle("is-editing",editing);
+  const textarea=note.querySelector("textarea");
+  if(editing&&textarea instanceof HTMLTextAreaElement){
+    bringLiveNoteFront(note);
+    requestAnimationFrame(()=>textarea.focus({preventScroll:true}));
+  }
+}
+
+function bindLiveNoteDrag(note,handle){
+  handle.addEventListener("pointerdown",event=>{
+    const preview=previewBoundsFor(note);
+    if(!preview)return;
+    event.preventDefault();
+    bringLiveNoteFront(note);
+    handle.setPointerCapture?.(event.pointerId);
+    const parent=preview.getBoundingClientRect();
+    const rect=note.getBoundingClientRect();
+    const offsetX=event.clientX-rect.left;
+    const offsetY=event.clientY-rect.top;
+    const move=moveEvent=>{
+      const current=note.getBoundingClientRect();
+      const left=Math.max(0,Math.min(moveEvent.clientX-parent.left-offsetX,parent.width-current.width));
+      const top=Math.max(0,Math.min(moveEvent.clientY-parent.top-offsetY,parent.height-current.height));
+      note.style.left=`${left}px`;
+      note.style.top=`${top}px`;
+    };
+    const end=endEvent=>{
+      handle.releasePointerCapture?.(endEvent.pointerId);
+      handle.removeEventListener("pointermove",move);
+      handle.removeEventListener("pointerup",end);
+      handle.removeEventListener("pointercancel",end);
+      clampLiveNote(note);
+    };
+    handle.addEventListener("pointermove",move);
+    handle.addEventListener("pointerup",end);
+    handle.addEventListener("pointercancel",end);
+  });
+}
+
+function bindLiveNoteResize(note,grip){
+  grip.addEventListener("pointerdown",event=>{
+    const preview=previewBoundsFor(note);
+    if(!preview)return;
+    event.preventDefault();
+    bringLiveNoteFront(note);
+    grip.setPointerCapture?.(event.pointerId);
+    const parent=preview.getBoundingClientRect();
+    const rect=note.getBoundingClientRect();
+    const startX=event.clientX;
+    const startY=event.clientY;
+    const startW=rect.width;
+    const startH=rect.height;
+    note.dataset.userResized="true";
+    const move=moveEvent=>{
+      const maxW=Math.max(110,parent.right-rect.left);
+      const maxH=Math.max(50,parent.bottom-rect.top);
+      note.style.width=`${Math.max(110,Math.min(startW+(moveEvent.clientX-startX),maxW))}px`;
+      note.style.height=`${Math.max(50,Math.min(startH+(moveEvent.clientY-startY),maxH))}px`;
+      const textarea=note.querySelector("textarea");
+      if(textarea instanceof HTMLTextAreaElement){
+        textarea.style.height=`${Math.max(30,note.clientHeight-34)}px`;
+        textarea.style.overflowY="auto";
+      }
+    };
+    const end=endEvent=>{
+      grip.releasePointerCapture?.(endEvent.pointerId);
+      grip.removeEventListener("pointermove",move);
+      grip.removeEventListener("pointerup",end);
+      grip.removeEventListener("pointercancel",end);
+      clampLiveNote(note);
+    };
+    grip.addEventListener("pointermove",move);
+    grip.addEventListener("pointerup",end);
+    grip.addEventListener("pointercancel",end);
+  });
+}
+
+function createLiveNote(){
+  if(!(liveNotes instanceof HTMLElement))return;
+  const preview=liveNotes.closest(".broadcast-live-preview");
   if(!(preview instanceof HTMLElement))return;
+  liveNoteSequence+=1;
+  const note=document.createElement("div");
+  note.className="broadcast-live-note is-editing";
+  note.dataset.liveNote=String(liveNoteSequence);
+  note.style.left=`${18+(liveNoteSequence%4)*16}px`;
+  note.style.top=`${Math.max(110,Math.min(preview.clientHeight-90,155+(liveNoteSequence%5)*22))}px`;
+
+  const drag=document.createElement("button");
+  drag.type="button";
+  drag.className="broadcast-live-note-control broadcast-live-note-drag";
+  drag.textContent="⋮⋮";
+  drag.setAttribute("aria-label","メモを移動");
+
+  const done=document.createElement("button");
+  done.type="button";
+  done.className="broadcast-live-note-control broadcast-live-note-done";
+  done.textContent="✓";
+  done.setAttribute("aria-label","メモ編集を完了");
+
+  const remove=document.createElement("button");
+  remove.type="button";
+  remove.className="broadcast-live-note-control broadcast-live-note-remove";
+  remove.textContent="×";
+  remove.setAttribute("aria-label","メモを削除");
+
+  const textarea=document.createElement("textarea");
+  textarea.spellcheck=true;
+  textarea.placeholder="メモを入力";
+
+  const resize=document.createElement("span");
+  resize.className="broadcast-live-note-resize";
+  resize.textContent="↘";
+  resize.setAttribute("aria-hidden","true");
+
+  note.append(drag,done,remove,textarea,resize);
+  liveNotes.append(note);
+  bringLiveNoteFront(note);
+  bindLiveNoteDrag(note,drag);
+  bindLiveNoteResize(note,resize);
+
+  textarea.addEventListener("input",()=>autosizeLiveNote(note,textarea));
+  done.addEventListener("click",()=>setLiveNoteEditing(note,false));
+  remove.addEventListener("click",()=>note.remove());
+  note.addEventListener("click",event=>{
+    if(note.classList.contains("is-editing"))return;
+    if(event.target===note||event.target===textarea)setLiveNoteEditing(note,true);
+  });
+  requestAnimationFrame(()=>{
+    autosizeLiveNote(note,textarea);
+    clampLiveNote(note);
+    textarea.focus({preventScroll:true});
+  });
+}
+
+function clearLiveNotes(){
+  if(liveNotes instanceof HTMLElement)liveNotes.replaceChildren();
+  liveNoteSequence=0;
+  liveNoteZ=20;
+}
+
+liveMemoToggle?.addEventListener("click",()=>createLiveNote());
+
+liveListenerToggle?.addEventListener("click",()=>{
+  if(!(liveListenerPanel instanceof HTMLElement))return;
+  liveListenerPanel.hidden=!liveListenerPanel.hidden;
+});
+document.querySelector("[data-live-listeners-close]")?.addEventListener("click",()=>{
+  if(liveListenerPanel instanceof HTMLElement)liveListenerPanel.hidden=true;
+});
+
+document.querySelector("[data-live-subtitle-edit]")?.addEventListener("click",()=>{
+  if(!(liveSubtitleForm instanceof HTMLFormElement)||!(liveSubtitleInput instanceof HTMLInputElement))return;
+  liveSubtitleInput.value=streamSubtitleValue();
+  liveSubtitleForm.hidden=false;
+  requestAnimationFrame(()=>liveSubtitleInput.focus({preventScroll:true}));
+});
+document.querySelector("[data-live-subtitle-cancel]")?.addEventListener("click",()=>{
+  if(liveSubtitleForm instanceof HTMLFormElement)liveSubtitleForm.hidden=true;
+});
+liveSubtitleForm?.addEventListener("submit",event=>{
   event.preventDefault();
-  liveBoardDrag.setPointerCapture?.(event.pointerId);
-  const parent=preview.getBoundingClientRect();
-  const rect=liveBoard.getBoundingClientRect();
-  const offsetX=event.clientX-rect.left;
-  const offsetY=event.clientY-rect.top;
-  liveBoard.style.transform="none";
-
-  const move=moveEvent=>{
-    const current=liveBoard.getBoundingClientRect();
-    const left=Math.max(0,Math.min(moveEvent.clientX-parent.left-offsetX,parent.width-current.width));
-    const top=Math.max(0,Math.min(moveEvent.clientY-parent.top-offsetY,parent.height-current.height));
-    liveBoard.style.left=`${left}px`;
-    liveBoard.style.top=`${top}px`;
-  };
-  const end=endEvent=>{
-    liveBoardDrag.releasePointerCapture?.(endEvent.pointerId);
-    liveBoardDrag.removeEventListener("pointermove",move);
-    liveBoardDrag.removeEventListener("pointerup",end);
-    liveBoardDrag.removeEventListener("pointercancel",end);
-    clampLiveBoard();
-  };
-  liveBoardDrag.addEventListener("pointermove",move);
-  liveBoardDrag.addEventListener("pointerup",end);
-  liveBoardDrag.addEventListener("pointercancel",end);
+  if(!(liveSubtitleInput instanceof HTMLInputElement))return;
+  const source=document.querySelector("[data-stream-subtitle]");
+  if(source instanceof HTMLInputElement)source.value=liveSubtitleInput.value.trim();
+  updateStreamIdentity();
+  liveSubtitleForm.hidden=true;
 });
 
-window.addEventListener("resize",()=>requestAnimationFrame(clampLiveBoard));
+window.addEventListener("resize",()=>{
+  document.querySelectorAll("[data-live-note]").forEach(note=>requestAnimationFrame(()=>clampLiveNote(note)));
+});
 navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
 });
@@ -548,6 +774,7 @@ if(compatibility.supported){
 }
 
 setMicMonitor();
+updateTestMetrics();
 updateWizard();
 
 document.addEventListener("orikuro:system-access-ready",()=>{
@@ -613,18 +840,11 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
-  if(liveBoard instanceof HTMLElement){
-    liveBoard.hidden=true;
-    liveBoard.classList.remove("is-editing");
-    liveBoard.style.left="50%";
-    liveBoard.style.top="16%";
-    liveBoard.style.transform="translateX(-50%)";
-  }
-  if(liveBoardText instanceof HTMLTextAreaElement)liveBoardText.value="";
-  if(liveBoardToggle instanceof HTMLButtonElement){
-    liveBoardToggle.setAttribute("aria-expanded","false");
-    liveBoardToggle.textContent="メモ";
-  }
+  clearLiveNotes();
+  testMetrics={...TEST_METRICS_BASE};
+  updateTestMetrics();
+  if(liveListenerPanel instanceof HTMLElement)liveListenerPanel.hidden=true;
+  if(liveSubtitleForm instanceof HTMLFormElement)liveSubtitleForm.hidden=true;
   const micToggle=document.querySelector("[data-mic-test-toggle]");
   if(micToggle instanceof HTMLButtonElement){
     micToggle.setAttribute("aria-expanded","false");

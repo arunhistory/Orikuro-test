@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-boardmemo1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-livehud1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -152,18 +152,32 @@
                   <div class="broadcast-step-head">
                     <small>STEP 4 / 4</small>
                     <h1>配信を開始</h1>
-                    <p>準備内容を確認して配信を開始します。</p>
+                    <p>リスナー側に表示される状態を確認してから開始します。</p>
                   </div>
-                  <div class="broadcast-final-preview">
-                    <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
-                      
+                  <div class="broadcast-final-preview broadcast-scene-preview" data-prelive-preview>
+                    <div class="broadcast-radio-background" data-radio-background aria-hidden="true"></div>
+                    <div class="broadcast-scene-main" data-radio-scene-main>
+                      <img src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                     </div>
-                    <div class="broadcast-final-center">
-                      <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
-                      <strong data-stream-preview-title>枠タイトルを入力</strong>
-                      <small data-stream-preview-subtitle>サブタイトル未設定</small>
-                      <span data-stream-preview-copy>ラジオ / 音声配信</span>
+                    <div class="broadcast-scene-character" data-preview-character-layer hidden>
+                      <span data-preview-character-label>配信モデルプレビュー</span>
                     </div>
+                    <div class="broadcast-preview-hud">
+                      <div class="broadcast-preview-owner">
+                        <img src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
+                        <div>
+                          <small>配信者</small>
+                          <strong data-stream-preview-title>枠タイトルを入力</strong>
+                          <span data-stream-preview-subtitle>サブタイトル未設定</span>
+                        </div>
+                      </div>
+                      <div class="broadcast-preview-metrics">
+                        <span>応援 <b data-support-score>0</b></span>
+                        <span>ランク <b data-support-rank>D</b></span>
+                        <span>イベント <b data-event-rank>--</b>位 / <b data-event-points>0</b>pt</span>
+                      </div>
+                    </div>
+                    <span class="broadcast-preview-mode" data-stream-preview-copy>ラジオ / 音声配信</span>
                   </div>
                   <p class="stream-start-feedback" data-stream-feedback role="status" aria-live="polite">配信開始の準備ができています。</p>
                 </section>
@@ -178,29 +192,81 @@
 
             <section class="broadcast-live-screen" data-live-screen hidden>
               <div class="broadcast-live-preview">
-                <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
-                  
+                <div class="broadcast-radio-background" data-radio-background aria-hidden="true"></div>
+                <div class="broadcast-scene-main" data-radio-scene-main>
+                  <img src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                 </div>
-                <div class="broadcast-live-center">
-                  <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
-                  <strong data-live-stream-title>枠タイトル</strong>
-                  <small class="broadcast-live-subtitle" data-live-stream-subtitle>サブタイトル</small>
-                  <span class="broadcast-live-status">
-                    <i></i><span data-stream-status data-realtime-status>配信中</span>
-                    <b data-stream-clock>00:00</b>
-                  </span>
+                <div class="broadcast-scene-character" data-live-character-layer hidden>
+                  <span data-live-character-label>配信モデル</span>
                 </div>
-                <div class="broadcast-live-board" data-live-board hidden>
-                  <button class="broadcast-live-board-drag" type="button" data-live-board-drag aria-label="メモを移動">⋮⋮</button>
-                  <textarea data-live-board-text maxlength="200" spellcheck="true" placeholder="メモを入力"></textarea>
-                  <button class="broadcast-live-board-remove" type="button" data-live-board-remove aria-label="メモを消す">×</button>
+
+                <div class="broadcast-live-hud">
+                  <div class="broadcast-live-owner-row">
+                    <img class="broadcast-live-owner-icon" src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
+                    <div class="broadcast-live-owner-copy">
+                      <small>配信者</small>
+                      <strong data-live-stream-title>枠タイトル</strong>
+                      <div class="broadcast-live-subtitle-row">
+                        <span data-live-stream-subtitle>サブタイトル</span>
+                        <button type="button" data-live-subtitle-edit>編集</button>
+                      </div>
+                    </div>
+                    <span class="broadcast-live-status">
+                      <i></i><span data-stream-status data-realtime-status>配信中</span>
+                      <b data-stream-clock>00:00</b>
+                    </span>
+                  </div>
+
+                  <form class="broadcast-live-subtitle-form" data-live-subtitle-form hidden>
+                    <input type="text" data-live-subtitle-input maxlength="80" aria-label="配信サブタイトル"/>
+                    <button type="submit">保存</button>
+                    <button type="button" data-live-subtitle-cancel>取消</button>
+                  </form>
+
+                  <div class="broadcast-live-metrics">
+                    <div><small>応援スコア</small><strong data-support-score>0</strong></div>
+                    <div><small>配信ランク</small><strong data-support-rank>D</strong></div>
+                    <button type="button" data-live-listeners-toggle>
+                      <small>リスナー</small>
+                      <strong><span data-listener-count>0</span>人</strong>
+                    </button>
+                  </div>
+
+                  <div class="broadcast-live-event">
+                    <div>
+                      <small>お試しイベント</small>
+                      <strong><span data-event-rank>--</span>位</strong>
+                    </div>
+                    <div>
+                      <small>イベントポイント</small>
+                      <strong><span data-event-points>0</span>pt</strong>
+                    </div>
+                    <span>最大 <b data-listener-max>0</b>人</span>
+                  </div>
                 </div>
+
+                <aside class="broadcast-listener-panel" data-live-listener-panel hidden aria-label="リスナー一覧">
+                  <header>
+                    <strong>リスナー一覧</strong>
+                    <button type="button" data-live-listeners-close aria-label="閉じる">×</button>
+                  </header>
+                  <ol>
+                    <li><span>テストリスナー 01</span><small>応援中</small></li>
+                    <li><span>テストリスナー 02</span><small>初見</small></li>
+                    <li><span>テストリスナー 03</span><small>応援中</small></li>
+                    <li><span>テストリスナー 04</span><small>視聴中</small></li>
+                    <li><span>テストリスナー 05</span><small>視聴中</small></li>
+                  </ol>
+                  <p>ほか <span data-listener-rest>0</span> 人</p>
+                </aside>
+
+                <div class="broadcast-live-notes" data-live-notes aria-label="配信メモ"></div>
               </div>
 
               <div class="broadcast-live-controls">
                 <div class="broadcast-live-tools">
                   <button class="broadcast-mic-toggle" type="button" data-mic-test-toggle aria-expanded="false">マイクテスト</button>
-                  <button class="broadcast-memo-toggle" type="button" data-live-memo-toggle aria-expanded="false">メモ</button>
+                  <button class="broadcast-memo-toggle" type="button" data-live-memo-toggle>メモ追加</button>
                 </div>
                 <div class="broadcast-mic-test" data-mic-test data-state="waiting" hidden>
                   <div class="broadcast-mic-head">
@@ -232,6 +298,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-boardmemo1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-livehud1"></script>
 </body>
 </html>
