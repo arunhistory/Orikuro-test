@@ -1,6 +1,7 @@
 import { clearStreamRealtimeGrant, getStreamRealtimeGrant, type StreamRealtimeGrant } from './realtime-grant.js';
 
 const FLOW_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/service-flow';
+const LIVE_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-live';
 const VIDEO_SUBPROTOCOL = 'orikuro-stream-v1';
 const AUDIO_SUBPROTOCOL = 'orikuro-audio-v1';
 const COMMENT_SUBPROTOCOL = 'orikuro-comments-v1';
@@ -985,11 +986,10 @@ async function requestServerLive(): Promise<boolean> {
 
   serverLivePromise = (async () => {
     try {
-      const response = await fetch(FLOW_URL, {
+      const response = await fetch(LIVE_URL, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          action: 'stream_live',
           streamId: current.streamId,
           controlCapability: current.controlCapability,
         }),
@@ -1023,6 +1023,13 @@ async function requestServerStop(keepalive = false): Promise<boolean> {
   if (!current) return true;
 
   serverStopPromise = (async () => {
+    // If the user stops immediately after Start, let the in-flight live marker
+    // settle first, then clear it. This prevents a late activation from
+    // resurrecting a stream after the local UI has already ended.
+    const pendingLive = serverLivePromise;
+    if (pendingLive) {
+      try { await pendingLive; } catch {}
+    }
     try {
       const response = await fetch(FLOW_URL, {
         method: 'POST',
@@ -1078,23 +1085,27 @@ async function startStreaming(mode: string): Promise<void> {
     return;
   }
 
-  setText('[data-realtime-status]', '公開を開始しています。');
-  const activated = await requestServerLive();
-  if (!activated) {
-    const message = '配信公開を開始できませんでした。';
-    setText('[data-realtime-status]', message);
-    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
-    return;
-  }
-
+  // Start is local and immediate. All expensive preparation has already
+  // finished; public visibility flips asynchronously through the signed
+  // live marker and never blocks the user's transition to LIVE.
   streamStartedAtPerfMs = performance.now();
   liveTransmission = true;
   setText('[data-realtime-status]', '配信中');
   setText('[data-stream-state="output"]', '送出中');
   window.dispatchEvent(new CustomEvent('orikuro:stream-live'));
-
-  // Delivery confirmation remains diagnostic and must never block the start UI.
   window.dispatchEvent(new CustomEvent('orikuro:audio-path-waiting'));
+
+  void requestServerLive().then(async (activated) => {
+    if (activated || !liveTransmission || pageStopping) return;
+    const message = '配信公開を開始できませんでした。';
+    setText('[data-realtime-status]', message);
+    const cleaned = await stopStreaming(true);
+    if (cleaned) {
+      window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
+    } else {
+      setText('[data-realtime-status]', `${message} 配信セッションの終了確認にも失敗しました。`);
+    }
+  });
 }
 
 async function stopStreaming(notifyServer: boolean, endReason: string | null = null): Promise<boolean> {
