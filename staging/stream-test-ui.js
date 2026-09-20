@@ -45,7 +45,7 @@ function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode);
   if(step===2)return radioPresets.has(backgroundChoice);
   if(step===3)return standingChoice==="none";
-  if(step===4)return streamTitleValue().length>0;
+  if(step===4)return streamTitleValue().length>0&&micPermissionConfirmed&&micDevicesKnown&&selectedAudioInputDeviceId.length>0;
   if(step===5)return readyForStep(1)&&readyForStep(2)&&readyForStep(3)&&readyForStep(4);
   return false;
 }
@@ -149,7 +149,11 @@ async function refreshAudioInputs(requestPermission=false){
   let activeDeviceId="";
   try{
     if(requestPermission){
+      micPermissionConfirmed=false;
+      micDevicesKnown=false;
+      selectedAudioInputDeviceId="";
       setMicDeviceStatus("マイクの利用許可と機材を確認しています…","working");
+      updateWizard();
       permissionStream=await media.getUserMedia({audio:true,video:false});
       micPermissionConfirmed=true;
       activeDeviceId=permissionStream.getAudioTracks()[0]?.getSettings?.().deviceId||"";
@@ -166,7 +170,7 @@ async function refreshAudioInputs(requestPermission=false){
       selectedAudioInputDeviceId="";
       micDevicesKnown=true;
       setMicDeviceStatus("ブラウザが認識できるマイク入力がありません。","error");
-      updateSummary();
+      updateWizard();
       dispatchAudioInputSelection();
       return;
     }
@@ -185,7 +189,7 @@ async function refreshAudioInputs(requestPermission=false){
     micDevicesKnown=true;
     const label=selected?.label||select.options[select.selectedIndex]?.textContent||"マイク";
     setMicDeviceStatus(`${devices.length}台のマイク入力を認識しました。使用: ${label}`,"ready");
-    updateSummary();
+    updateWizard();
     dispatchAudioInputSelection();
   }catch(error){
     const name=error instanceof DOMException?error.name:"";
@@ -194,8 +198,12 @@ async function refreshAudioInputs(requestPermission=false){
       :name==="NotFoundError"
         ?"使用できるマイクが見つかりません。"
         :"マイク機材を確認できませんでした。";
+    micPermissionConfirmed=false;
+    micDevicesKnown=false;
+    selectedAudioInputDeviceId="";
     select.disabled=true;
     setMicDeviceStatus(message,"error");
+    updateWizard();
   }finally{
     permissionStream?.getTracks().forEach(track=>track.stop());
   }
