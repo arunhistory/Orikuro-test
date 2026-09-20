@@ -27,20 +27,31 @@ const TEST_METRICS_BASE=Object.freeze({
   superchatPoints:800,
 });
 const TEST_LISTENERS=Object.freeze([
-  {name:"テストリスナー 01",fanLevel:7,state:"応援中",background:true},
-  {name:"テストリスナー 02",fanLevel:6,state:"応援中",background:true},
-  {name:"テストリスナー 03",fanLevel:5,state:"初見",background:false},
-  {name:"テストリスナー 04",fanLevel:4,state:"視聴中",background:false},
-  {name:"テストリスナー 05",fanLevel:3,state:"応援中",background:false},
-  {name:"テストリスナー 06",fanLevel:2,state:"視聴中",background:false},
-  {name:"テストリスナー 07",fanLevel:1,state:"初見",background:false},
-  {name:"テストリスナー 08",fanLevel:7,state:"応援中",background:true},
-  {name:"テストリスナー 09",fanLevel:6,state:"視聴中",background:false},
-  {name:"テストリスナー 10",fanLevel:5,state:"応援中",background:false},
-  {name:"テストリスナー 11",fanLevel:3,state:"視聴中",background:false},
-  {name:"テストリスナー 12",fanLevel:2,state:"視聴中",background:false},
+  {name:"テストリスナー 01",fanLevel:7,state:"応援中",background:true,firstTime:false},
+  {name:"テストリスナー 02",fanLevel:6,state:"視聴中",background:true,firstTime:false},
+  {name:"テストリスナー 03",fanLevel:null,state:"初見",background:false,firstTime:true},
+  {name:"テストリスナー 04",fanLevel:4,state:"視聴中",background:false,firstTime:false},
+  {name:"テストリスナー 05",fanLevel:3,state:"応援中",background:false,firstTime:false},
+  {name:"テストリスナー 06",fanLevel:2,state:"視聴中",background:false,firstTime:false},
+  {name:"テストリスナー 07",fanLevel:null,state:"初見",background:false,firstTime:true},
+  {name:"テストリスナー 08",fanLevel:null,state:"視聴中",background:true,firstTime:false},
+  {name:"テストリスナー 09",fanLevel:6,state:"視聴中",background:false,firstTime:false},
+  {name:"テストリスナー 10",fanLevel:5,state:"応援中",background:false,firstTime:false},
+  {name:"テストリスナー 11",fanLevel:null,state:"視聴中",background:false,firstTime:false},
+  {name:"テストリスナー 12",fanLevel:2,state:"視聴中",background:false,firstTime:false},
 ]);
-const SUPPORT_THRESHOLDS=Object.freeze([2000,4000,6000,9000,12000]);
+
+// Prototype borders only. Production values remain deliberately undecided.
+// The shape mirrors the common daily-rank-point model: streaming gives +1,
+// and higher daily support-score borders raise the provisional point award.
+const DAILY_RANK_BORDERS=Object.freeze([
+  {points:1,score:0},
+  {points:2,score:2500},
+  {points:3,score:4000},
+  {points:4,score:5200},
+  {points:5,score:6000},
+  {points:6,score:7500},
+]);
 let testMetrics={...TEST_METRICS_BASE};
 
 function calculateSupportScore(metrics){
@@ -56,20 +67,24 @@ function calculateSupportScore(metrics){
   );
 }
 
-function calculateSupportRank(score){
-  if(score>=9000)return "S";
-  if(score>=6000)return "A";
-  if(score>=4000)return "B";
-  if(score>=2000)return "C";
-  return "D";
-}
-
-function nextSupportThreshold(score){
-  const next=SUPPORT_THRESHOLDS.find(value=>value>score)??SUPPORT_THRESHOLDS[SUPPORT_THRESHOLDS.length-1];
-  const previous=[0,...SUPPORT_THRESHOLDS].filter(value=>value<=score).at(-1)??0;
-  const span=Math.max(1,next-previous);
-  const progress=Math.max(0,Math.min(1,(score-previous)/span));
-  return {next,previous,remaining:Math.max(0,next-score),progress};
+function calculateDailyRankPoint(score){
+  let current=DAILY_RANK_BORDERS[0];
+  for(const border of DAILY_RANK_BORDERS){
+    if(score>=border.score)current=border;
+    else break;
+  }
+  const next=DAILY_RANK_BORDERS.find(border=>border.score>score)??null;
+  const previousScore=current.score;
+  const nextScore=next?.score??current.score;
+  const span=Math.max(1,nextScore-previousScore);
+  const progress=next?Math.max(0,Math.min(1,(score-previousScore)/span)):1;
+  return {
+    points:current.points,
+    nextPoints:next?.points??current.points,
+    nextScore,
+    remaining:next?Math.max(0,nextScore-score):0,
+    progress,
+  };
 }
 
 function calculateEventPoints(score){
@@ -85,20 +100,21 @@ function formatMetric(value){
 }
 
 function renderTestListeners(){
-  const specialList=document.querySelector("[data-listener-special-list]");
+  const backgroundList=document.querySelector("[data-listener-background-list]");
   const normalList=document.querySelector("[data-listener-list]");
-  const specialSection=document.querySelector("[data-listener-special-section]");
-  if(!(specialList instanceof HTMLOListElement)||!(normalList instanceof HTMLOListElement))return;
-  specialList.replaceChildren();
+  const backgroundSection=document.querySelector("[data-listener-background-section]");
+  if(!(backgroundList instanceof HTMLOListElement)||!(normalList instanceof HTMLOListElement))return;
+  backgroundList.replaceChildren();
   normalList.replaceChildren();
 
   const append=(listener,list)=>{
     const item=document.createElement("li");
-    item.className=`fan-level-${listener.fanLevel}${listener.background?" is-background-highlight":""}`;
+    const hasLevel=Number.isInteger(listener.fanLevel)&&listener.fanLevel>=1&&listener.fanLevel<=7;
+    item.className=`${hasLevel?`fan-level-${listener.fanLevel}`:"fan-level-none"}${listener.background?" is-background-highlight":""}${listener.firstTime?" is-first-time":""}`;
 
     const badge=document.createElement("span");
-    badge.className="broadcast-fan-badge";
-    badge.textContent=`Lv.${listener.fanLevel}`;
+    badge.className=`broadcast-fan-badge${hasLevel?"":" is-none"}`;
+    badge.textContent=hasLevel?`Lv.${listener.fanLevel}`:"なし";
 
     const name=document.createElement("span");
     name.className="broadcast-listener-name";
@@ -106,17 +122,17 @@ function renderTestListeners(){
 
     const state=document.createElement("small");
     state.className="broadcast-listener-state";
-    state.textContent=listener.state;
+    state.textContent=listener.firstTime?"初見":listener.state;
 
     item.append(badge,name,state);
     list.append(item);
   };
 
-  const special=TEST_LISTENERS.filter(listener=>listener.background);
+  const background=TEST_LISTENERS.filter(listener=>listener.background);
   const normal=TEST_LISTENERS.filter(listener=>!listener.background);
-  special.forEach(listener=>append(listener,specialList));
+  background.forEach(listener=>append(listener,backgroundList));
   normal.forEach(listener=>append(listener,normalList));
-  if(specialSection instanceof HTMLElement)specialSection.hidden=special.length===0;
+  if(backgroundSection instanceof HTMLElement)backgroundSection.hidden=background.length===0;
 }
 
 function renderEventRanking(eventPoints,eventRank){
@@ -147,26 +163,24 @@ function renderEventRanking(eventPoints,eventRank){
 
 function updateTestMetrics(){
   const score=calculateSupportScore(testMetrics);
-  const rank=calculateSupportRank(score);
+  const daily=calculateDailyRankPoint(score);
   const eventPoints=calculateEventPoints(score);
   const eventRank=calculateEventRank(eventPoints);
-  const next=nextSupportThreshold(score);
-
-  // Rank is calculated for the prototype but deliberately not displayed in the live HUD.
-  document.documentElement.dataset.supportRank=rank;
 
   document.querySelectorAll("[data-support-score]").forEach(el=>el.textContent=formatMetric(score));
+  document.querySelectorAll("[data-daily-rank-points]").forEach(el=>el.textContent=String(daily.points));
+  document.querySelectorAll("[data-next-rank-points]").forEach(el=>el.textContent=String(daily.nextPoints));
   document.querySelectorAll("[data-event-points]").forEach(el=>el.textContent=formatMetric(eventPoints));
   document.querySelectorAll("[data-event-rank]").forEach(el=>el.textContent=formatMetric(eventRank));
   document.querySelectorAll("[data-listener-count]").forEach(el=>el.textContent=formatMetric(testMetrics.listeners));
   document.querySelectorAll("[data-listener-max]").forEach(el=>el.textContent=formatMetric(testMetrics.maxListeners));
-  document.querySelectorAll("[data-support-next]").forEach(el=>el.textContent=formatMetric(next.next));
-  document.querySelectorAll("[data-support-remaining]").forEach(el=>el.textContent=formatMetric(next.remaining));
+  document.querySelectorAll("[data-support-next]").forEach(el=>el.textContent=formatMetric(daily.nextScore));
+  document.querySelectorAll("[data-support-remaining]").forEach(el=>el.textContent=formatMetric(daily.remaining));
   document.querySelectorAll("[data-support-progress-fill]").forEach(el=>{
-    el.style.transform=`scaleX(${next.progress})`;
+    el.style.transform=`scaleX(${daily.progress})`;
   });
   document.querySelectorAll("[data-support-progress]").forEach(el=>{
-    el.setAttribute("aria-valuenow",String(Math.round(next.progress*100)));
+    el.setAttribute("aria-valuenow",String(Math.round(daily.progress*100)));
   });
 
   renderEventRanking(eventPoints,eventRank);
