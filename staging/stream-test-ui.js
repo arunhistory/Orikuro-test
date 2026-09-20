@@ -22,6 +22,7 @@ let selectedAudioInputDeviceId="";
 let micDevicesKnown=false;
 let micPermissionConfirmed=false;
 let micPermissionRequest=null;
+let preparedAudioStream=null;
 let grantReady=false;
 let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
 let startedAt=0;
@@ -42,8 +43,13 @@ function setFeedback(text,state="info"){
   el.dataset.state=state;
 }
 
+function preparedAudioTrack(){
+  const track=preparedAudioStream?.getAudioTracks?.()[0]||null;
+  return track&&track.readyState==="live"?track:null;
+}
+
 function micReady(){
-  return micPermissionConfirmed&&micDevicesKnown&&selectedAudioInputDeviceId.length>0;
+  return micPermissionConfirmed&&micDevicesKnown&&selectedAudioInputDeviceId.length>0&&!!preparedAudioTrack();
 }
 
 function readyForStep(step){
@@ -144,6 +150,47 @@ function dispatchAudioInputSelection(){
   window.dispatchEvent(new CustomEvent("orikuro:audio-input-change",{detail:{deviceId:selectedAudioInputDeviceId}}));
 }
 
+function audioCaptureConstraints(deviceId=""){
+  const audio={
+    echoCancellation:false,
+    noiseSuppression:false,
+    autoGainControl:false,
+  };
+  if(deviceId)audio.deviceId={exact:deviceId};
+  return {audio,video:false};
+}
+
+function publishPreparedAudioStream(stream){
+  const track=stream?.getAudioTracks?.()[0]||null;
+  if(!track||track.readyState!=="live")throw new DOMException("AUDIO_TRACK_MISSING","NotFoundError");
+
+  const previous=preparedAudioStream;
+  preparedAudioStream=stream;
+  window.__orikuroPreparedAudioStream=stream;
+
+  track.addEventListener("ended",()=>{
+    if(preparedAudioStream!==stream)return;
+    preparedAudioStream=null;
+    if(window.__orikuroPreparedAudioStream===stream)window.__orikuroPreparedAudioStream=null;
+    micPermissionConfirmed=false;
+    selectedAudioInputDeviceId="";
+    setMicPermissionStatus("マイク入力が終了しました。配信形式を選び直してください。","error");
+    setMicDeviceStatus("マイク入力が終了しました。","error");
+    dispatchAudioInputSelection();
+    updateWizard();
+  },{once:true});
+
+  if(previous&&previous!==stream)previous.getTracks().forEach(track=>track.stop());
+  return track;
+}
+
+function releasePreparedAudioStream(){
+  const stream=preparedAudioStream;
+  preparedAudioStream=null;
+  if(window.__orikuroPreparedAudioStream===stream)window.__orikuroPreparedAudioStream=null;
+  stream?.getTracks?.().forEach(track=>track.stop());
+}
+
 async function refreshAudioInputs(requestPermission=false){
   const media=navigator.mediaDevices;
   const select=document.querySelector("[data-mic-device]");
@@ -158,26 +205,29 @@ async function refreshAudioInputs(requestPermission=false){
     return;
   }
 
-  let permissionStream=null;
+  let acquiredStream=null;
   let activeDeviceId="";
+  const requestedDeviceId=selectedAudioInputDeviceId;
   try{
     if(requestPermission){
       micPermissionConfirmed=false;
       micDevicesKnown=false;
-      selectedAudioInputDeviceId="";
       setMicPermissionStatus("マイクの使用許可を確認しています…","working");
       setMicDeviceStatus("マイクの利用許可と機材を確認しています…","working");
       updateWizard();
 
-      permissionStream=await media.getUserMedia({audio:true,video:false});
-      const track=permissionStream.getAudioTracks()[0];
-      if(!track)throw new DOMException("AUDIO_TRACK_MISSING","NotFoundError");
+      acquiredStream=await media.getUserMedia(audioCaptureConstraints(requestedDeviceId));
+      const track=publishPreparedAudioStream(acquiredStream);
+      acquiredStream=null;
       micPermissionConfirmed=true;
-      activeDeviceId=track.getSettings?.().deviceId||"";
+      activeDeviceId=track.getSettings?.().deviceId||requestedDeviceId;
+    }else{
+      const track=preparedAudioTrack();
+      if(track)activeDeviceId=track.getSettings?.().deviceId||selectedAudioInputDeviceId;
     }
 
     const devices=(await media.enumerateDevices()).filter(device=>device.kind==="audioinput");
-    const previous=selectedAudioInputDeviceId||activeDeviceId;
+    const previous=activeDeviceId||selectedAudioInputDeviceId;
     select.replaceChildren();
 
     if(devices.length===0){
@@ -190,6 +240,8 @@ async function refreshAudioInputs(requestPermission=false){
       micDevicesKnown=true;
       setMicPermissionStatus("マイク入力を認識できません。","error");
       setMicDeviceStatus("ブラウザが認識できるマイク入力がありません。","error");
+      releasePreparedAudioStream();
+      micPermissionConfirmed=false;
       updateWizard();
       dispatchAudioInputSelection();
       return;
@@ -212,28 +264,66 @@ async function refreshAudioInputs(requestPermission=false){
     micDevicesKnown=true;
     const label=selected?.label||select.options[select.selectedIndex]?.textContent||"マイク";
 
-    if(micPermissionConfirmed){
+    if(micPermissionConfirmed&&preparedAudioTrack()){
       setMicPermissionStatus("マイクの使用を許可しました。","ready");
     }
     setMicDeviceStatus(`${devices.length}台のマイク入力を認識しました。使用: ${label}`,"ready");
     updateWizard();
     dispatchAudioInputSelection();
   }catch(error){
+    acquiredStream?.getTracks?.().forEach(track=>track.stop());
     const name=error instanceof DOMException?error.name:"";
     const message=name==="NotAllowedError"
       ?"マイクの使用が許可されていません。Safariのマイク許可を確認してください。"
-      :name==="NotFoundError"
+      :name==="NotFoundError"||name==="OverconstrainedError"
         ?"使用できるマイクが見つかりません。"
         :"マイク機材を確認できませんでした。";
-    micPermissionConfirmed=false;
-    micDevicesKnown=false;
-    selectedAudioInputDeviceId="";
-    select.disabled=true;
+    micPermissionConfirmed=!!preparedAudioTrack();
+    micDevicesKnown=micPermissionConfirmed&&micDevicesKnown;
+    if(!micPermissionConfirmed){
+      selectedAudioInputDeviceId="";
+      select.disabled=true;
+    }
     setMicPermissionStatus(message,"error");
     setMicDeviceStatus(message,"error");
     updateWizard();
+  }
+}
+
+async function switchPreparedAudioInput(deviceId){
+  const media=navigator.mediaDevices;
+  const select=document.querySelector("[data-mic-device]");
+  if(!(select instanceof HTMLSelectElement)||!media?.getUserMedia||!deviceId)return;
+
+  const previousId=selectedAudioInputDeviceId;
+  select.disabled=true;
+  setMicDeviceStatus("マイクを切り替えています…","working");
+  try{
+    const stream=await media.getUserMedia(audioCaptureConstraints(deviceId));
+    const track=publishPreparedAudioStream(stream);
+    selectedAudioInputDeviceId=track.getSettings?.().deviceId||deviceId;
+    if([...select.options].some(option=>option.value===selectedAudioInputDeviceId)){
+      select.value=selectedAudioInputDeviceId;
+    }else{
+      select.value=deviceId;
+      selectedAudioInputDeviceId=deviceId;
+    }
+    micPermissionConfirmed=true;
+    micDevicesKnown=true;
+    setMicPermissionStatus("マイクの使用を許可しました。","ready");
+    setMicDeviceStatus(`使用するマイク: ${currentMicLabel()}`,"ready");
+    dispatchAudioInputSelection();
+  }catch(error){
+    select.value=previousId;
+    selectedAudioInputDeviceId=previousId;
+    const name=error instanceof DOMException?error.name:"";
+    const message=name==="NotFoundError"||name==="OverconstrainedError"
+      ?"選択したマイクを使用できません。"
+      :"マイクを切り替えられませんでした。";
+    setMicDeviceStatus(message,"error");
   }finally{
-    permissionStream?.getTracks().forEach(track=>track.stop());
+    select.disabled=false;
+    updateWizard();
   }
 }
 
@@ -342,10 +432,7 @@ document.querySelector("[data-stream-subtitle]")?.addEventListener("input",()=>u
 document.querySelector("[data-mic-device]")?.addEventListener("change",event=>{
   const select=event.currentTarget;
   if(!(select instanceof HTMLSelectElement))return;
-  selectedAudioInputDeviceId=select.value;
-  setMicDeviceStatus(`使用するマイク: ${currentMicLabel()}`,"ready");
-  updateSummary();
-  dispatchAudioInputSelection();
+  void switchPreparedAudioInput(select.value);
 });
 document.querySelector("[data-mic-test-toggle]")?.addEventListener("click",event=>{
   const button=event.currentTarget;
@@ -359,6 +446,11 @@ document.querySelector("[data-mic-test-toggle]")?.addEventListener("click",event
 navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
 });
+window.addEventListener("pagehide",()=>{
+  if(!document.documentElement.dataset.broadcastPhase||document.documentElement.dataset.broadcastPhase!=="live"){
+    releasePreparedAudioStream();
+  }
+},{once:true});
 
 if(compatibility.supported){
   setState("transport","対応","ready");
@@ -464,7 +556,7 @@ startButton?.addEventListener("click",()=>{
   if(currentStep!==5||!readyForStep(5)||!sessionReady()||!supportedModes.has(selectedMode))return;
   startButton.disabled=true;
   document.documentElement.dataset.broadcastPhase="starting";
-  setFeedback("マイクを確認しています…","working");
+  setFeedback("配信を開始しています…","working");
   if(systemTest&&!grantReady){
     window.dispatchEvent(new CustomEvent("orikuro:system-start-request",{detail:{mode:selectedMode,radioPresetId:backgroundChoice}}));
     return;
