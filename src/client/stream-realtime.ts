@@ -973,7 +973,7 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
     const closingAudioContext = audioContext;
     audioContext = null;
 
-    if (endReason === 'user_stop') {
+    if (endReason) {
       if (closingAudioContext) void closingAudioContext.close().catch(() => undefined);
       if (shouldNotify) void requestServerStop(true);
       setText('[data-audio-status]', '待機中');
