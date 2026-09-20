@@ -52,6 +52,14 @@ const DAILY_RANK_BORDERS=Object.freeze([
   {points:5,score:6000},
   {points:6,score:7500},
 ]);
+const SCORE_ZONE_BORDERS=Object.freeze([
+  {points:0,score:0},
+  {points:1,score:1000},
+  {points:2,score:2500},
+  {points:4,score:5200},
+  {points:6,score:7500},
+]);
+const SCORE_ZONE_MAX=9000;
 let testMetrics={...TEST_METRICS_BASE};
 
 function calculateSupportScore(metrics){
@@ -85,6 +93,84 @@ function calculateDailyRankPoint(score){
     remaining:next?Math.max(0,nextScore-score):0,
     progress,
   };
+}
+
+function calculateScoreZone(score){
+  let current=SCORE_ZONE_BORDERS[0];
+  for(const zone of SCORE_ZONE_BORDERS){
+    if(score>=zone.score)current=zone;
+    else break;
+  }
+  const next=SCORE_ZONE_BORDERS.find(zone=>zone.score>score)??null;
+  return {
+    current,
+    next,
+    remaining:next?Math.max(0,next.score-score):0,
+    position:Math.max(0,Math.min(1,score/SCORE_ZONE_MAX)),
+  };
+}
+
+function renderScoreZones(score){
+  const model=calculateScoreZone(score);
+  const track=document.querySelector("[data-support-zone-track]");
+  const labels=document.querySelector("[data-support-scale-values]");
+
+  if(track instanceof HTMLElement){
+    track.replaceChildren();
+    SCORE_ZONE_BORDERS.forEach((zone,index)=>{
+      const next=SCORE_ZONE_BORDERS[index+1];
+      const end=next?.score??SCORE_ZONE_MAX;
+      const width=Math.max(0,(end-zone.score)/SCORE_ZONE_MAX)*100;
+      const cell=document.createElement("span");
+      cell.className=`broadcast-support-zone${zone===model.current?" is-current":""}`;
+      cell.style.flex=`0 0 ${width}%`;
+      cell.textContent=zone.points===0?"0":`+${zone.points}`;
+      track.append(cell);
+    });
+  }
+
+  if(labels instanceof HTMLElement){
+    labels.replaceChildren();
+    SCORE_ZONE_BORDERS.forEach((zone,index)=>{
+      const label=document.createElement("span");
+      label.className="broadcast-support-scale-value";
+      label.style.left=`${Math.min(100,zone.score/SCORE_ZONE_MAX*100)}%`;
+      label.textContent=formatMetric(zone.score);
+      labels.append(label);
+      if(index===SCORE_ZONE_BORDERS.length-1){
+        const end=document.createElement("span");
+        end.className="broadcast-support-scale-value";
+        end.style.left="100%";
+        end.textContent=formatMetric(SCORE_ZONE_MAX);
+        labels.append(end);
+      }
+    });
+  }
+
+  document.querySelectorAll("[data-support-zone-current]").forEach(el=>{
+    el.textContent=model.current.points===0?"0":`+${model.current.points}`;
+  });
+  document.querySelectorAll("[data-next-rank-points]").forEach(el=>{
+    el.textContent=model.next?`+${model.next.points}`:"MAX";
+  });
+  document.querySelectorAll("[data-support-next]").forEach(el=>{
+    el.textContent=model.next?formatMetric(model.next.score):formatMetric(SCORE_ZONE_MAX);
+  });
+  document.querySelectorAll("[data-support-remaining]").forEach(el=>{
+    el.textContent=formatMetric(model.remaining);
+  });
+  document.querySelectorAll("[data-support-marker-score]").forEach(el=>{
+    el.textContent=formatMetric(score);
+  });
+  document.querySelectorAll("[data-support-marker]").forEach(el=>{
+    if(el instanceof HTMLElement)el.style.left=`${model.position*100}%`;
+  });
+  document.querySelectorAll("[data-support-progress-fill]").forEach(el=>{
+    if(el instanceof HTMLElement)el.style.transform=`scaleX(${model.position})`;
+  });
+  document.querySelectorAll("[data-support-progress]").forEach(el=>{
+    el.setAttribute("aria-valuenow",String(Math.round(model.position*100)));
+  });
 }
 
 function calculateEventPoints(score){
@@ -169,20 +255,12 @@ function updateTestMetrics(){
 
   document.querySelectorAll("[data-support-score]").forEach(el=>el.textContent=formatMetric(score));
   document.querySelectorAll("[data-daily-rank-points]").forEach(el=>el.textContent=String(daily.points));
-  document.querySelectorAll("[data-next-rank-points]").forEach(el=>el.textContent=String(daily.nextPoints));
   document.querySelectorAll("[data-event-points]").forEach(el=>el.textContent=formatMetric(eventPoints));
   document.querySelectorAll("[data-event-rank]").forEach(el=>el.textContent=formatMetric(eventRank));
   document.querySelectorAll("[data-listener-count]").forEach(el=>el.textContent=formatMetric(testMetrics.listeners));
   document.querySelectorAll("[data-listener-max]").forEach(el=>el.textContent=formatMetric(testMetrics.maxListeners));
-  document.querySelectorAll("[data-support-next]").forEach(el=>el.textContent=formatMetric(daily.nextScore));
-  document.querySelectorAll("[data-support-remaining]").forEach(el=>el.textContent=formatMetric(daily.remaining));
-  document.querySelectorAll("[data-support-progress-fill]").forEach(el=>{
-    el.style.transform=`scaleX(${daily.progress})`;
-  });
-  document.querySelectorAll("[data-support-progress]").forEach(el=>{
-    el.setAttribute("aria-valuenow",String(Math.round(daily.progress*100)));
-  });
 
+  renderScoreZones(score);
   renderEventRanking(eventPoints,eventRank);
   renderTestListeners();
 }
