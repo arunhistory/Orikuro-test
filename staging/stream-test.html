@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-mic1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-bg1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -29,7 +29,11 @@
             </header>
 
             <section class="broadcast-preview" data-stream-preview>
+              <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
+                <img data-radio-background-image alt="" hidden/>
+              </div>
               <div class="broadcast-preview-glow" aria-hidden="true"></div>
+              <button class="broadcast-background-button" type="button" data-background-open>背景</button>
               <div class="broadcast-character">
                 <div class="broadcast-avatar-frame">
                   <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
@@ -73,6 +77,28 @@
                 <button class="stream-control stream-control-stop" type="button" data-audio-stop disabled>配信を終了</button>
               </div>
 
+              <div class="broadcast-background-sheet" data-background-sheet hidden>
+                <button class="broadcast-background-backdrop" type="button" data-background-close aria-label="背景設定を閉じる"></button>
+                <section class="broadcast-background-panel" role="dialog" aria-modal="true" aria-labelledby="background-title">
+                  <div class="broadcast-background-panel-head">
+                    <strong id="background-title">ラジオ背景</strong>
+                    <button type="button" data-background-close aria-label="閉じる">×</button>
+                  </div>
+                  <div class="broadcast-background-actions">
+                    <button class="broadcast-background-choice is-selected" type="button" data-background-default>
+                      <span class="broadcast-background-swatch" aria-hidden="true"></span>
+                      <strong>標準背景</strong>
+                    </button>
+                    <label class="broadcast-background-choice" data-background-custom-label>
+                      <span class="broadcast-background-photo" aria-hidden="true">＋</span>
+                      <strong>端末から選択</strong>
+                      <input type="file" accept="image/*" data-background-file hidden/>
+                    </label>
+                  </div>
+                  <p class="broadcast-background-note">選んだ画像はこの端末内だけでプレビューします。</p>
+                </section>
+              </div>
+
               <div class="broadcast-debug-state" aria-hidden="true">
                 <span data-stream-state="transport">確認中</span>
                 <span data-stream-state="session">待機中</span>
@@ -90,6 +116,6 @@
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-mic2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-mic3"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-bg1"></script>
 </body>
 </html>
