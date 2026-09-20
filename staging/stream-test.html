@@ -4,14 +4,14 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
-  
-  <title>配信テスト | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-app3"/>
+  <title>配信準備 | Original Create Project</title>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-app4"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
     <section class="stream-gate">
       <p class="stream-gate-status" role="status" aria-live="polite" data-service-gate-status>利用準備を確認しています。</p>
+
       <article class="stream-app" data-service-content hidden>
         <section class="stream-unsupported" data-stream-unsupported hidden>
           <div class="stream-unsupported-mark" aria-hidden="true">!</div>
@@ -24,34 +24,28 @@
           <div class="broadcast-shell">
             <header class="broadcast-header">
               <a class="broadcast-close" href="./index.html" aria-label="閉じる">×</a>
-              <div class="broadcast-heading">
-                <strong>配信準備</strong>
-              </div>
+              <strong class="broadcast-header-title">配信準備</strong>
               <span class="broadcast-header-spacer" aria-hidden="true"></span>
             </header>
 
             <section class="broadcast-preview" data-stream-preview>
+              <div class="broadcast-preview-glow" aria-hidden="true"></div>
               <div class="broadcast-character">
-                <div class="broadcast-avatar-ring">
+                <div class="broadcast-avatar-frame">
                   <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
                 </div>
-                <span class="broadcast-mode-chip">ラジオ</span>
-                <h2 class="broadcast-preview-title" data-stream-preview-title>ラジオ配信</h2>
-                <p class="broadcast-preview-copy" data-stream-preview-copy>声だけですぐに始めるテスト配信です。</p>
-                <div class="broadcast-live-status">
-                  <span class="broadcast-live-dot" aria-hidden="true"></span>
-                  <span data-stream-status data-realtime-status>準備中</span>
-                </div>
+                <h1 class="broadcast-preview-title" data-stream-preview-title>ラジオ</h1>
+                <p class="broadcast-preview-copy" data-stream-preview-copy>音声だけで配信します。</p>
+              </div>
+
+              <div class="broadcast-status-pill">
+                <span class="broadcast-live-dot" aria-hidden="true"></span>
+                <span data-stream-status data-realtime-status>準備中</span>
+                <span class="broadcast-timer" data-stream-clock>00:00</span>
               </div>
             </section>
 
-            <section class="broadcast-sheet">
-              <div class="broadcast-sheet-handle" aria-hidden="true"></div>
-              <div class="broadcast-sheet-title-row">
-                <h1>配信タイプ</h1>
-                <span>配信前</span>
-              </div>
-
+            <section class="broadcast-controls">
               <div class="broadcast-mode-tabs" role="group" aria-label="配信方式">
                 <button class="stream-mode-option is-selected" type="button" data-stream-mode="radio" aria-pressed="true">
                   <strong>ラジオ</strong><span>音声のみ</span>
@@ -65,25 +59,23 @@
 
               <div class="broadcast-primary-actions">
                 <button class="stream-control stream-control-primary" type="button" data-stream-start data-audio-start disabled>ラジオ配信スタート</button>
-                <button class="stream-control" type="button" data-audio-stop disabled>配信を終了</button>
+                <button class="stream-control stream-control-stop" type="button" data-audio-stop disabled>配信を終了</button>
               </div>
 
-              <details class="broadcast-diagnostics">
-                <summary>接続確認</summary>
-                <div class="stream-checks">
-                  <div class="stream-check"><span class="stream-check-label">通信</span><span class="stream-check-value" data-stream-state="transport">確認中</span></div>
-                  <div class="stream-check"><span class="stream-check-label">セッション</span><span class="stream-check-value" data-stream-state="session">待機中</span></div>
-                  <div class="stream-check"><span class="stream-check-label">キャラクター</span><span class="stream-check-value" data-stream-state="composition">対象外</span></div>
-                  <div class="stream-check"><span class="stream-check-label">音声</span><span class="stream-check-value" data-stream-state="audio" data-audio-status>待機中</span></div>
-                  <div class="stream-check"><span class="stream-check-label">送出</span><span class="stream-check-value" data-stream-state="output">待機中</span></div>
-                </div>
-              </details>
+              <div class="broadcast-debug-state" aria-hidden="true">
+                <span data-stream-state="transport">確認中</span>
+                <span data-stream-state="session">待機中</span>
+                <span data-stream-state="composition">対象外</span>
+                <span data-stream-state="audio" data-audio-status>待機中</span>
+                <span data-stream-state="output">待機中</span>
+              </div>
             </section>
           </div>
         </section>
       </article>
     </section>
   </main>
+
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260919-av5"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260914-phase5-staging1"></script>
