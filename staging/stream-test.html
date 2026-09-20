@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-likecount1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-standing1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -52,10 +52,10 @@
                       <strong>ラジオ</strong>
                       <small>音声のみ</small>
                     </button>
-                    <button class="broadcast-choice" type="button" data-stream-mode="standing" aria-pressed="false" aria-disabled="true" disabled>
+                    <button class="broadcast-choice" type="button" data-stream-mode="standing" aria-pressed="false">
                       <span class="broadcast-choice-icon">♙</span>
                       <strong>立ち絵</strong>
-                      <small>準備中</small>
+                      <small>R2登録済み素材</small>
                     </button>
                     <button class="broadcast-choice" type="button" data-stream-mode="live2d" aria-pressed="false" aria-disabled="true" disabled>
                       <span class="broadcast-choice-icon">◇</span>
@@ -79,14 +79,18 @@
                 <section class="broadcast-step" data-wizard-step="2" hidden>
                   <div class="broadcast-step-head">
                     <small>STEP 2 / 4</small>
-                    <h1>背景を選択</h1>
-                    <p>ラジオ画面に使う背景を決めます。</p>
+                    <h1 data-step2-title>背景を選択</h1>
+                    <p data-step2-description>ラジオ画面に使う背景を決めます。</p>
                   </div>
                   <div class="broadcast-background-preview" data-stream-preview>
                     <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
                       
                     </div>
-                    <span>背景プレビュー</span>
+                    <div class="broadcast-scene-character broadcast-standing-preview-layer" data-preview-character-layer hidden>
+                      <img data-standing-preview-image alt="R2から配信用一時コピーへ復元した立ち絵"/>
+                      <span data-preview-character-label>立ち絵を読み込み中</span>
+                    </div>
+                    <span data-background-preview-label>背景プレビュー</span>
                   </div>
                   <div class="broadcast-preset-grid" role="group" aria-label="ラジオ背景">
                     <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-1" aria-pressed="false" style="--preset-color:#000000">
@@ -159,6 +163,7 @@
                       <img src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                     </div>
                     <div class="broadcast-scene-character" data-preview-character-layer hidden>
+                      <img data-standing-preview-image alt="R2から配信用一時コピーへ復元した立ち絵"/>
                       <span data-preview-character-label>配信モデルプレビュー</span>
                     </div>
                     <div class="broadcast-preview-hud">
@@ -197,6 +202,7 @@
                   <img src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                 </div>
                 <div class="broadcast-scene-character" data-live-character-layer hidden>
+                  <img data-standing-preview-image alt="配信中の立ち絵"/>
                   <span data-live-character-label>配信モデル</span>
                 </div>
 
@@ -345,8 +351,8 @@
   </main>
 
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
-  <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260920-standing1"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-likecount1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-standing1"></script>
 </body>
 </html>
