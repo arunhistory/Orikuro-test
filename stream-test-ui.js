@@ -26,6 +26,21 @@ const TEST_METRICS_BASE=Object.freeze({
   giftPoints:2600,
   superchatPoints:800,
 });
+const TEST_LISTENERS=Object.freeze([
+  {name:"テストリスナー 01",fanLevel:7,state:"応援中",background:true},
+  {name:"テストリスナー 02",fanLevel:6,state:"応援中",background:true},
+  {name:"テストリスナー 03",fanLevel:5,state:"初見",background:false},
+  {name:"テストリスナー 04",fanLevel:4,state:"視聴中",background:false},
+  {name:"テストリスナー 05",fanLevel:3,state:"応援中",background:false},
+  {name:"テストリスナー 06",fanLevel:2,state:"視聴中",background:false},
+  {name:"テストリスナー 07",fanLevel:1,state:"初見",background:false},
+  {name:"テストリスナー 08",fanLevel:7,state:"応援中",background:true},
+  {name:"テストリスナー 09",fanLevel:6,state:"視聴中",background:false},
+  {name:"テストリスナー 10",fanLevel:5,state:"応援中",background:false},
+  {name:"テストリスナー 11",fanLevel:3,state:"視聴中",background:false},
+  {name:"テストリスナー 12",fanLevel:2,state:"視聴中",background:false},
+]);
+const SUPPORT_THRESHOLDS=Object.freeze([2000,4000,6000,9000,12000]);
 let testMetrics={...TEST_METRICS_BASE};
 
 function calculateSupportScore(metrics){
@@ -49,6 +64,14 @@ function calculateSupportRank(score){
   return "D";
 }
 
+function nextSupportThreshold(score){
+  const next=SUPPORT_THRESHOLDS.find(value=>value>score)??SUPPORT_THRESHOLDS[SUPPORT_THRESHOLDS.length-1];
+  const previous=[0,...SUPPORT_THRESHOLDS].filter(value=>value<=score).at(-1)??0;
+  const span=Math.max(1,next-previous);
+  const progress=Math.max(0,Math.min(1,(score-previous)/span));
+  return {next,previous,remaining:Math.max(0,next-score),progress};
+}
+
 function calculateEventPoints(score){
   return Math.max(0,Math.floor(score*0.72));
 }
@@ -61,18 +84,93 @@ function formatMetric(value){
   return new Intl.NumberFormat("ja-JP").format(Math.max(0,Math.floor(Number(value)||0)));
 }
 
+function renderTestListeners(){
+  const specialList=document.querySelector("[data-listener-special-list]");
+  const normalList=document.querySelector("[data-listener-list]");
+  const specialSection=document.querySelector("[data-listener-special-section]");
+  if(!(specialList instanceof HTMLOListElement)||!(normalList instanceof HTMLOListElement))return;
+  specialList.replaceChildren();
+  normalList.replaceChildren();
+
+  const append=(listener,list)=>{
+    const item=document.createElement("li");
+    item.className=`fan-level-${listener.fanLevel}${listener.background?" is-background-highlight":""}`;
+
+    const badge=document.createElement("span");
+    badge.className="broadcast-fan-badge";
+    badge.textContent=`Lv.${listener.fanLevel}`;
+
+    const name=document.createElement("span");
+    name.className="broadcast-listener-name";
+    name.textContent=listener.name;
+
+    const state=document.createElement("small");
+    state.className="broadcast-listener-state";
+    state.textContent=listener.state;
+
+    item.append(badge,name,state);
+    list.append(item);
+  };
+
+  const special=TEST_LISTENERS.filter(listener=>listener.background);
+  const normal=TEST_LISTENERS.filter(listener=>!listener.background);
+  special.forEach(listener=>append(listener,specialList));
+  normal.forEach(listener=>append(listener,normalList));
+  if(specialSection instanceof HTMLElement)specialSection.hidden=special.length===0;
+}
+
+function renderEventRanking(eventPoints,eventRank){
+  const list=document.querySelector("[data-event-ranking-list]");
+  if(!(list instanceof HTMLOListElement))return;
+  list.replaceChildren();
+  for(let rank=1;rank<=30;rank+=1){
+    const item=document.createElement("li");
+    if(rank===eventRank)item.classList.add("is-current");
+
+    const no=document.createElement("span");
+    no.className="rank-no";
+    no.textContent=`${rank}位`;
+
+    const name=document.createElement("span");
+    name.className="rank-name";
+    name.textContent=rank===eventRank?"この配信":`テスト配信 ${String(rank).padStart(2,"0")}`;
+
+    const points=document.createElement("span");
+    points.className="rank-points";
+    const value=rank===eventRank?eventPoints:Math.max(0,12330-(rank-1)*300);
+    points.textContent=`${formatMetric(value)}pt`;
+
+    item.append(no,name,points);
+    list.append(item);
+  }
+}
+
 function updateTestMetrics(){
   const score=calculateSupportScore(testMetrics);
   const rank=calculateSupportRank(score);
   const eventPoints=calculateEventPoints(score);
   const eventRank=calculateEventRank(eventPoints);
+  const next=nextSupportThreshold(score);
+
+  // Rank is calculated for the prototype but deliberately not displayed in the live HUD.
+  document.documentElement.dataset.supportRank=rank;
+
   document.querySelectorAll("[data-support-score]").forEach(el=>el.textContent=formatMetric(score));
-  document.querySelectorAll("[data-support-rank]").forEach(el=>el.textContent=rank);
   document.querySelectorAll("[data-event-points]").forEach(el=>el.textContent=formatMetric(eventPoints));
   document.querySelectorAll("[data-event-rank]").forEach(el=>el.textContent=formatMetric(eventRank));
   document.querySelectorAll("[data-listener-count]").forEach(el=>el.textContent=formatMetric(testMetrics.listeners));
   document.querySelectorAll("[data-listener-max]").forEach(el=>el.textContent=formatMetric(testMetrics.maxListeners));
-  document.querySelectorAll("[data-listener-rest]").forEach(el=>el.textContent=formatMetric(Math.max(0,testMetrics.listeners-5)));
+  document.querySelectorAll("[data-support-next]").forEach(el=>el.textContent=formatMetric(next.next));
+  document.querySelectorAll("[data-support-remaining]").forEach(el=>el.textContent=formatMetric(next.remaining));
+  document.querySelectorAll("[data-support-progress-fill]").forEach(el=>{
+    el.style.transform=`scaleX(${next.progress})`;
+  });
+  document.querySelectorAll("[data-support-progress]").forEach(el=>{
+    el.setAttribute("aria-valuenow",String(Math.round(next.progress*100)));
+  });
+
+  renderEventRanking(eventPoints,eventRank);
+  renderTestListeners();
 }
 
 let currentStep=1;
@@ -543,6 +641,10 @@ const liveNotes=document.querySelector("[data-live-notes]");
 const liveMemoToggle=document.querySelector("[data-live-memo-toggle]");
 const liveListenerPanel=document.querySelector("[data-live-listener-panel]");
 const liveListenerToggle=document.querySelector("[data-live-listeners-toggle]");
+const liveSupportPanel=document.querySelector("[data-live-support-panel]");
+const liveSupportToggle=document.querySelector("[data-live-support-toggle]");
+const liveRankingPanel=document.querySelector("[data-live-ranking-panel]");
+const liveEventToggle=document.querySelector("[data-live-event-toggle]");
 const liveSubtitleForm=document.querySelector("[data-live-subtitle-form]");
 const liveSubtitleInput=document.querySelector("[data-live-subtitle-input]");
 let liveNoteSequence=0;
@@ -727,9 +829,37 @@ function clearLiveNotes(){
 
 liveMemoToggle?.addEventListener("click",()=>createLiveNote());
 
+function closeLivePanels(except=null){
+  [liveSupportPanel,liveRankingPanel,liveListenerPanel].forEach(panel=>{
+    if(panel instanceof HTMLElement&&panel!==except)panel.hidden=true;
+  });
+}
+
+liveSupportToggle?.addEventListener("click",()=>{
+  if(!(liveSupportPanel instanceof HTMLElement))return;
+  const opening=liveSupportPanel.hidden;
+  closeLivePanels(opening?liveSupportPanel:null);
+  liveSupportPanel.hidden=!opening;
+});
+document.querySelector("[data-live-support-close]")?.addEventListener("click",()=>{
+  if(liveSupportPanel instanceof HTMLElement)liveSupportPanel.hidden=true;
+});
+
+liveEventToggle?.addEventListener("click",()=>{
+  if(!(liveRankingPanel instanceof HTMLElement))return;
+  const opening=liveRankingPanel.hidden;
+  closeLivePanels(opening?liveRankingPanel:null);
+  liveRankingPanel.hidden=!opening;
+});
+document.querySelector("[data-live-ranking-close]")?.addEventListener("click",()=>{
+  if(liveRankingPanel instanceof HTMLElement)liveRankingPanel.hidden=true;
+});
+
 liveListenerToggle?.addEventListener("click",()=>{
   if(!(liveListenerPanel instanceof HTMLElement))return;
-  liveListenerPanel.hidden=!liveListenerPanel.hidden;
+  const opening=liveListenerPanel.hidden;
+  closeLivePanels(opening?liveListenerPanel:null);
+  liveListenerPanel.hidden=!opening;
 });
 document.querySelector("[data-live-listeners-close]")?.addEventListener("click",()=>{
   if(liveListenerPanel instanceof HTMLElement)liveListenerPanel.hidden=true;
@@ -737,6 +867,7 @@ document.querySelector("[data-live-listeners-close]")?.addEventListener("click",
 
 document.querySelector("[data-live-subtitle-edit]")?.addEventListener("click",()=>{
   if(!(liveSubtitleForm instanceof HTMLFormElement)||!(liveSubtitleInput instanceof HTMLInputElement))return;
+  closeLivePanels();
   liveSubtitleInput.value=streamSubtitleValue();
   liveSubtitleForm.hidden=false;
   requestAnimationFrame(()=>liveSubtitleInput.focus({preventScroll:true}));
@@ -843,7 +974,7 @@ window.addEventListener("orikuro:stream-live",()=>{
   clearLiveNotes();
   testMetrics={...TEST_METRICS_BASE};
   updateTestMetrics();
-  if(liveListenerPanel instanceof HTMLElement)liveListenerPanel.hidden=true;
+  closeLivePanels();
   if(liveSubtitleForm instanceof HTMLFormElement)liveSubtitleForm.hidden=true;
   const micToggle=document.querySelector("[data-mic-test-toggle]");
   if(micToggle instanceof HTMLButtonElement){
