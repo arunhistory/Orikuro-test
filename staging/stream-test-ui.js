@@ -22,6 +22,7 @@ const TEST_METRICS_BASE=Object.freeze({
   comments:38,
   follows:3,
   shares:6,
+  likes:128,
   newListeners:5,
   giftPoints:2600,
   superchatPoints:800,
@@ -259,6 +260,7 @@ function updateTestMetrics(){
   document.querySelectorAll("[data-event-rank]").forEach(el=>el.textContent=formatMetric(eventRank));
   document.querySelectorAll("[data-listener-count]").forEach(el=>el.textContent=formatMetric(testMetrics.listeners));
   document.querySelectorAll("[data-listener-max]").forEach(el=>el.textContent=formatMetric(testMetrics.maxListeners));
+  document.querySelectorAll("[data-like-count]").forEach(el=>el.textContent=formatMetric(testMetrics.likes));
 
   renderScoreZones(score);
   renderEventRanking(eventPoints,eventRank);
