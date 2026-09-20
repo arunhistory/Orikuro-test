@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-bg1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-wizard1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -29,85 +29,164 @@
               <span class="broadcast-header-spacer" aria-hidden="true"></span>
             </header>
 
-            <section class="broadcast-preview" data-stream-preview>
-              <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
-                <img data-radio-background-image alt="" hidden/>
-              </div>
-              <div class="broadcast-preview-glow" aria-hidden="true"></div>
-              <button class="broadcast-background-button" type="button" data-background-open>背景</button>
-              <div class="broadcast-character">
-                <div class="broadcast-avatar-frame">
-                  <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
-                </div>
-                <h1 class="broadcast-preview-title" data-stream-preview-title>ラジオ</h1>
-                <p class="broadcast-preview-copy" data-stream-preview-copy>音声だけで配信します。</p>
-              </div>
+            <section class="broadcast-wizard" data-broadcast-wizard>
+              <nav class="broadcast-progress" aria-label="配信準備の進行状況">
+                <span data-progress-step="1"><b>1</b><small>形式</small></span>
+                <i></i>
+                <span data-progress-step="2"><b>2</b><small>背景</small></span>
+                <i></i>
+                <span data-progress-step="3"><b>3</b><small>立ち絵</small></span>
+                <i></i>
+                <span data-progress-step="4"><b>4</b><small>詳細</small></span>
+                <i></i>
+                <span data-progress-step="5"><b>5</b><small>開始</small></span>
+              </nav>
 
-              <div class="broadcast-status-pill">
-                <span class="broadcast-live-dot" aria-hidden="true"></span>
-                <span data-stream-status data-realtime-status>準備中</span>
-                <span class="broadcast-timer" data-stream-clock>00:00</span>
-              </div>
-            </section>
-
-            <section class="broadcast-controls">
-              <div class="broadcast-mode-tabs" role="group" aria-label="配信方式">
-                <button class="stream-mode-option is-selected" type="button" data-stream-mode="radio" aria-pressed="true">
-                  <strong>ラジオ</strong><span>音声のみ</span>
-                </button>
-                <button class="stream-mode-option" type="button" data-stream-mode="standing" aria-pressed="false" disabled>
-                  <strong>立ち絵</strong><span>準備中</span>
-                </button>
-              </div>
-
-              <div class="broadcast-mic-test" data-mic-test data-state="waiting" hidden>
-                <div class="broadcast-mic-head">
-                  <strong>マイクテスト</strong>
-                  <span data-mic-path-status>配信開始後に確認</span>
-                </div>
-                <div class="broadcast-mic-meter" data-mic-meter role="meter" aria-label="リスナー送出音声レベル" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                  <span data-mic-meter-fill></span>
-                </div>
-                <small>リスナー配信経路を通過した音声を監視</small>
-              </div>
-
-              <p class="stream-start-feedback" data-stream-feedback role="status" aria-live="polite">マイクを使って音声だけで配信します。</p>
-
-              <div class="broadcast-primary-actions">
-                <button class="stream-control stream-control-primary" type="button" data-stream-start data-audio-start disabled>ラジオ配信スタート</button>
-                <button class="stream-control stream-control-stop" type="button" data-audio-stop disabled>配信を終了</button>
-              </div>
-
-              <div class="broadcast-background-sheet" data-background-sheet hidden>
-                <button class="broadcast-background-backdrop" type="button" data-background-close aria-label="背景設定を閉じる"></button>
-                <section class="broadcast-background-panel" role="dialog" aria-modal="true" aria-labelledby="background-title">
-                  <div class="broadcast-background-panel-head">
-                    <strong id="background-title">ラジオ背景</strong>
-                    <button type="button" data-background-close aria-label="閉じる">×</button>
+              <div class="broadcast-step-area">
+                <section class="broadcast-step" data-wizard-step="1">
+                  <div class="broadcast-step-head">
+                    <small>STEP 1 / 5</small>
+                    <h1>配信形式を選択</h1>
+                    <p>最初に配信の種類を決めます。</p>
                   </div>
-                  <div class="broadcast-background-actions">
-                    <button class="broadcast-background-choice is-selected" type="button" data-background-default>
+                  <div class="broadcast-choice-grid">
+                    <button class="broadcast-choice" type="button" data-stream-mode="radio" aria-pressed="false">
+                      <span class="broadcast-choice-icon">◉</span>
+                      <strong>ラジオ</strong>
+                      <small>音声を中心に配信</small>
+                    </button>
+                    <button class="broadcast-choice" type="button" data-stream-mode="standing" aria-pressed="false" disabled>
+                      <span class="broadcast-choice-icon">♙</span>
+                      <strong>立ち絵配信</strong>
+                      <small>準備中</small>
+                    </button>
+                  </div>
+                </section>
+
+                <section class="broadcast-step" data-wizard-step="2" hidden>
+                  <div class="broadcast-step-head">
+                    <small>STEP 2 / 5</small>
+                    <h1>背景を選択</h1>
+                    <p>ラジオ画面に使う背景を決めます。</p>
+                  </div>
+                  <div class="broadcast-background-preview" data-stream-preview>
+                    <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
+                      <img data-radio-background-image alt="" hidden/>
+                    </div>
+                    <span>背景プレビュー</span>
+                  </div>
+                  <div class="broadcast-choice-grid broadcast-choice-grid-compact">
+                    <button class="broadcast-choice" type="button" data-background-default aria-pressed="false">
                       <span class="broadcast-background-swatch" aria-hidden="true"></span>
                       <strong>標準背景</strong>
                     </button>
-                    <label class="broadcast-background-choice" data-background-custom-label>
+                    <label class="broadcast-choice" data-background-custom-label>
                       <span class="broadcast-background-photo" aria-hidden="true">＋</span>
                       <strong>端末から選択</strong>
                       <input type="file" accept="image/*" data-background-file hidden/>
                     </label>
                   </div>
-                  <p class="broadcast-background-note">選んだ画像はこの端末内だけでプレビューします。</p>
+                </section>
+
+                <section class="broadcast-step" data-wizard-step="3" hidden>
+                  <div class="broadcast-step-head">
+                    <small>STEP 3 / 5</small>
+                    <h1>立ち絵を選択</h1>
+                    <p>ラジオ配信では立ち絵を使わない設定にできます。</p>
+                  </div>
+                  <div class="broadcast-choice-grid">
+                    <button class="broadcast-choice" type="button" data-standing-choice="none" aria-pressed="false">
+                      <span class="broadcast-choice-icon">—</span>
+                      <strong>立ち絵なし</strong>
+                      <small>ラジオ背景のみ</small>
+                    </button>
+                    <button class="broadcast-choice" type="button" data-standing-choice="character" aria-pressed="false" disabled>
+                      <span class="broadcast-choice-icon">♙</span>
+                      <strong>立ち絵を使う</strong>
+                      <small>2.5D Character Engine 準備中</small>
+                    </button>
+                  </div>
+                </section>
+
+                <section class="broadcast-step" data-wizard-step="4" hidden>
+                  <div class="broadcast-step-head">
+                    <small>STEP 4 / 5</small>
+                    <h1>詳細設定</h1>
+                    <p>配信開始前に設定内容を確認します。</p>
+                  </div>
+                  <div class="broadcast-detail-list">
+                    <div><span>配信形式</span><strong data-summary-mode>未選択</strong></div>
+                    <div><span>背景</span><strong data-summary-background>未選択</strong></div>
+                    <div><span>立ち絵</span><strong data-summary-standing>未選択</strong></div>
+                    <div><span>音声</span><strong>端末マイク</strong></div>
+                    <div><span>到達確認</span><strong>配信中のみ表示</strong></div>
+                  </div>
+                </section>
+
+                <section class="broadcast-step" data-wizard-step="5" hidden>
+                  <div class="broadcast-step-head">
+                    <small>STEP 5 / 5</small>
+                    <h1>配信を開始</h1>
+                    <p>準備内容を確認して配信を開始します。</p>
+                  </div>
+                  <div class="broadcast-final-preview">
+                    <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
+                      <img data-radio-background-image alt="" hidden/>
+                    </div>
+                    <div class="broadcast-final-center">
+                      <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
+                      <strong data-stream-preview-title>ラジオ</strong>
+                      <small data-stream-preview-copy>音声だけで配信します。</small>
+                    </div>
+                  </div>
+                  <p class="stream-start-feedback" data-stream-feedback role="status" aria-live="polite">配信開始の準備ができています。</p>
                 </section>
               </div>
 
-              <div class="broadcast-debug-state" aria-hidden="true">
-                <span data-stream-state="transport">確認中</span>
-                <span data-stream-state="session">待機中</span>
-                <span data-stream-state="composition">対象外</span>
-                <span data-stream-state="audio" data-audio-status>待機中</span>
-                <span data-stream-state="output">待機中</span>
+              <footer class="broadcast-wizard-footer">
+                <button class="broadcast-nav broadcast-nav-back" type="button" data-wizard-back hidden>戻る</button>
+                <button class="broadcast-nav broadcast-nav-next" type="button" data-wizard-next disabled>次へ</button>
+                <button class="stream-control stream-control-primary" type="button" data-stream-start data-audio-start hidden disabled>ラジオ配信スタート</button>
+              </footer>
+            </section>
+
+            <section class="broadcast-live-screen" data-live-screen hidden>
+              <div class="broadcast-live-preview">
+                <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
+                  <img data-radio-background-image alt="" hidden/>
+                </div>
+                <div class="broadcast-live-center">
+                  <img src="./assets/oc-symbol-user.jpg" alt="Original Create"/>
+                  <strong>ラジオ配信</strong>
+                  <span class="broadcast-live-status">
+                    <i></i><span data-stream-status data-realtime-status>配信中</span>
+                    <b data-stream-clock>00:00</b>
+                  </span>
+                </div>
+              </div>
+
+              <div class="broadcast-live-controls">
+                <div class="broadcast-mic-test" data-mic-test data-state="waiting" hidden>
+                  <div class="broadcast-mic-head">
+                    <strong>マイクテスト</strong>
+                    <span data-mic-path-status>配信開始後に確認</span>
+                  </div>
+                  <div class="broadcast-mic-meter" data-mic-meter role="meter" aria-label="リスナー送出音声レベル" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <span data-mic-meter-fill></span>
+                  </div>
+                  <small>リスナー配信経路を通過した音声を監視</small>
+                </div>
+                <button class="stream-control stream-control-stop" type="button" data-audio-stop disabled>配信を終了</button>
               </div>
             </section>
+
+            <div class="broadcast-debug-state" aria-hidden="true">
+              <span data-stream-state="transport">確認中</span>
+              <span data-stream-state="session">待機中</span>
+              <span data-stream-state="composition">対象外</span>
+              <span data-stream-state="audio" data-audio-status>待機中</span>
+              <span data-stream-state="output">待機中</span>
+            </div>
           </div>
         </section>
       </article>
@@ -117,6 +196,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-stop1"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-mic2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-bg1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-wizard1"></script>
 </body>
 </html>
