@@ -1,6 +1,7 @@
 import { clearStreamRealtimeGrant, getStreamRealtimeGrant } from './realtime-grant.js';
 
 const WARNING_LEAD_MS = 2 * 60_000;
+const STOP_LEAD_MS = 5_000;
 
 let warningTimer: number | null = null;
 let endTimer: number | null = null;
@@ -31,6 +32,11 @@ function forceHome(): void {
   location.replace('./index.html');
 }
 
+function requestTimedStop(): void {
+  if (stopped) return;
+  window.dispatchEvent(new CustomEvent('orikuro:stream-stop-request', { detail: { reason: 'time_limit' } }));
+}
+
 function scheduleLifecycle(): void {
   if (stopped) return;
   clearTimers();
@@ -50,6 +56,8 @@ function scheduleLifecycle(): void {
   } else {
     warningTimer = window.setTimeout(showWarning, warningDelay);
   }
+  const stopDelay = Math.max(0, endDelay - STOP_LEAD_MS);
+  window.setTimeout(requestTimedStop, stopDelay);
   endTimer = window.setTimeout(forceHome, endDelay);
 }
 
@@ -59,6 +67,10 @@ function serviceReady(): boolean {
 }
 
 document.addEventListener('orikuro:service-ready', scheduleLifecycle, { once: true });
+window.addEventListener('orikuro:stream-ended', () => {
+  stopped = true;
+  clearTimers();
+}, { once: true });
 if (serviceReady()) scheduleLifecycle();
 window.addEventListener('pagehide', () => {
   stopped = true;

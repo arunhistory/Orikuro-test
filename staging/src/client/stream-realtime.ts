@@ -59,6 +59,8 @@ let audioWorklet: AudioWorkletNode | null = null;
 let silentGain: GainNode | null = null;
 let audioPerfOriginMs = 0;
 let streamStartedAtPerfMs = 0;
+let stopPromise: Promise<boolean> | null = null;
+let serverStopped = false;
 
 let videoSocket: WebSocket | null = null;
 let videoStream: MediaStream | null = null;
@@ -575,11 +577,11 @@ async function startVideo(current: StreamRealtimeGrant): Promise<void> {
   window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
 }
 
-async function requestServerStop(keepalive = false): Promise<void> {
-  const current = grant;
-  if (!current) return;
+async function requestServerStop(keepalive = false): Promise<boolean> {
+  const current = grant ?? getStreamRealtimeGrant();
+  if (!current) return true;
   try {
-    await fetch(FLOW_URL, {
+    const response = await fetch(FLOW_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -592,7 +594,16 @@ async function requestServerStop(keepalive = false): Promise<void> {
       referrerPolicy: 'no-referrer',
       keepalive,
     });
-  } catch {}
+    const payload = objectValue(await response.json().catch(() => null));
+    const result = objectValue(payload?.result);
+    return response.ok
+      && payload?.ok === true
+      && result?.streamId === current.streamId
+      && result?.cloudflareStopped === true
+      && result?.northflankRevoked === true;
+  } catch {
+    return false;
+  }
 }
 
 async function startStreaming(mode: string): Promise<void> {
@@ -618,68 +629,97 @@ async function startStreaming(mode: string): Promise<void> {
   } catch (error) {
     const message = startErrorMessage(error);
     setText('[data-realtime-status]', message);
-    await stopStreaming(false);
-    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
+    const cleaned = await stopStreaming(true);
+    const finalMessage = cleaned ? message : `${message} 配信セッションの終了確認にも失敗しました。もう一度「配信を終了」を押してください。`;
+    setText('[data-realtime-status]', finalMessage);
+    window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message: finalMessage } }));
   }
 }
 
-async function stopStreaming(notifyServer: boolean): Promise<void> {
-  const wasActive = streamWanted;
-  streamWanted = false;
+async function stopStreaming(notifyServer: boolean, endReason: string | null = null): Promise<boolean> {
+  if (stopPromise) return await stopPromise;
+  stopPromise = (async () => {
+    const current = grant ?? getStreamRealtimeGrant();
+    const shouldNotify = notifyServer && !!current && !serverStopped;
+    streamWanted = false;
 
-  if (videoTimer !== null) { clearInterval(videoTimer); videoTimer = null; }
-  if (videoEncoder) {
-    try { videoEncoder.close(); } catch {}
-    videoEncoder = null;
-  }
-  h264ParameterSets = null;
-  if (videoSocket) {
-    try { videoSocket.close(1000, 'publisher stop'); } catch {}
-    videoSocket = null;
-  }
-  if (videoStream) {
-    videoStream.getTracks().forEach((track) => track.stop());
-    videoStream = null;
-  }
-  if (videoElement) {
-    videoElement.srcObject = null;
-    videoElement = null;
-  }
-  videoCanvas = null;
-  videoContext = null;
+    if (videoTimer !== null) { clearInterval(videoTimer); videoTimer = null; }
+    if (videoEncoder) {
+      try { videoEncoder.close(); } catch {}
+      videoEncoder = null;
+    }
+    h264ParameterSets = null;
+    if (videoSocket) {
+      try { videoSocket.close(1000, 'publisher stop'); } catch {}
+      videoSocket = null;
+    }
+    if (videoStream) {
+      videoStream.getTracks().forEach((track) => track.stop());
+      videoStream = null;
+    }
+    if (videoElement) {
+      videoElement.srcObject = null;
+      videoElement = null;
+    }
+    videoCanvas = null;
+    videoContext = null;
 
-  if (audioWorklet) {
-    audioWorklet.port.onmessage = null;
-    try { audioWorklet.disconnect(); } catch {}
-    audioWorklet = null;
+    if (audioWorklet) {
+      audioWorklet.port.onmessage = null;
+      try { audioWorklet.disconnect(); } catch {}
+      audioWorklet = null;
+    }
+    if (silentGain) {
+      try { silentGain.disconnect(); } catch {}
+      silentGain = null;
+    }
+    if (audioSocket) {
+      try { audioSocket.close(1000, 'audio stopped'); } catch {}
+      audioSocket = null;
+    }
+    audioAuthenticated = false;
+    if (audioStream) {
+      audioStream.getTracks().forEach((track) => track.stop());
+      audioStream = null;
+    }
+    if (audioContext) {
+      await audioContext.close().catch(() => undefined);
+      audioContext = null;
+    }
+
+    if (shouldNotify) {
+      setText('[data-realtime-status]', '配信を終了しています…');
+      const stopped = await requestServerStop(false);
+      if (!stopped) {
+        setText('[data-realtime-status]', '配信終了を確認できませんでした。もう一度終了してください。');
+        window.dispatchEvent(new CustomEvent('orikuro:stream-stop-failed'));
+        return false;
+      }
+      serverStopped = true;
+      clearStreamRealtimeGrant();
+      grant = null;
+    }
+
+    setText('[data-audio-status]', '待機中');
+    setText('[data-stream-state="output"]', '待機中');
+
+    if (endReason) {
+      window.dispatchEvent(new CustomEvent('orikuro:stream-ended', { detail: { reason: endReason } }));
+    }
+    return true;
+  })();
+  try {
+    return await stopPromise;
+  } finally {
+    stopPromise = null;
   }
-  if (silentGain) {
-    try { silentGain.disconnect(); } catch {}
-    silentGain = null;
-  }
-  if (audioSocket) {
-    try { audioSocket.close(1000, 'audio stopped'); } catch {}
-    audioSocket = null;
-  }
-  audioAuthenticated = false;
-  if (audioStream) {
-    audioStream.getTracks().forEach((track) => track.stop());
-    audioStream = null;
-  }
-  if (audioContext) {
-    await audioContext.close().catch(() => undefined);
-    audioContext = null;
-  }
-  if (notifyServer && wasActive) await requestServerStop();
-  setText('[data-audio-status]', '待機中');
-  setText('[data-stream-state="output"]', '待機中');
 }
 
 function bindUI(): void {
   const stop = document.querySelector<HTMLButtonElement>('[data-audio-stop]');
   const form = document.querySelector<HTMLFormElement>('[data-comment-form]');
   const input = document.querySelector<HTMLInputElement>('[data-comment-input]');
-  stop?.addEventListener('click', () => { void stopStreaming(true); });
+  stop?.addEventListener('click', () => { void stopStreaming(true, 'user_stop'); });
   form?.addEventListener('submit', (event) => {
     event.preventDefault();
     if (input) {
@@ -691,6 +731,11 @@ function bindUI(): void {
     const detail = objectValue((event as CustomEvent).detail);
     const mode = typeof detail?.mode === 'string' ? detail.mode : 'radio';
     void startStreaming(mode);
+  });
+  window.addEventListener('orikuro:stream-stop-request', (event) => {
+    const detail = objectValue((event as CustomEvent).detail);
+    const reason = typeof detail?.reason === 'string' && detail.reason ? detail.reason : 'stopped';
+    void stopStreaming(true, reason);
   });
 }
 
@@ -721,8 +766,17 @@ function shutdown(): void {
   if (commentsSocket && commentsSocket.readyState < WebSocket.CLOSING) commentsSocket.close(1000, 'page closed');
   commentsSocket = null;
   void stopStreaming(false);
-  if (grant) void requestServerStop(true);
-  clearStreamRealtimeGrant();
+  if (!serverStopped && (grant ?? getStreamRealtimeGrant())) {
+    void requestServerStop(true).then((ok) => {
+      if (!ok) return;
+      serverStopped = true;
+      clearStreamRealtimeGrant();
+      grant = null;
+    });
+  } else {
+    clearStreamRealtimeGrant();
+    grant = null;
+  }
 }
 
 document.addEventListener('orikuro:service-ready', () => { void startRealtime(); }, { once: true });
