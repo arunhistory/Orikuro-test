@@ -21,6 +21,7 @@ let standingChoice="";
 let selectedAudioInputDeviceId="";
 let micDevicesKnown=false;
 let micPermissionConfirmed=false;
+let micPermissionRequest=null;
 let grantReady=false;
 let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
 let startedAt=0;
@@ -249,7 +250,12 @@ async function applyMode(mode){
   updateWizard();
   window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 
-  if(!micReady())await refreshAudioInputs(true);
+  if(!micReady()){
+    if(!micPermissionRequest){
+      micPermissionRequest=refreshAudioInputs(true).finally(()=>{micPermissionRequest=null;});
+    }
+    await micPermissionRequest;
+  }
 }
 
 function applyBackgroundPreset(presetId){
