@@ -103,6 +103,19 @@ function stopClock(){
   timer=0;
 }
 
+function setMicMonitor(level=0,status="配信開始後に確認",state="waiting"){
+  const fill=document.querySelector("[data-mic-meter-fill]");
+  const value=document.querySelector("[data-mic-meter]");
+  const label=document.querySelector("[data-mic-path-status]");
+  const monitor=document.querySelector("[data-mic-test]");
+  const normalized=Math.max(0,Math.min(1,Number(level)||0));
+  if(fill)fill.style.transform=`scaleX(${normalized})`;
+  if(value)value.setAttribute("aria-valuenow",String(Math.round(normalized*100)));
+  if(label)label.textContent=status;
+  if(monitor)monitor.dataset.state=state;
+}
+setMicMonitor();
+
 document.addEventListener("orikuro:system-access-ready",()=>{
   systemAccessReady=true;
   setState("session","開始時に接続","ready");
@@ -121,6 +134,15 @@ window.addEventListener("orikuro:transport-ready",()=>{
 });
 window.addEventListener("orikuro:composition-ready",()=>setState("composition","準備完了","ready"));
 window.addEventListener("orikuro:audio-ready",()=>setState("audio","準備完了","ready"));
+window.addEventListener("orikuro:audio-path-waiting",()=>setMicMonitor(0,"配信経路を確認中…","working"));
+window.addEventListener("orikuro:audio-path-ready",()=>setMicMonitor(0,"配信経路 OK","ready"));
+window.addEventListener("orikuro:audio-meter",event=>{
+  const detail=event?.detail||{};
+  const level=Number(detail.level)||0;
+  const acknowledged=detail.pathAcknowledged===true;
+  setMicMonitor(level,acknowledged?"配信経路 OK":"送出確認中…",acknowledged?"ready":"working");
+});
+window.addEventListener("orikuro:audio-meter-reset",()=>setMicMonitor());
 window.addEventListener("orikuro:output-ready",()=>{
   outputReady=true;
   setState("output","送出可能","ready");
@@ -147,6 +169,7 @@ window.addEventListener("orikuro:stream-start-failed",event=>{
 });
 window.addEventListener("orikuro:stream-stop-failed",()=>{
   document.documentElement.dataset.broadcastPhase="live";
+  setMicMonitor(0,"終了確認に失敗","error");
   setFeedback("配信終了を確認できませんでした。もう一度終了してください。","error");
   const stop=document.querySelector("[data-audio-stop]");
   if(stop)stop.disabled=false;

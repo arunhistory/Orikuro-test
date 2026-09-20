@@ -19,6 +19,8 @@ const MAX_AUDIO_BUFFERED_BYTES = 512 * 1024;
 const MAX_VIDEO_BUFFERED_BYTES = 2 * 1024 * 1024;
 const MAX_COMMENT_BYTES = 4096;
 const MAX_RECONNECT_DELAY_MS = 2_000;
+const AUDIO_ACK_TIMEOUT_MS = 5_000;
+const AUDIO_METER_INTERVAL_MS = 80;
 const WORKLET_URL = './assets/js/stream-audio-worklet.js?v=20260919-audio3';
 const TARGET_WIDTH = 640;
 const TARGET_HEIGHT = 360;
@@ -59,6 +61,8 @@ let audioWorklet: AudioWorkletNode | null = null;
 let silentGain: GainNode | null = null;
 let audioPerfOriginMs = 0;
 let streamStartedAtPerfMs = 0;
+let lastAudioMeterEmitMs = 0;
+let audioPathAcknowledged = false;
 let stopPromise: Promise<boolean> | null = null;
 let serverStopped = false;
 
@@ -94,6 +98,7 @@ function startErrorMessage(error: unknown): string {
   const code = error instanceof Error ? error.message : '';
   if (code === 'AUDIO_CAPTURE_UNAVAILABLE') return 'このブラウザはマイク配信に対応していません。';
   if (code === 'WEBSOCKET_TIMEOUT') return '音声サーバーへの接続がタイムアウトしました。';
+  if (code === 'AUDIO_DELIVERY_ACK_TIMEOUT') return '音声が配信経路へ届いたことを確認できませんでした。';
   return code ? `配信開始エラー: ${code}` : '配信を開始できませんでした。';
 }
 
@@ -239,6 +244,35 @@ function buildAudioPacket(packet: WorkletPacket): ArrayBuffer | null {
   return buffer;
 }
 
+function audioMeterLevel(packet: WorkletPacket): number {
+  let sum = 0;
+  let count = 0;
+  for (const plane of packet.planes) {
+    for (let i = 0; i < plane.length; i++) {
+      const sample = Number.isFinite(plane[i]) ? Math.max(-1, Math.min(1, plane[i])) : 0;
+      sum += sample * sample;
+      count++;
+    }
+  }
+  if (count === 0) return 0;
+  const rms = Math.sqrt(sum / count);
+  const db = 20 * Math.log10(Math.max(rms, 0.00001));
+  return Math.max(0, Math.min(1, (db + 60) / 60));
+}
+
+function emitAudioMeter(packet: WorkletPacket): void {
+  const now = performance.now();
+  if (now - lastAudioMeterEmitMs < AUDIO_METER_INTERVAL_MS) return;
+  lastAudioMeterEmitMs = now;
+  window.dispatchEvent(new CustomEvent('orikuro:audio-meter', {
+    detail: {
+      level: audioMeterLevel(packet),
+      sequence: audioSequence,
+      pathAcknowledged: audioPathAcknowledged,
+    },
+  }));
+}
+
 function sendAudioPacket(packet: WorkletPacket): void {
   if (!streamWanted || !audioAuthenticated || !audioSocket || audioSocket.readyState !== WebSocket.OPEN) return;
   if (audioSocket.bufferedAmount > MAX_AUDIO_BUFFERED_BYTES) {
@@ -253,6 +287,7 @@ function sendAudioPacket(packet: WorkletPacket): void {
     return;
   }
   audioSocket.send(encoded);
+  emitAudioMeter(packet);
 }
 
 function waitOpen(socket: WebSocket): Promise<void> {
@@ -265,6 +300,30 @@ function waitOpen(socket: WebSocket): Promise<void> {
 
 async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
   if (audioSocket && audioSocket.readyState < WebSocket.CLOSING) return;
+  audioPathAcknowledged = false;
+  window.dispatchEvent(new CustomEvent('orikuro:audio-path-waiting'));
+
+  let ackResolve: (() => void) | null = null;
+  let ackReject: ((error: Error) => void) | null = null;
+  let ackSettled = false;
+  const ackPromise = new Promise<void>((resolve, reject) => {
+    ackResolve = resolve;
+    ackReject = reject;
+  });
+  const ackTimer = window.setTimeout(() => {
+    if (ackSettled) return;
+    ackSettled = true;
+    ackReject?.(new Error('AUDIO_DELIVERY_ACK_TIMEOUT'));
+  }, AUDIO_ACK_TIMEOUT_MS);
+
+  const settleAck = (error: Error | null = null): void => {
+    if (ackSettled) return;
+    ackSettled = true;
+    clearTimeout(ackTimer);
+    if (error) ackReject?.(error);
+    else ackResolve?.();
+  };
+
   const socket = new WebSocket(current.audioWebSocketUrl, [AUDIO_SUBPROTOCOL, `bearer.${current.publisherCapability}`]);
   audioSocket = socket;
   socket.binaryType = 'arraybuffer';
@@ -274,10 +333,17 @@ async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
     if (!payload) return;
     if (payload.type === 'audio_ack') {
       audioAuthenticated = true;
+      if (!audioPathAcknowledged) {
+        audioPathAcknowledged = true;
+        window.dispatchEvent(new CustomEvent('orikuro:audio-path-ready'));
+      }
+      settleAck();
       setText('[data-audio-status]', 'マイク送信中');
       window.dispatchEvent(new CustomEvent('orikuro:audio-ready'));
     } else if (payload.type === 'audio_error') {
-      setText('[data-audio-status]', typeof payload.code === 'string' ? `音声エラー: ${payload.code}` : '音声エラー');
+      const code = typeof payload.code === 'string' ? payload.code : 'AUDIO_ERROR';
+      settleAck(new Error(code));
+      setText('[data-audio-status]', `音声エラー: ${code}`);
       void stopStreaming(true);
     }
   });
@@ -285,13 +351,19 @@ async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
     if (socket !== audioSocket) return;
     audioSocket = null;
     audioAuthenticated = false;
+    audioPathAcknowledged = false;
+    settleAck(new Error('AUDIO_SOCKET_CLOSED'));
+    window.dispatchEvent(new CustomEvent('orikuro:audio-meter-reset'));
     if (streamWanted && !pageStopping) {
       setText('[data-audio-status]', '音声接続が終了しました。');
       void stopStreaming(true);
     }
   });
   await waitOpen(socket);
+  // The first real PCM packet must be allowed out so the server can acknowledge
+  // the exact delivery path used by listeners.
   audioAuthenticated = true;
+  await ackPromise;
 }
 
 async function startAudio(current: StreamRealtimeGrant): Promise<void> {
@@ -688,6 +760,9 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
       audioSocket = null;
     }
     audioAuthenticated = false;
+    audioPathAcknowledged = false;
+    lastAudioMeterEmitMs = 0;
+    window.dispatchEvent(new CustomEvent('orikuro:audio-meter-reset'));
     if (audioStream) {
       audioStream.getTracks().forEach((track) => track.stop());
       audioStream = null;

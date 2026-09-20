@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-app4"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-mic1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -55,6 +55,17 @@
                 </button>
               </div>
 
+              <div class="broadcast-mic-test" data-mic-test data-state="waiting">
+                <div class="broadcast-mic-head">
+                  <strong>マイクテスト</strong>
+                  <span data-mic-path-status>配信開始後に確認</span>
+                </div>
+                <div class="broadcast-mic-meter" data-mic-meter role="meter" aria-label="リスナー送出音声レベル" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <span data-mic-meter-fill></span>
+                </div>
+                <small>リスナーへ送る実際の音声データを監視</small>
+              </div>
+
               <p class="stream-start-feedback" data-stream-feedback role="status" aria-live="polite">マイクを使って音声だけで配信します。</p>
 
               <div class="broadcast-primary-actions">
@@ -77,8 +88,8 @@
   </main>
 
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
-  <script type="module" src="./assets/js/stream-realtime.js?v=20260920-stop1"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260920-mic1"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-stop1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-mic1"></script>
 </body>
 </html>
