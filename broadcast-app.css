@@ -409,3 +409,147 @@ html[data-broadcast-phase="live"] .stream-start-feedback{margin-top:0}
 /* mic3: delivery meter is a live-session diagnostic, never a prep control */
 .broadcast-mic-test[hidden]{display:none!important}
 html:not([data-broadcast-phase="live"]) .broadcast-mic-test{display:none!important}
+
+/* bg1: radio background selector is a prep-only fixed overlay */
+.broadcast-radio-background{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 35%,rgba(255,91,131,.16),transparent 42%),
+    radial-gradient(circle at 45% 55%,rgba(139,103,255,.26),transparent 62%),
+    linear-gradient(180deg,#151827 0%,#0e101a 100%);
+}
+.broadcast-radio-background::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg,rgba(8,9,15,.08),rgba(8,9,15,.32));
+  pointer-events:none;
+}
+.broadcast-radio-background img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.broadcast-preview-glow{z-index:1}
+.broadcast-background-button{
+  position:absolute;
+  z-index:6;
+  top:10px;
+  right:12px;
+  min-width:54px;
+  height:34px;
+  padding:0 12px;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:999px;
+  background:rgba(0,0,0,.30);
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  backdrop-filter:blur(12px);
+}
+html[data-broadcast-phase="starting"] .broadcast-background-button,
+html[data-broadcast-phase="live"] .broadcast-background-button{display:none}
+
+.broadcast-background-sheet{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:hidden;
+}
+.broadcast-background-sheet[hidden]{display:none!important}
+.broadcast-background-backdrop{
+  position:absolute;
+  inset:0;
+  border:0;
+  background:rgba(4,5,9,.58);
+}
+.broadcast-background-panel{
+  position:relative;
+  z-index:1;
+  width:min(100%,430px);
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius:22px 22px 0 0;
+  background:#1a1d2a;
+  box-shadow:0 -18px 46px rgba(0,0,0,.32);
+}
+.broadcast-background-panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.broadcast-background-panel-head strong{
+  font-size:16px;
+  font-weight:950;
+}
+.broadcast-background-panel-head button{
+  width:34px;
+  height:34px;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  font-size:21px;
+}
+.broadcast-background-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-top:12px;
+}
+.broadcast-background-choice{
+  min-width:0;
+  min-height:86px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  background:#222635;
+  color:#fff;
+  text-align:center;
+  cursor:pointer;
+}
+button.broadcast-background-choice{appearance:none}
+.broadcast-background-choice.is-selected{
+  border-color:rgba(255,91,131,.62);
+  box-shadow:0 0 0 1px rgba(255,91,131,.20) inset;
+}
+.broadcast-background-choice strong{
+  font-size:11px;
+  font-weight:900;
+}
+.broadcast-background-swatch{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  background:
+    radial-gradient(circle at 50% 35%,rgba(255,91,131,.55),transparent 44%),
+    linear-gradient(135deg,#252a43,#7053b8);
+}
+.broadcast-background-photo{
+  display:grid;
+  place-items:center;
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  background:rgba(255,255,255,.08);
+  font-size:24px;
+  line-height:1;
+}
+.broadcast-background-note{
+  margin:10px 2px 0;
+  color:rgba(255,255,255,.46);
+  font-size:9px;
+  line-height:1.4;
+  text-align:center;
+}

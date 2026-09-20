@@ -116,6 +116,65 @@ function setMicMonitor(level=0,status="配信開始後に確認",state="waiting"
 }
 setMicMonitor();
 
+let backgroundObjectUrl="";
+function closeBackgroundSheet(){
+  const sheet=document.querySelector("[data-background-sheet]");
+  if(sheet)sheet.hidden=true;
+}
+function openBackgroundSheet(){
+  if(document.documentElement.dataset.broadcastPhase!=="prep")return;
+  const sheet=document.querySelector("[data-background-sheet]");
+  if(sheet)sheet.hidden=false;
+}
+function useDefaultBackground(){
+  const image=document.querySelector("[data-radio-background-image]");
+  const preview=document.querySelector("[data-stream-preview]");
+  if(backgroundObjectUrl){
+    URL.revokeObjectURL(backgroundObjectUrl);
+    backgroundObjectUrl="";
+  }
+  if(image){
+    image.removeAttribute("src");
+    image.hidden=true;
+  }
+  if(preview)preview.dataset.radioBackground="default";
+  document.querySelector("[data-background-default]")?.classList.add("is-selected");
+  document.querySelector("[data-background-custom-label]")?.classList.remove("is-selected");
+}
+function useCustomBackground(file){
+  if(!(file instanceof File)||!file.type.startsWith("image/"))return;
+  const image=document.querySelector("[data-radio-background-image]");
+  const preview=document.querySelector("[data-stream-preview]");
+  if(!image||!preview)return;
+  if(backgroundObjectUrl)URL.revokeObjectURL(backgroundObjectUrl);
+  backgroundObjectUrl=URL.createObjectURL(file);
+  image.src=backgroundObjectUrl;
+  image.hidden=false;
+  preview.dataset.radioBackground="custom";
+  document.querySelector("[data-background-default]")?.classList.remove("is-selected");
+  document.querySelector("[data-background-custom-label]")?.classList.add("is-selected");
+  closeBackgroundSheet();
+}
+document.querySelector("[data-background-open]")?.addEventListener("click",openBackgroundSheet);
+document.querySelectorAll("[data-background-close]").forEach(button=>button.addEventListener("click",closeBackgroundSheet));
+document.querySelector("[data-background-default]")?.addEventListener("click",()=>{
+  useDefaultBackground();
+  closeBackgroundSheet();
+});
+document.querySelector("[data-background-file]")?.addEventListener("change",event=>{
+  const input=event.currentTarget;
+  if(!(input instanceof HTMLInputElement))return;
+  const file=input.files?.[0];
+  if(file)useCustomBackground(file);
+  input.value="";
+});
+window.addEventListener("pagehide",()=>{
+  if(backgroundObjectUrl){
+    URL.revokeObjectURL(backgroundObjectUrl);
+    backgroundObjectUrl="";
+  }
+},{once:true});
+
 document.addEventListener("orikuro:system-access-ready",()=>{
   systemAccessReady=true;
   setState("session","開始時に接続","ready");
@@ -148,6 +207,7 @@ window.addEventListener("orikuro:output-ready",()=>{
   setState("output","送出可能","ready");
 });
 window.addEventListener("orikuro:stream-live",()=>{
+  closeBackgroundSheet();
   document.documentElement.dataset.broadcastPhase="live";
   const micTest=document.querySelector("[data-mic-test]");
   if(micTest)micTest.hidden=false;
@@ -201,6 +261,7 @@ if(startButton){
     const ready=systemTest?(grantReady||systemAccessReady):grantReady;
     if(!supportedModes.has(selectedMode)||!ready)return;
     startButton.disabled=true;
+    closeBackgroundSheet();
     document.documentElement.dataset.broadcastPhase="starting";
     const micTest=document.querySelector("[data-mic-test]");
     if(micTest)micTest.hidden=true;
