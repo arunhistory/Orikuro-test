@@ -4,7 +4,8 @@ import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
 const systemTest=document.documentElement.dataset.systemTest==="true";
-const supportedModes=new Set(["radio"]);
+const STANDING_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview";
+const supportedModes=new Set(["radio","standing"]);
 const radioPresets=new Map([
   ["solid-1",{label:"黒",color:"#000000"}],
   ["solid-2",{label:"白",color:"#FFFFFF"}],
@@ -279,6 +280,9 @@ let grantReady=false;
 let realtimeReady=false;
 let systemPreparationRequested=false;
 let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
+let standingPreviewReady=false;
+let standingPreviewLoading=false;
+let standingPreviewUrl="";
 let startedAt=0;
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
@@ -308,7 +312,7 @@ function micReady(){
 
 function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode)&&micReady();
-  if(step===2)return radioPresets.has(backgroundChoice);
+  if(step===2)return radioPresets.has(backgroundChoice)&&(selectedMode!=="standing"||standingPreviewReady);
   if(step===3)return streamTitleValue().length>0&&micReady();
   if(step===4)return readyForStep(1)&&readyForStep(2)&&readyForStep(3);
   return false;
@@ -343,6 +347,48 @@ function updateStreamIdentity(){
   });
 }
 
+async function loadStandingPreview(){
+  if(selectedMode!=="standing"||standingPreviewReady||standingPreviewLoading)return;
+  const current=getStreamRealtimeGrant();
+  if(!current)return;
+  standingPreviewLoading=true;
+  setState("composition","立ち絵を復元中","working");
+  document.querySelectorAll("[data-preview-character-label],[data-live-character-label]").forEach(el=>{el.textContent="R2素材を配信用一時コピーへ復元中…";});
+  updateWizard();
+  try{
+    const response=await fetch(STANDING_PREVIEW_URL,{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability}),
+      credentials:"omit",
+      cache:"no-store",
+      referrerPolicy:"no-referrer",
+    });
+    if(!response.ok){
+      const payload=await response.json().catch(()=>null);
+      throw new Error(typeof payload?.code==="string"?payload.code:"STANDING_PREVIEW_FAILED");
+    }
+    const blob=await response.blob();
+    if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("STANDING_PREVIEW_INVALID");
+    const nextUrl=URL.createObjectURL(blob);
+    const images=Array.from(document.querySelectorAll("[data-standing-preview-image]")).filter(img=>img instanceof HTMLImageElement);
+    images.forEach(img=>{img.src=nextUrl;img.hidden=false;});
+    await Promise.all(images.map(img=>img.decode()));
+    if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);
+    standingPreviewUrl=nextUrl;
+    standingPreviewReady=true;
+    setState("composition","立ち絵準備完了","ready");
+    setFeedback("R2の立ち絵を配信用一時コピーから読み込みました。","ready");
+  }catch(error){
+    standingPreviewReady=false;
+    setState("composition","立ち絵読込失敗","error");
+    setFeedback(error instanceof Error?`立ち絵を読み込めません: ${error.message}`:"立ち絵を読み込めません。","error");
+  }finally{
+    standingPreviewLoading=false;
+    updateWizard();
+  }
+}
+
 function updateScenePreview(){
   const labels={
     radio:"ラジオ / 音声配信",
@@ -373,15 +419,27 @@ function updateScenePreview(){
     el.hidden=!characterLabels[selectedMode];
   });
   document.querySelectorAll("[data-live-character-label]").forEach(el=>{
-    el.textContent=characterLabels[selectedMode]?.replace("プレビュー","")||"配信モデル";
+    el.textContent=selectedMode==="standing"?(standingPreviewReady?"":"立ち絵を読み込み中"):characterLabels[selectedMode]?.replace("プレビュー","")||"配信モデル";
   });
+  document.querySelectorAll("[data-preview-character-label]").forEach(el=>{
+    if(selectedMode==="standing")el.textContent=standingPreviewReady?"":"立ち絵を読み込み中";
+  });
+  document.querySelectorAll("[data-standing-preview-image]").forEach(el=>{
+    el.hidden=selectedMode!=="standing"||!standingPreviewReady;
+  });
+  const title=document.querySelector("[data-step2-title]");
+  const description=document.querySelector("[data-step2-description]");
+  const backgroundLabel=document.querySelector("[data-background-preview-label]");
+  if(title)title.textContent=selectedMode==="standing"?"立ち絵と背景を設定":"背景を選択";
+  if(description)description.textContent=selectedMode==="standing"?"R2に登録した立ち絵を確認し、全体プレビューの背景を決めます。":"ラジオ画面に使う背景を決めます。";
+  if(backgroundLabel)backgroundLabel.textContent=selectedMode==="standing"?(standingPreviewReady?"登録済み立ち絵 / 配信用一時コピー":"立ち絵を準備中"):"背景プレビュー";
 }
 
 function updateSummary(){
   const mode=document.querySelector("[data-summary-mode]");
   const background=document.querySelector("[data-summary-background]");
   const mic=document.querySelector("[data-summary-mic]");
-  if(mode)mode.textContent=selectedMode==="radio"?"ラジオ":"未選択";
+  if(mode)mode.textContent=selectedMode==="radio"?"ラジオ":selectedMode==="standing"?"立ち絵":"未選択";
   if(background)background.textContent=radioPresets.get(backgroundChoice)?.label||"未選択";
   if(mic)mic.textContent=currentMicLabel();
   updateStreamIdentity();
@@ -410,6 +468,7 @@ function updateWizard(){
   }
   if(start){
     start.hidden=currentStep!==4;
+    start.textContent=selectedMode==="standing"?"立ち絵配信スタート":"ラジオ配信スタート";
     start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported;
   }
   updateSummary();
@@ -627,7 +686,12 @@ async function applyMode(mode){
     button.classList.toggle("is-selected",active);
     button.setAttribute("aria-pressed",active?"true":"false");
   });
-  setState("composition","対象外","ready");
+  if(mode==="standing"){
+    standingPreviewReady=false;
+    setState("composition","立ち絵確認待ち","waiting");
+  }else{
+    setState("composition","対象外","ready");
+  }
   updateWizard();
   window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 
@@ -644,6 +708,7 @@ async function applyMode(mode){
     await micPermissionRequest;
   }
 
+  if(mode==="standing")await loadStandingPreview();
   if(micReady()){
     window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));
   }
@@ -985,6 +1050,8 @@ navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
 });
 window.addEventListener("pagehide",()=>{
+  if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);
+  standingPreviewUrl="";
   if(!document.documentElement.dataset.broadcastPhase||document.documentElement.dataset.broadcastPhase!=="live"){
     releasePreparedAudioStream();
   }
@@ -1010,6 +1077,7 @@ document.addEventListener("orikuro:system-access-ready",()=>{
 document.addEventListener("orikuro:service-ready",()=>{
   refreshGrantState();
   setState("session","配信経路準備中","waiting");
+  if(selectedMode==="standing")void loadStandingPreview();
 });
 window.addEventListener("orikuro:stream-preparing",()=>{
   realtimeReady=false;
