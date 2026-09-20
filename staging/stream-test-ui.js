@@ -456,7 +456,20 @@ document.querySelector("[data-mic-test-toggle]")?.addEventListener("click",event
   const show=panel.hidden;
   panel.hidden=!show;
   button.setAttribute("aria-expanded",show?"true":"false");
-  button.textContent=show?"マイクテストを隠す":"マイクテストを表示";
+  button.textContent=show?"マイクテストを隠す":"マイクテスト";
+});
+document.querySelector("[data-live-memo-toggle]")?.addEventListener("click",event=>{
+  const button=event.currentTarget;
+  const panel=document.querySelector("[data-live-memo-panel]");
+  const memo=document.querySelector("[data-live-memo]");
+  if(!(button instanceof HTMLButtonElement)||!panel)return;
+  const show=panel.hidden;
+  panel.hidden=!show;
+  button.setAttribute("aria-expanded",show?"true":"false");
+  button.textContent=show?"メモを閉じる":"メモ";
+  if(show&&memo instanceof HTMLTextAreaElement){
+    requestAnimationFrame(()=>memo.focus({preventScroll:true}));
+  }
 });
 navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
@@ -541,10 +554,16 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
+  document.querySelectorAll("[data-live-memo-panel]").forEach(el=>el.hidden=true);
+  const memoToggle=document.querySelector("[data-live-memo-toggle]");
+  if(memoToggle instanceof HTMLButtonElement){
+    memoToggle.setAttribute("aria-expanded","false");
+    memoToggle.textContent="メモ";
+  }
   const micToggle=document.querySelector("[data-mic-test-toggle]");
   if(micToggle instanceof HTMLButtonElement){
     micToggle.setAttribute("aria-expanded","false");
-    micToggle.textContent="マイクテストを表示";
+    micToggle.textContent="マイクテスト";
   }
   startClock();
   document.querySelectorAll("[data-stream-status]").forEach(status=>status.textContent="配信中");
@@ -560,7 +579,7 @@ window.addEventListener("orikuro:stream-start-failed",event=>{
   const micToggle=document.querySelector("[data-mic-test-toggle]");
   if(micToggle instanceof HTMLButtonElement){
     micToggle.setAttribute("aria-expanded","false");
-    micToggle.textContent="マイクテストを表示";
+    micToggle.textContent="マイクテスト";
   }
   setMicMonitor();
   const message=event?.detail?.message||"配信を開始できませんでした。";
