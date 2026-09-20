@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#10131b"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <title>立ち絵2.5D 目視テスト | Original Create</title>
+  <link rel="stylesheet" href="./standing-visual-test.css?v=20260920-visual1"/>
+</head>
+<body>
+  <main class="visual-test">
+    <header class="visual-head">
+      <div>
+        <small>STAGING / 目視テスト専用</small>
+        <h1>立ち絵 2.5D</h1>
+      </div>
+      <span class="visual-badge">合成Tracking入力</span>
+    </header>
+
+    <section class="visual-stage-wrap">
+      <canvas data-visual-canvas aria-label="立ち絵2.5D目視テスト"></canvas>
+
+      <div class="visual-readout" aria-live="polite">
+        <div><span>TEST</span><b data-test-name>通常追従</b></div>
+        <div><span>CONF</span><b data-confidence>1.00</b></div>
+        <div><span>YAW</span><b data-yaw>0.0°</b></div>
+        <div><span>PITCH</span><b data-pitch>0.0°</b></div>
+        <div><span>Z</span><b data-depth>0.000H</b></div>
+        <div><span>LOD</span><b data-lod>0</b></div>
+      </div>
+
+      <div class="visual-invariant">
+        <span>FaceSurface local warp</span>
+        <strong>0</strong>
+      </div>
+    </section>
+
+    <section class="visual-controls" aria-label="目視テスト操作">
+      <div class="visual-scenarios" role="group" aria-label="テスト項目">
+        <button type="button" class="is-active" data-scenario="follow">通常追従</button>
+        <button type="button" data-scenario="head">頭部回転</button>
+        <button type="button" data-scenario="depth">前後・視差</button>
+        <button type="button" data-scenario="lost">Lost→再捕捉</button>
+        <button type="button" data-scenario="lod">LOD 0→5→0</button>
+      </div>
+      <div class="visual-actions">
+        <button type="button" data-play-toggle>一時停止</button>
+        <label><input type="checkbox" data-skeleton-toggle checked/>骨格表示</label>
+      </div>
+      <p>Tracking Provider・実カメラは未選定のまま。ここでは動き、視差、再捕捉、顔面固定を人間の目で確認します。</p>
+    </section>
+  </main>
+  <script type="module" src="./standing-visual-test.js?v=20260920-visual1"></script>
+</body>
+</html>
