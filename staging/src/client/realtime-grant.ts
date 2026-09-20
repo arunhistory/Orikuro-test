@@ -13,10 +13,12 @@ export type StreamRealtimeGrant = Readonly<{
   capability: string;
   publisherCapability: string;
   controlCapability: string;
+  monitorCapability: string;
   expiresAt: number;
   cloudflareWebSocketUrl: string;
   audioWebSocketUrl: string;
   commentsWebSocketUrl: string;
+  mediaWebSocketUrl: string;
 }>;
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -75,15 +77,18 @@ function parseGrant(value: unknown): StreamRealtimeGrant {
   const capability = validCapability(raw.capability ?? raw.publisherCapability);
   const publisherCapability = validCapability(raw.publisherCapability ?? raw.capability);
   const controlCapability = validCapability(raw.controlCapability);
+  const monitorCapability = validCapability(raw.monitorCapability);
   return Object.freeze({
     streamId,
     capability,
     publisherCapability,
     controlCapability,
+    monitorCapability,
     expiresAt,
     cloudflareWebSocketUrl: validWsUrl(raw.cloudflareWebSocketUrl, CLOUDFLARE_HOST, `/v1/streams/${streamId}/ws`),
     audioWebSocketUrl: validWsUrl(raw.audioWebSocketUrl, NORTHFLANK_HOST, '/realtime/audio', streamId),
     commentsWebSocketUrl: validWsUrl(raw.commentsWebSocketUrl, NORTHFLANK_HOST, '/realtime/comments'),
+    mediaWebSocketUrl: validWsUrl(raw.mediaWebSocketUrl, NORTHFLANK_HOST, '/realtime/media'),
   });
 }
 

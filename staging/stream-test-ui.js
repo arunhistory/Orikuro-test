@@ -134,13 +134,13 @@ window.addEventListener("orikuro:transport-ready",()=>{
 });
 window.addEventListener("orikuro:composition-ready",()=>setState("composition","準備完了","ready"));
 window.addEventListener("orikuro:audio-ready",()=>setState("audio","準備完了","ready"));
-window.addEventListener("orikuro:audio-path-waiting",()=>setMicMonitor(0,"配信経路を確認中…","working"));
-window.addEventListener("orikuro:audio-path-ready",()=>setMicMonitor(0,"配信経路 OK","ready"));
+window.addEventListener("orikuro:audio-path-waiting",()=>setMicMonitor(0,"リスナー到達を確認中…","working"));
+window.addEventListener("orikuro:audio-path-ready",()=>setMicMonitor(0,"リスナー到達 OK","ready"));
 window.addEventListener("orikuro:audio-meter",event=>{
   const detail=event?.detail||{};
   const level=Number(detail.level)||0;
   const acknowledged=detail.pathAcknowledged===true;
-  setMicMonitor(level,acknowledged?"配信経路 OK":"送出確認中…",acknowledged?"ready":"working");
+  setMicMonitor(level,acknowledged?"リスナー到達 OK":"到達確認中…",acknowledged?"ready":"working");
 });
 window.addEventListener("orikuro:audio-meter-reset",()=>setMicMonitor());
 window.addEventListener("orikuro:output-ready",()=>{

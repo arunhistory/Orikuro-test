@@ -4,6 +4,14 @@ const FLOW_URL = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-sys
 const VIDEO_SUBPROTOCOL = 'orikuro-stream-v1';
 const AUDIO_SUBPROTOCOL = 'orikuro-audio-v1';
 const COMMENT_SUBPROTOCOL = 'orikuro-comments-v1';
+const MONITOR_SUBPROTOCOL = 'orikuro-media-v1';
+const LISTENER_WIRE_MAGIC = 0x4f435650;
+const LISTENER_WIRE_VERSION = 1;
+const LISTENER_WIRE_HEADER_BYTES = 52;
+const LISTENER_KIND_AUDIO = 2;
+const LISTENER_AUDIO_MAGIC = 0x4f415031;
+const LISTENER_AUDIO_VERSION = 1;
+const LISTENER_AUDIO_HEADER_BYTES = 16;
 const MEDIA_MAGIC = 0x4f52494b;
 const MEDIA_VERSION = 1;
 const MEDIA_HEADER_BYTES = 44;
@@ -20,6 +28,7 @@ const MAX_VIDEO_BUFFERED_BYTES = 2 * 1024 * 1024;
 const MAX_COMMENT_BYTES = 4096;
 const MAX_RECONNECT_DELAY_MS = 2_000;
 const AUDIO_ACK_TIMEOUT_MS = 5_000;
+const AUDIO_LISTENER_TIMEOUT_MS = 7_000;
 const AUDIO_METER_INTERVAL_MS = 80;
 const WORKLET_URL = './assets/js/stream-audio-worklet.js?v=20260919-audio3';
 const TARGET_WIDTH = 640;
@@ -63,6 +72,10 @@ let audioPerfOriginMs = 0;
 let streamStartedAtPerfMs = 0;
 let lastAudioMeterEmitMs = 0;
 let audioPathAcknowledged = false;
+let monitorSocket: WebSocket | null = null;
+let monitorReconnectTimer: number | null = null;
+let monitorReconnectAttempt = 0;
+let monitorLastCursor = 0;
 let stopPromise: Promise<boolean> | null = null;
 let serverStopped = false;
 
@@ -98,7 +111,8 @@ function startErrorMessage(error: unknown): string {
   const code = error instanceof Error ? error.message : '';
   if (code === 'AUDIO_CAPTURE_UNAVAILABLE') return 'このブラウザはマイク配信に対応していません。';
   if (code === 'WEBSOCKET_TIMEOUT') return '音声サーバーへの接続がタイムアウトしました。';
-  if (code === 'AUDIO_DELIVERY_ACK_TIMEOUT') return '音声が配信経路へ届いたことを確認できませんでした。';
+  if (code === 'AUDIO_DELIVERY_ACK_TIMEOUT') return '音声サーバーへの到達確認がタイムアウトしました。';
+  if (code === 'AUDIO_LISTENER_PATH_TIMEOUT') return 'リスナー側の音声配信経路まで届いたことを確認できませんでした。';
   return code ? `配信開始エラー: ${code}` : '配信を開始できませんでした。';
 }
 
@@ -244,35 +258,6 @@ function buildAudioPacket(packet: WorkletPacket): ArrayBuffer | null {
   return buffer;
 }
 
-function audioMeterLevel(packet: WorkletPacket): number {
-  let sum = 0;
-  let count = 0;
-  for (const plane of packet.planes) {
-    for (let i = 0; i < plane.length; i++) {
-      const sample = Number.isFinite(plane[i]) ? Math.max(-1, Math.min(1, plane[i])) : 0;
-      sum += sample * sample;
-      count++;
-    }
-  }
-  if (count === 0) return 0;
-  const rms = Math.sqrt(sum / count);
-  const db = 20 * Math.log10(Math.max(rms, 0.00001));
-  return Math.max(0, Math.min(1, (db + 60) / 60));
-}
-
-function emitAudioMeter(packet: WorkletPacket): void {
-  const now = performance.now();
-  if (now - lastAudioMeterEmitMs < AUDIO_METER_INTERVAL_MS) return;
-  lastAudioMeterEmitMs = now;
-  window.dispatchEvent(new CustomEvent('orikuro:audio-meter', {
-    detail: {
-      level: audioMeterLevel(packet),
-      sequence: audioSequence,
-      pathAcknowledged: audioPathAcknowledged,
-    },
-  }));
-}
-
 function sendAudioPacket(packet: WorkletPacket): void {
   if (!streamWanted || !audioAuthenticated || !audioSocket || audioSocket.readyState !== WebSocket.OPEN) return;
   if (audioSocket.bufferedAmount > MAX_AUDIO_BUFFERED_BYTES) {
@@ -287,7 +272,6 @@ function sendAudioPacket(packet: WorkletPacket): void {
     return;
   }
   audioSocket.send(encoded);
-  emitAudioMeter(packet);
 }
 
 function waitOpen(socket: WebSocket): Promise<void> {
@@ -296,6 +280,189 @@ function waitOpen(socket: WebSocket): Promise<void> {
     socket.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
     socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('WEBSOCKET_ERROR')); }, { once: true });
   });
+}
+
+type ListenerAudio = Readonly<{ channels: number; frames: number; planes: Float32Array[] }>;
+
+function parseListenerAudio(raw: ArrayBuffer): { cursor: number; sequence: number; audio: ListenerAudio } | null {
+  if (raw.byteLength < LISTENER_WIRE_HEADER_BYTES) return null;
+  const wire = new DataView(raw);
+  if (
+    wire.getUint32(0, false) !== LISTENER_WIRE_MAGIC
+    || wire.getUint8(4) !== LISTENER_WIRE_VERSION
+    || wire.getUint8(5) !== LISTENER_KIND_AUDIO
+    || wire.getUint16(18, false) !== 0
+  ) return null;
+  const cursorBig = wire.getBigUint64(8, false);
+  if (cursorBig === 0n || cursorBig > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  const payloadBytes = wire.getUint32(48, false);
+  if (payloadBytes < LISTENER_AUDIO_HEADER_BYTES || LISTENER_WIRE_HEADER_BYTES + payloadBytes !== raw.byteLength) return null;
+
+  const payloadOffset = LISTENER_WIRE_HEADER_BYTES;
+  const audio = new DataView(raw, payloadOffset, payloadBytes);
+  if (
+    audio.getUint32(0, false) !== LISTENER_AUDIO_MAGIC
+    || audio.getUint8(4) !== LISTENER_AUDIO_VERSION
+    || audio.getUint8(6) !== 0
+    || audio.getUint8(7) !== 0
+  ) return null;
+  const channels = audio.getUint8(5);
+  const frames = audio.getUint32(12, false);
+  if (channels < 1 || channels > 8 || frames < 1 || frames > 4096) return null;
+  if (LISTENER_AUDIO_HEADER_BYTES + channels * frames * 4 !== payloadBytes) return null;
+
+  const planes: Float32Array[] = [];
+  let offset = LISTENER_AUDIO_HEADER_BYTES;
+  for (let ch = 0; ch < channels; ch++) {
+    const plane = new Float32Array(frames);
+    for (let frame = 0; frame < frames; frame++) {
+      const sample = audio.getFloat32(offset, false);
+      if (!Number.isFinite(sample)) return null;
+      plane[frame] = sample;
+      offset += 4;
+    }
+    planes.push(plane);
+  }
+  return {
+    cursor: Number(cursorBig),
+    sequence: wire.getUint32(44, false),
+    audio: { channels, frames, planes },
+  };
+}
+
+function listenerMeterLevel(audio: ListenerAudio): number {
+  let sum = 0;
+  let count = 0;
+  for (const plane of audio.planes) {
+    for (let i = 0; i < plane.length; i++) {
+      const sample = Math.max(-1, Math.min(1, plane[i]));
+      sum += sample * sample;
+      count++;
+    }
+  }
+  if (count === 0) return 0;
+  const rms = Math.sqrt(sum / count);
+  const db = 20 * Math.log10(Math.max(rms, 0.00001));
+  return Math.max(0, Math.min(1, (db + 60) / 60));
+}
+
+function emitListenerMeter(audio: ListenerAudio, sequence: number, cursor: number): void {
+  const now = performance.now();
+  if (now - lastAudioMeterEmitMs < AUDIO_METER_INTERVAL_MS) return;
+  lastAudioMeterEmitMs = now;
+  window.dispatchEvent(new CustomEvent('orikuro:audio-meter', {
+    detail: {
+      level: listenerMeterLevel(audio),
+      sequence,
+      cursor,
+      pathAcknowledged: true,
+      source: 'listener-delivery',
+    },
+  }));
+}
+
+function scheduleMonitorReconnect(): void {
+  if (pageStopping || !streamWanted || monitorReconnectTimer !== null || !validGrant()) return;
+  const delay = reconnectDelay(monitorReconnectAttempt++);
+  monitorReconnectTimer = window.setTimeout(() => {
+    monitorReconnectTimer = null;
+    const current = validGrant();
+    if (current) void connectDeliveryMonitor(current, false).catch(() => undefined);
+  }, delay);
+}
+
+async function connectDeliveryMonitor(current: StreamRealtimeGrant, waitForFirstAudio = true): Promise<void> {
+  if (monitorSocket && monitorSocket.readyState < WebSocket.CLOSING) return;
+  audioPathAcknowledged = false;
+  window.dispatchEvent(new CustomEvent('orikuro:audio-path-waiting'));
+
+  let firstResolve: (() => void) | null = null;
+  let firstReject: ((error: Error) => void) | null = null;
+  let firstSettled = !waitForFirstAudio;
+  const firstAudio = waitForFirstAudio ? new Promise<void>((resolve, reject) => {
+    firstResolve = resolve;
+    firstReject = reject;
+  }) : Promise.resolve();
+
+  const timeout = waitForFirstAudio ? window.setTimeout(() => {
+    if (firstSettled) return;
+    firstSettled = true;
+    firstReject?.(new Error('AUDIO_LISTENER_PATH_TIMEOUT'));
+  }, AUDIO_LISTENER_TIMEOUT_MS) : null;
+
+  const settleFirst = (error: Error | null = null): void => {
+    if (firstSettled) return;
+    firstSettled = true;
+    if (timeout !== null) clearTimeout(timeout);
+    if (error) firstReject?.(error);
+    else firstResolve?.();
+  };
+
+  const socket = new WebSocket(current.mediaWebSocketUrl, MONITOR_SUBPROTOCOL);
+  monitorSocket = socket;
+  socket.binaryType = 'arraybuffer';
+
+  socket.addEventListener('open', () => {
+    if (socket !== monitorSocket) return;
+    socket.send(JSON.stringify({
+      type: 'auth',
+      token: current.monitorCapability,
+      streamId: current.streamId,
+      after: monitorLastCursor,
+    }));
+  });
+
+  socket.addEventListener('message', (event) => {
+    if (socket !== monitorSocket) return;
+    if (typeof event.data === 'string') {
+      const payload = parseText(event.data);
+      if (!payload || typeof payload.type !== 'string') {
+        socket.close(1008, 'invalid monitor control');
+        return;
+      }
+      if (payload.type === 'media_ready') {
+        monitorReconnectAttempt = 0;
+        return;
+      }
+      if (payload.type === 'media_ended') {
+        settleFirst(new Error('AUDIO_LISTENER_PATH_ENDED'));
+        window.dispatchEvent(new CustomEvent('orikuro:audio-meter-reset'));
+        return;
+      }
+      if (payload.type === 'pong') return;
+      socket.close(1008, 'unsupported monitor control');
+      return;
+    }
+    if (!(event.data instanceof ArrayBuffer)) {
+      socket.close(1008, 'invalid monitor media');
+      return;
+    }
+    const packet = parseListenerAudio(event.data);
+    if (!packet) return;
+    monitorLastCursor = Math.max(monitorLastCursor, packet.cursor);
+    if (!audioPathAcknowledged) {
+      audioPathAcknowledged = true;
+      window.dispatchEvent(new CustomEvent('orikuro:audio-path-ready'));
+    }
+    emitListenerMeter(packet.audio, packet.sequence, packet.cursor);
+    settleFirst();
+  });
+
+  socket.addEventListener('close', (event) => {
+    if (socket !== monitorSocket) return;
+    monitorSocket = null;
+    audioPathAcknowledged = false;
+    window.dispatchEvent(new CustomEvent('orikuro:audio-meter-reset'));
+    if (!firstSettled) settleFirst(new Error('AUDIO_LISTENER_PATH_CLOSED'));
+    if (!pageStopping && streamWanted && event.code !== 1008 && validGrant()) scheduleMonitorReconnect();
+  });
+  socket.addEventListener('error', () => {
+    if (socket !== monitorSocket) return;
+    if (!firstSettled) settleFirst(new Error('AUDIO_LISTENER_PATH_ERROR'));
+  });
+
+  await waitOpen(socket);
+  await firstAudio;
 }
 
 async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
@@ -333,10 +500,6 @@ async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
     if (!payload) return;
     if (payload.type === 'audio_ack') {
       audioAuthenticated = true;
-      if (!audioPathAcknowledged) {
-        audioPathAcknowledged = true;
-        window.dispatchEvent(new CustomEvent('orikuro:audio-path-ready'));
-      }
       settleAck();
       setText('[data-audio-status]', 'マイク送信中');
       window.dispatchEvent(new CustomEvent('orikuro:audio-ready'));
@@ -351,9 +514,7 @@ async function connectAudio(current: StreamRealtimeGrant): Promise<void> {
     if (socket !== audioSocket) return;
     audioSocket = null;
     audioAuthenticated = false;
-    audioPathAcknowledged = false;
     settleAck(new Error('AUDIO_SOCKET_CLOSED'));
-    window.dispatchEvent(new CustomEvent('orikuro:audio-meter-reset'));
     if (streamWanted && !pageStopping) {
       setText('[data-audio-status]', '音声接続が終了しました。');
       void stopStreaming(true);
@@ -400,7 +561,9 @@ async function startAudio(current: StreamRealtimeGrant): Promise<void> {
     if (!data || data.type !== 'audio-packet') return;
     sendAudioPacket(data as unknown as WorkletPacket);
   };
+  const listenerDelivery = connectDeliveryMonitor(current, true);
   await connectAudio(current);
+  await listenerDelivery;
 }
 
 function buildVideoPacket(kind: number, payload: Uint8Array, keyframe: boolean, ptsUs: number): ArrayBuffer {
@@ -719,6 +882,13 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
 
     if (commentsReconnectTimer !== null) { clearTimeout(commentsReconnectTimer); commentsReconnectTimer = null; }
     if (audioReconnectTimer !== null) { clearTimeout(audioReconnectTimer); audioReconnectTimer = null; }
+    if (monitorReconnectTimer !== null) { clearTimeout(monitorReconnectTimer); monitorReconnectTimer = null; }
+    if (monitorSocket) {
+      try { monitorSocket.close(1000, 'delivery monitor stopped'); } catch {}
+      monitorSocket = null;
+    }
+    monitorReconnectAttempt = 0;
+    monitorLastCursor = 0;
     commentsAuthenticated = false;
     if (commentsSocket) {
       try { commentsSocket.close(1000, 'stream stopped'); } catch {}
@@ -846,8 +1016,12 @@ function shutdown(): void {
   pageStopping = true;
   if (commentsReconnectTimer !== null) clearTimeout(commentsReconnectTimer);
   if (audioReconnectTimer !== null) clearTimeout(audioReconnectTimer);
+  if (monitorReconnectTimer !== null) clearTimeout(monitorReconnectTimer);
   commentsReconnectTimer = null;
   audioReconnectTimer = null;
+  monitorReconnectTimer = null;
+  if (monitorSocket && monitorSocket.readyState < WebSocket.CLOSING) monitorSocket.close(1000, 'page closed');
+  monitorSocket = null;
   if (commentsSocket && commentsSocket.readyState < WebSocket.CLOSING) commentsSocket.close(1000, 'page closed');
   commentsSocket = null;
   void stopStreaming(false);
