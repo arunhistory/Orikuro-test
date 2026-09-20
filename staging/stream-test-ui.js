@@ -20,6 +20,7 @@ let backgroundChoice="";
 let standingChoice="";
 let selectedAudioInputDeviceId="";
 let micDevicesKnown=false;
+let micPermissionConfirmed=false;
 let grantReady=false;
 let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
 let startedAt=0;
@@ -118,7 +119,7 @@ function goStep(step){
   if(step<1||step>5)return;
   currentStep=step;
   updateWizard();
-  if(step===4&&!micDevicesKnown)void refreshAudioInputs(true);
+  if(step===4&&!micPermissionConfirmed)void refreshAudioInputs(true);
 }
 
 function applyMode(mode){
@@ -150,6 +151,7 @@ async function refreshAudioInputs(requestPermission=false){
     if(requestPermission){
       setMicDeviceStatus("マイクの利用許可と機材を確認しています…","working");
       permissionStream=await media.getUserMedia({audio:true,video:false});
+      micPermissionConfirmed=true;
       activeDeviceId=permissionStream.getAudioTracks()[0]?.getSettings?.().deviceId||"";
     }
     const devices=(await media.enumerateDevices()).filter(device=>device.kind==="audioinput");
