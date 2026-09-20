@@ -7,6 +7,7 @@ const supportedModes=new Set(["radio"]);
 let selectedMode="radio";
 let grantReady=false;
 let outputReady=false;
+document.documentElement.dataset.broadcastPhase="prep";
 
 const modeCopy={
   radio:{title:"ラジオ配信",copy:"音声を中心に配信するテストモードです。"},
@@ -110,6 +111,7 @@ window.addEventListener("orikuro:output-ready",()=>{
   setState("output","送出可能","ready");
 });
 window.addEventListener("orikuro:stream-live",()=>{
+  document.documentElement.dataset.broadcastPhase="live";
   startClock();
   const status=document.querySelector("[data-stream-status]");
   if(status)status.textContent="配信中";
@@ -118,6 +120,7 @@ window.addEventListener("orikuro:stream-live",()=>{
   if(stop)stop.disabled=false;
 });
 window.addEventListener("orikuro:stream-start-failed",event=>{
+  document.documentElement.dataset.broadcastPhase="prep";
   const message=event?.detail?.message||"配信を開始できませんでした。";
   setFeedback(message,"error");
   refreshGrantState();
@@ -145,6 +148,7 @@ if(startButton){
   startButton.addEventListener("click",()=>{
     if(!supportedModes.has(selectedMode)||!grantReady)return;
     startButton.disabled=true;
+    document.documentElement.dataset.broadcastPhase="starting";
     const status=document.querySelector("[data-stream-status]");
     if(status)status.textContent="開始処理中";
     setFeedback(selectedMode==="radio"?"マイクの許可を確認します。":"立ち絵配信の入力経路を確認します。","working");
