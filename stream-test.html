@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#11131d"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-scorezones1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260920-likecount1"/>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -174,6 +174,7 @@
                         <span>応援 <b data-support-score>0</b></span>
                         <span>イベント <b data-event-rank>--</b>位 / <b data-event-points>0</b>pt</span>
                         <span>リスナー <b data-listener-count>0</b>人</span>
+                        <span>いいね <b data-like-count>0</b></span>
                       </div>
                     </div>
                     <span class="broadcast-preview-mode" data-stream-preview-copy>ラジオ / 音声配信</span>
@@ -229,6 +230,10 @@
                       <small>リスナー</small>
                       <strong><span data-listener-count>0</span>人</strong>
                     </button>
+                    <span class="broadcast-live-like">
+                      <small>いいね</small>
+                      <strong data-like-count>0</strong>
+                    </span>
                   </div>
 
                   <form class="broadcast-live-subtitle-form" data-live-subtitle-form hidden>
@@ -342,6 +347,6 @@
   <script type="module" src="./assets/js/service-destination.js?v=20260919-flow4"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260920-scorezones1"></script>
+  <script type="module" src="./stream-test-ui.js?v=20260920-likecount1"></script>
 </body>
 </html>
