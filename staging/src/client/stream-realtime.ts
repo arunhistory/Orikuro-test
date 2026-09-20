@@ -675,12 +675,6 @@ async function prepareStreaming(mode: string): Promise<void> {
   if (!current || !preparedAudioStreamAvailable()) return;
 
   selectedMode = preparationRequestedMode;
-  if (selectedMode === 'standing') {
-    setText('[data-realtime-status]', '2.5D Character Engine 入力経路を確認中です。');
-    window.dispatchEvent(new CustomEvent('orikuro:standing-engine-required'));
-    return;
-  }
-
   streamWanted = true;
   liveTransmission = false;
   serverStopped = false;
@@ -916,12 +910,10 @@ function encodeVideoFrame(): void {
     || Date.now() < videoBackpressureUntil
     || !videoEncoder
     || videoEncoder.state !== 'configured'
-    || !videoElement
     || !videoCanvas
     || !videoContext
   ) return;
   if (videoEncoder.encodeQueueSize > 2) return;
-  videoContext.drawImage(videoElement, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
   const timestampUs = Math.max(0, Math.round((performance.now() - videoStartedAt) * 1000));
   const frame = new VideoFrame(videoCanvas, { timestamp: timestampUs });
   try {
@@ -934,28 +926,27 @@ function encodeVideoFrame(): void {
 }
 
 async function startVideo(current: StreamRealtimeGrant): Promise<void> {
-  if (!navigator.mediaDevices?.getUserMedia) throw new Error('CAMERA_UNAVAILABLE');
+  const image = Array.from(document.querySelectorAll<HTMLImageElement>('[data-standing-preview-image]'))
+    .find((item) => !item.hidden && item.complete && item.naturalWidth > 0);
+  if (!image) throw new Error('STANDING_PREVIEW_MISSING');
   const config = await supportedVideoConfig();
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      width: { ideal: TARGET_WIDTH },
-      height: { ideal: TARGET_HEIGHT },
-      frameRate: { ideal: TARGET_FPS, max: 10 },
-    },
-    audio: false,
-  });
-  videoStream = stream;
-  const video = document.createElement('video');
-  video.muted = true;
-  video.playsInline = true;
-  video.srcObject = stream;
-  await video.play();
-  videoElement = video;
   const canvas = document.createElement('canvas');
   canvas.width = TARGET_WIDTH;
   canvas.height = TARGET_HEIGHT;
   const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
   if (!context) throw new Error('VIDEO_CANVAS_UNAVAILABLE');
+
+  const background = Array.from(document.querySelectorAll<HTMLElement>('[data-radio-background]'))
+    .find((item) => !item.hidden);
+  const backgroundColor = background
+    ? getComputedStyle(background).getPropertyValue('--radio-background-color').trim()
+    : '#151827';
+  context.fillStyle = /^#[0-9a-f]{6}$/i.test(backgroundColor) ? backgroundColor : '#151827';
+  context.fillRect(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+  const scale = Math.min(TARGET_WIDTH / image.naturalWidth, TARGET_HEIGHT / image.naturalHeight);
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  context.drawImage(image, Math.round((TARGET_WIDTH - width) / 2), TARGET_HEIGHT - height, width, height);
   videoCanvas = canvas;
   videoContext = context;
 
@@ -970,6 +961,7 @@ async function startVideo(current: StreamRealtimeGrant): Promise<void> {
     height: TARGET_HEIGHT,
     fps: TARGET_FPS,
     keyframeIntervalFrames: KEYFRAME_INTERVAL,
+    source: 'standing-streaming-temporary-copy',
     staging: true,
   }));
   videoSocket?.send(buildVideoPacket(MEDIA_KIND_CONFIG, configPayload, false, 0));
@@ -1080,9 +1072,17 @@ async function startStreaming(mode: string): Promise<void> {
   }
   selectedMode = mode === 'standing' ? 'standing' : 'radio';
   if (selectedMode === 'standing') {
-    setText('[data-realtime-status]', '2.5D Character Engine 入力経路を確認中です。');
-    window.dispatchEvent(new CustomEvent('orikuro:standing-engine-required'));
-    return;
+    setText('[data-realtime-status]', '立ち絵の映像送出を準備しています。');
+    try {
+      streamStartedAtPerfMs = performance.now();
+      await startVideo(current);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'STANDING_VIDEO_START_FAILED';
+      const message = `立ち絵の映像送出を開始できません: ${code}`;
+      setText('[data-realtime-status]', message);
+      window.dispatchEvent(new CustomEvent('orikuro:stream-start-failed', { detail: { message } }));
+      return;
+    }
   }
 
   // Start is local and immediate. All expensive preparation has already
