@@ -442,19 +442,94 @@ document.querySelector("[data-mic-test-toggle]")?.addEventListener("click",event
   button.setAttribute("aria-expanded",show?"true":"false");
   button.textContent=show?"マイクテストを隠す":"マイクテスト";
 });
-document.querySelector("[data-live-memo-toggle]")?.addEventListener("click",event=>{
-  const button=event.currentTarget;
-  const panel=document.querySelector("[data-live-memo-panel]");
-  const memo=document.querySelector("[data-live-memo]");
-  if(!(button instanceof HTMLButtonElement)||!panel)return;
-  const show=panel.hidden;
-  panel.hidden=!show;
-  button.setAttribute("aria-expanded",show?"true":"false");
-  button.textContent=show?"メモを閉じる":"メモ";
-  if(show&&memo instanceof HTMLTextAreaElement){
-    requestAnimationFrame(()=>memo.focus({preventScroll:true}));
+const liveBoard=document.querySelector("[data-live-board]");
+const liveBoardText=document.querySelector("[data-live-board-text]");
+const liveBoardDrag=document.querySelector("[data-live-board-drag]");
+const liveBoardRemove=document.querySelector("[data-live-board-remove]");
+const liveBoardToggle=document.querySelector("[data-live-memo-toggle]");
+
+function setLiveBoardEditing(editing){
+  if(!(liveBoard instanceof HTMLElement)||!(liveBoardToggle instanceof HTMLButtonElement))return;
+  liveBoard.classList.toggle("is-editing",editing);
+  liveBoardToggle.setAttribute("aria-expanded",editing?"true":"false");
+  liveBoardToggle.textContent=editing?"メモ完了":liveBoard.hidden?"メモ":"メモ編集";
+  if(editing&&liveBoardText instanceof HTMLTextAreaElement){
+    requestAnimationFrame(()=>liveBoardText.focus({preventScroll:true}));
+  }
+}
+
+function clampLiveBoard(){
+  if(!(liveBoard instanceof HTMLElement)||liveBoard.hidden)return;
+  const preview=liveBoard.closest(".broadcast-live-preview");
+  if(!(preview instanceof HTMLElement))return;
+  const parent=preview.getBoundingClientRect();
+  const rect=liveBoard.getBoundingClientRect();
+  let left=rect.left-parent.left;
+  let top=rect.top-parent.top;
+  left=Math.max(0,Math.min(left,parent.width-rect.width));
+  top=Math.max(0,Math.min(top,parent.height-rect.height));
+  liveBoard.style.transform="none";
+  liveBoard.style.left=`${left}px`;
+  liveBoard.style.top=`${top}px`;
+}
+
+liveBoardToggle?.addEventListener("click",()=>{
+  if(!(liveBoard instanceof HTMLElement))return;
+  if(liveBoard.hidden){
+    liveBoard.hidden=false;
+    liveBoard.style.left="50%";
+    liveBoard.style.top="16%";
+    liveBoard.style.transform="translateX(-50%)";
+    setLiveBoardEditing(true);
+    return;
+  }
+  setLiveBoardEditing(!liveBoard.classList.contains("is-editing"));
+  requestAnimationFrame(clampLiveBoard);
+});
+
+liveBoardRemove?.addEventListener("click",()=>{
+  if(!(liveBoard instanceof HTMLElement))return;
+  if(liveBoardText instanceof HTMLTextAreaElement)liveBoardText.value="";
+  liveBoard.hidden=true;
+  liveBoard.classList.remove("is-editing");
+  if(liveBoardToggle instanceof HTMLButtonElement){
+    liveBoardToggle.setAttribute("aria-expanded","false");
+    liveBoardToggle.textContent="メモ";
   }
 });
+
+liveBoardDrag?.addEventListener("pointerdown",event=>{
+  if(!(liveBoard instanceof HTMLElement))return;
+  const preview=liveBoard.closest(".broadcast-live-preview");
+  if(!(preview instanceof HTMLElement))return;
+  event.preventDefault();
+  liveBoardDrag.setPointerCapture?.(event.pointerId);
+  const parent=preview.getBoundingClientRect();
+  const rect=liveBoard.getBoundingClientRect();
+  const offsetX=event.clientX-rect.left;
+  const offsetY=event.clientY-rect.top;
+  liveBoard.style.transform="none";
+
+  const move=moveEvent=>{
+    const current=liveBoard.getBoundingClientRect();
+    const left=Math.max(0,Math.min(moveEvent.clientX-parent.left-offsetX,parent.width-current.width));
+    const top=Math.max(0,Math.min(moveEvent.clientY-parent.top-offsetY,parent.height-current.height));
+    liveBoard.style.left=`${left}px`;
+    liveBoard.style.top=`${top}px`;
+  };
+  const end=endEvent=>{
+    liveBoardDrag.releasePointerCapture?.(endEvent.pointerId);
+    liveBoardDrag.removeEventListener("pointermove",move);
+    liveBoardDrag.removeEventListener("pointerup",end);
+    liveBoardDrag.removeEventListener("pointercancel",end);
+    clampLiveBoard();
+  };
+  liveBoardDrag.addEventListener("pointermove",move);
+  liveBoardDrag.addEventListener("pointerup",end);
+  liveBoardDrag.addEventListener("pointercancel",end);
+});
+
+window.addEventListener("resize",()=>requestAnimationFrame(clampLiveBoard));
 navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
 });
@@ -538,11 +613,17 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
-  document.querySelectorAll("[data-live-memo-panel]").forEach(el=>el.hidden=true);
-  const memoToggle=document.querySelector("[data-live-memo-toggle]");
-  if(memoToggle instanceof HTMLButtonElement){
-    memoToggle.setAttribute("aria-expanded","false");
-    memoToggle.textContent="メモ";
+  if(liveBoard instanceof HTMLElement){
+    liveBoard.hidden=true;
+    liveBoard.classList.remove("is-editing");
+    liveBoard.style.left="50%";
+    liveBoard.style.top="16%";
+    liveBoard.style.transform="translateX(-50%)";
+  }
+  if(liveBoardText instanceof HTMLTextAreaElement)liveBoardText.value="";
+  if(liveBoardToggle instanceof HTMLButtonElement){
+    liveBoardToggle.setAttribute("aria-expanded","false");
+    liveBoardToggle.textContent="メモ";
   }
   const micToggle=document.querySelector("[data-mic-test-toggle]");
   if(micToggle instanceof HTMLButtonElement){
