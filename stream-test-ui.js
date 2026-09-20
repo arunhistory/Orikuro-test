@@ -5,12 +5,19 @@ const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
 const systemTest=document.documentElement.dataset.systemTest==="true";
 const supportedModes=new Set(["radio"]);
+const radioPresets=new Map([
+  ["solid-1",{label:"黒",color:"#000000"}],
+  ["solid-2",{label:"白",color:"#FFFFFF"}],
+  ["solid-3",{label:"赤",color:"#C62828"}],
+  ["solid-4",{label:"青",color:"#1565C0"}],
+  ["solid-5",{label:"緑",color:"#2E7D32"}],
+  ["solid-6",{label:"紫",color:"#6A1B9A"}],
+]);
 
 let currentStep=1;
 let selectedMode="";
 let backgroundChoice="";
 let standingChoice="";
-let backgroundObjectUrl="";
 let grantReady=false;
 let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
 let startedAt=0;
@@ -33,7 +40,7 @@ function setFeedback(text,state="info"){
 
 function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode);
-  if(step===2)return backgroundChoice==="default"||backgroundChoice==="custom";
+  if(step===2)return radioPresets.has(backgroundChoice);
   if(step===3)return standingChoice==="none";
   if(step===4)return true;
   if(step===5)return readyForStep(1)&&readyForStep(2)&&readyForStep(3);
@@ -49,7 +56,7 @@ function updateSummary(){
   const background=document.querySelector("[data-summary-background]");
   const standing=document.querySelector("[data-summary-standing]");
   if(mode)mode.textContent=selectedMode==="radio"?"ラジオ":"未選択";
-  if(background)background.textContent=backgroundChoice==="custom"?"端末画像":backgroundChoice==="default"?"標準背景":"未選択";
+  if(background)background.textContent=radioPresets.get(backgroundChoice)?.label||"未選択";
   if(standing)standing.textContent=standingChoice==="none"?"なし":"未選択";
 }
 
@@ -97,41 +104,22 @@ function applyMode(mode){
   window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
 }
 
-function applyBackgroundToImages(){
-  document.querySelectorAll("[data-radio-background-image]").forEach(image=>{
-    if(!(image instanceof HTMLImageElement))return;
-    if(backgroundChoice==="custom"&&backgroundObjectUrl){
-      image.src=backgroundObjectUrl;
-      image.hidden=false;
-    }else{
-      image.removeAttribute("src");
-      image.hidden=true;
-    }
-  });
+function applyBackgroundPreset(presetId){
+  const preset=radioPresets.get(presetId);
+  if(!preset)return;
+  backgroundChoice=presetId;
+  document.documentElement.dataset.radioPresetId=presetId;
   document.querySelectorAll("[data-radio-background]").forEach(el=>{
-    el.dataset.backgroundChoice=backgroundChoice||"none";
+    el.dataset.radioPreset=presetId;
+    el.style.setProperty("--radio-background-color",preset.color);
   });
-  document.querySelector("[data-background-default]")?.classList.toggle("is-selected",backgroundChoice==="default");
-  document.querySelector("[data-background-default]")?.setAttribute("aria-pressed",backgroundChoice==="default"?"true":"false");
-  document.querySelector("[data-background-custom-label]")?.classList.toggle("is-selected",backgroundChoice==="custom");
+  document.querySelectorAll("[data-radio-preset]").forEach(button=>{
+    const active=button.dataset.radioPreset===presetId;
+    button.classList.toggle("is-selected",active);
+    button.setAttribute("aria-pressed",active?"true":"false");
+  });
   updateWizard();
-}
-
-function useDefaultBackground(){
-  if(backgroundObjectUrl){
-    URL.revokeObjectURL(backgroundObjectUrl);
-    backgroundObjectUrl="";
-  }
-  backgroundChoice="default";
-  applyBackgroundToImages();
-}
-
-function useCustomBackground(file){
-  if(!(file instanceof File)||!file.type.startsWith("image/"))return;
-  if(backgroundObjectUrl)URL.revokeObjectURL(backgroundObjectUrl);
-  backgroundObjectUrl=URL.createObjectURL(file);
-  backgroundChoice="custom";
-  applyBackgroundToImages();
+  window.dispatchEvent(new CustomEvent("orikuro:radio-background-change",{detail:{presetId,color:preset.color}}));
 }
 
 function applyStanding(choice){
@@ -183,13 +171,8 @@ function setMicMonitor(level=0,status="配信開始後に確認",state="waiting"
 document.querySelectorAll("[data-stream-mode]").forEach(button=>{
   button.addEventListener("click",()=>applyMode(button.dataset.streamMode||""));
 });
-document.querySelector("[data-background-default]")?.addEventListener("click",useDefaultBackground);
-document.querySelector("[data-background-file]")?.addEventListener("change",event=>{
-  const input=event.currentTarget;
-  if(!(input instanceof HTMLInputElement))return;
-  const file=input.files?.[0];
-  if(file)useCustomBackground(file);
-  input.value="";
+document.querySelectorAll("[data-radio-preset]").forEach(button=>{
+  button.addEventListener("click",()=>applyBackgroundPreset(button.dataset.radioPreset||""));
 });
 document.querySelectorAll("[data-standing-choice]").forEach(button=>{
   button.addEventListener("click",()=>applyStanding(button.dataset.standingChoice||""));
@@ -291,17 +274,10 @@ startButton?.addEventListener("click",()=>{
   document.documentElement.dataset.broadcastPhase="starting";
   setFeedback("マイクを確認しています…","working");
   if(systemTest&&!grantReady){
-    window.dispatchEvent(new CustomEvent("orikuro:system-start-request",{detail:{mode:selectedMode}}));
+    window.dispatchEvent(new CustomEvent("orikuro:system-start-request",{detail:{mode:selectedMode,radioPresetId:backgroundChoice}}));
     return;
   }
-  window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode}}));
+  window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode,radioPresetId:backgroundChoice}}));
 });
-
-window.addEventListener("pagehide",()=>{
-  if(backgroundObjectUrl){
-    URL.revokeObjectURL(backgroundObjectUrl);
-    backgroundObjectUrl="";
-  }
-},{once:true});
 
 if(!compatibility.supported&&root)root.hidden=true;
