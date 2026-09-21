@@ -102,6 +102,11 @@ let videoFrameIndex = 0;
 let videoStartedAt = 0;
 let videoBackpressureUntil = 0;
 let h264ParameterSets: Uint8Array | null = null;
+let videoStandingImage: HTMLImageElement | null = null;
+let videoBackgroundImage: HTMLImageElement | null = null;
+let videoBackgroundColor = '#151827';
+type StandingFrameState = Readonly<{x:number;y:number;z:number;yaw:number;pitch:number;roll:number;confidence:number;lod:number;faceLocalWarp:number;}>;
+type StandingFrameWindow = Window & { __orikuroStandingFrameState?: StandingFrameState };
 
 function objectValue(value: unknown): JsonObject | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : null;
@@ -902,73 +907,56 @@ function createEncoder(config: VideoEncoderConfig): void {
   videoEncoder.configure(config);
 }
 
-function encodeVideoFrame(): void {
-  if (
-    !streamWanted
-    || !liveTransmission
-    || selectedMode !== 'standing'
-    || Date.now() < videoBackpressureUntil
-    || !videoEncoder
-    || videoEncoder.state !== 'configured'
-    || !videoCanvas
-    || !videoContext
-  ) return;
-  if (videoEncoder.encodeQueueSize > 2) return;
-  const timestampUs = Math.max(0, Math.round((performance.now() - videoStartedAt) * 1000));
-  const frame = new VideoFrame(videoCanvas, { timestamp: timestampUs });
-  try {
-    const keyFrame = videoFrameIndex % KEYFRAME_INTERVAL === 0;
-    videoEncoder.encode(frame, { keyFrame });
-    videoFrameIndex += 1;
-  } finally {
-    frame.close();
-  }
+function currentStandingFrameState(): StandingFrameState {
+  const state=(window as StandingFrameWindow).__orikuroStandingFrameState;
+  return {
+    x:Number.isFinite(state?.x)?Math.max(-0.08,Math.min(0.08,Number(state?.x))):0,
+    y:Number.isFinite(state?.y)?Math.max(-0.08,Math.min(0.08,Number(state?.y))):0,
+    z:Number.isFinite(state?.z)?Math.max(-0.08,Math.min(0.08,Number(state?.z))):0,
+    yaw:Number.isFinite(state?.yaw)?Math.max(-18,Math.min(18,Number(state?.yaw))):0,
+    pitch:Number.isFinite(state?.pitch)?Math.max(-14,Math.min(14,Number(state?.pitch))):0,
+    roll:Number.isFinite(state?.roll)?Math.max(-24,Math.min(24,Number(state?.roll))):0,
+    confidence:Number.isFinite(state?.confidence)?Math.max(0,Math.min(1,Number(state?.confidence))):1,
+    lod:Number.isFinite(state?.lod)?Math.max(0,Math.min(5,Math.round(Number(state?.lod)))):0,
+    faceLocalWarp:0,
+  };
 }
-
-async function startVideo(current: StreamRealtimeGrant): Promise<void> {
-  const image = Array.from(document.querySelectorAll<HTMLImageElement>('[data-standing-preview-image]'))
-    .find((item) => !item.hidden && item.complete && item.naturalWidth > 0);
-  if (!image) throw new Error('STANDING_PREVIEW_MISSING');
-  const config = await supportedVideoConfig();
-  const canvas = document.createElement('canvas');
-  canvas.width = TARGET_WIDTH;
-  canvas.height = TARGET_HEIGHT;
-  const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
-  if (!context) throw new Error('VIDEO_CANVAS_UNAVAILABLE');
-
-  const background = Array.from(document.querySelectorAll<HTMLElement>('[data-radio-background]'))
-    .find((item) => !item.hidden);
-  const backgroundColor = background
-    ? getComputedStyle(background).getPropertyValue('--radio-background-color').trim()
-    : '#151827';
-  context.fillStyle = /^#[0-9a-f]{6}$/i.test(backgroundColor) ? backgroundColor : '#151827';
-  context.fillRect(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
-  const scale = Math.min(TARGET_WIDTH / image.naturalWidth, TARGET_HEIGHT / image.naturalHeight);
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
-  context.drawImage(image, Math.round((TARGET_WIDTH - width) / 2), TARGET_HEIGHT - height, width, height);
-  videoCanvas = canvas;
-  videoContext = context;
-
-  await connectVideo(current);
-  videoSequence = 0;
-  videoFrameIndex = 0;
-  videoStartedAt = streamStartedAtPerfMs;
-  const configPayload = encoderText.encode(JSON.stringify({
-    codec: 'h264-annexb',
-    profile: H264_CODEC,
-    width: TARGET_WIDTH,
-    height: TARGET_HEIGHT,
-    fps: TARGET_FPS,
-    keyframeIntervalFrames: KEYFRAME_INTERVAL,
-    source: 'standing-streaming-temporary-copy',
-    staging: true,
-  }));
-  videoSocket?.send(buildVideoPacket(MEDIA_KIND_CONFIG, configPayload, false, 0));
-  createEncoder(config);
-  encodeVideoFrame();
-  videoTimer = window.setInterval(encodeVideoFrame, FRAME_INTERVAL_MS);
-  window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
+function drawCover(context:CanvasRenderingContext2D,image:HTMLImageElement,offsetX=0,scaleGain=1):void{
+  const scale=Math.max(TARGET_WIDTH/image.naturalWidth,TARGET_HEIGHT/image.naturalHeight)*scaleGain;
+  const width=image.naturalWidth*scale,height=image.naturalHeight*scale;
+  context.drawImage(image,(TARGET_WIDTH-width)/2+offsetX,(TARGET_HEIGHT-height)/2,width,height);
+}
+function drawStandingVideoScene():void{
+  if(!videoContext||!videoStandingImage)return;
+  const context=videoContext,state=currentStandingFrameState();
+  context.save();context.setTransform(1,0,0,1,0,0);context.clearRect(0,0,TARGET_WIDTH,TARGET_HEIGHT);
+  if(videoBackgroundImage&&videoBackgroundImage.complete&&videoBackgroundImage.naturalWidth>0)drawCover(context,videoBackgroundImage,-state.x*TARGET_WIDTH*.18,1.02+Math.abs(state.z)*.08);
+  else{context.fillStyle=/^#[0-9a-f]{6}$/i.test(videoBackgroundColor)?videoBackgroundColor:'#151827';context.fillRect(0,0,TARGET_WIDTH,TARGET_HEIGHT);}
+  context.restore();
+  const image=videoStandingImage,baseScale=Math.min(TARGET_WIDTH/image.naturalWidth,TARGET_HEIGHT/image.naturalHeight),width=image.naturalWidth*baseScale,height=image.naturalHeight*baseScale;
+  const depthScale=1+state.z,yawScale=1-Math.min(Math.abs(state.yaw)/18,1)*.06,pitchScale=1-Math.min(Math.abs(state.pitch)/14,1)*.04;
+  context.save();context.translate(TARGET_WIDTH/2+state.x*TARGET_HEIGHT,TARGET_HEIGHT+state.y*TARGET_HEIGHT);context.rotate(state.roll*Math.PI/180);context.scale(depthScale*yawScale,depthScale*pitchScale);context.drawImage(image,-width/2,-height,width,height);context.restore();
+}
+function encodeVideoFrame(): void {
+  if(!streamWanted||!liveTransmission||selectedMode!=='standing'||Date.now()<videoBackpressureUntil||!videoEncoder||videoEncoder.state!=='configured'||!videoCanvas||!videoContext)return;
+  if(videoEncoder.encodeQueueSize>2)return;
+  drawStandingVideoScene();
+  const timestampUs=Math.max(0,Math.round((performance.now()-videoStartedAt)*1000));
+  const frame=new VideoFrame(videoCanvas,{timestamp:timestampUs});
+  try{const keyFrame=videoFrameIndex%KEYFRAME_INTERVAL===0;videoEncoder.encode(frame,{keyFrame});videoFrameIndex+=1;}finally{frame.close();}
+}
+async function startVideo(current:StreamRealtimeGrant):Promise<void>{
+  const image=Array.from(document.querySelectorAll<HTMLImageElement>('[data-standing-preview-image]')).find(item=>!item.hidden&&item.complete&&item.naturalWidth>0);
+  if(!image)throw new Error('STANDING_PREVIEW_MISSING');
+  const config=await supportedVideoConfig(),canvas=document.createElement('canvas');canvas.width=TARGET_WIDTH;canvas.height=TARGET_HEIGHT;
+  const context=canvas.getContext('2d',{alpha:false,desynchronized:true});if(!context)throw new Error('VIDEO_CANVAS_UNAVAILABLE');
+  const preparedBackground=Array.from(document.querySelectorAll<HTMLImageElement>('[data-background-preview-image]')).find(item=>!item.hidden&&item.complete&&item.naturalWidth>0)??null;
+  const solidBackground=Array.from(document.querySelectorAll<HTMLElement>('[data-radio-background]')).find(item=>!item.hidden)??null;
+  const backgroundColor=solidBackground?getComputedStyle(solidBackground).getPropertyValue('--radio-background-color').trim():'#151827';
+  videoStandingImage=image;videoBackgroundImage=preparedBackground;videoBackgroundColor=/^#[0-9a-f]{6}$/i.test(backgroundColor)?backgroundColor:'#151827';videoCanvas=canvas;videoContext=context;drawStandingVideoScene();
+  await connectVideo(current);videoSequence=0;videoFrameIndex=0;videoStartedAt=streamStartedAtPerfMs;
+  const configPayload=encoderText.encode(JSON.stringify({codec:'h264-annexb',profile:H264_CODEC,width:TARGET_WIDTH,height:TARGET_HEIGHT,fps:TARGET_FPS,keyframeIntervalFrames:KEYFRAME_INTERVAL,source:'standing-2.5d-streaming-temporary-copy',staging:true,faceLocalWarp:0}));
+  videoSocket?.send(buildVideoPacket(MEDIA_KIND_CONFIG,configPayload,false,0));createEncoder(config);encodeVideoFrame();videoTimer=window.setInterval(encodeVideoFrame,FRAME_INTERVAL_MS);window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
 }
 
 async function requestServerLive(): Promise<boolean> {
@@ -1153,6 +1141,9 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
     }
     videoCanvas = null;
     videoContext = null;
+    videoStandingImage = null;
+    videoBackgroundImage = null;
+    videoBackgroundColor = '#151827';
 
     if (audioWorklet) {
       audioWorklet.port.onmessage = null;
