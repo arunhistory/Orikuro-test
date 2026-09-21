@@ -467,7 +467,7 @@ async function loadAllStandingBackgrounds(signal,generation){
   if(selectedMode!=="standing"||backgroundPreviewReady||backgroundPreviewLoading)return;
   backgroundPreviewLoading=true;setState("composition","背景4種を先行準備中","working");updateWizard();
   try{
-    for(const index of [1,2,3,0]){
+    for(const index of [0,1,2,3]){
       if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
       if(!standingBackgroundUrls.has(index))await fetchStandingBackground(index,signal,generation);
     }
@@ -476,6 +476,7 @@ async function loadAllStandingBackgrounds(signal,generation){
     if(!standingChoiceValid(backgroundChoice))backgroundChoice="standing-image-1";
     const chosen=standingImageIndex();if(chosen>=0&&chosen!==standingActiveBackgroundIndex)await activateStandingBackground(chosen);
     renderStandingBackgroundChoice();setState("composition","立ち絵・背景10種準備完了","ready");
+    window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT}}));
     setFeedback("立ち絵と登録背景4種を先行準備しました。単色6種と合わせて選択できます。","ready");
   }catch(error){
     if(signal.aborted||error?.name==="AbortError")return;
@@ -802,7 +803,6 @@ async function applyMode(mode){
     if(previousMode!=="standing"){standingPreparationGeneration++;standingPreparationController=new AbortController();standingPreviewReady=false;backgroundPreviewReady=false;backgroundChoice="standing-image-1";setState("composition","立ち絵・背景を先行準備中","working");}
   }else{if(!radioPresets.has(backgroundChoice))backgroundChoice="";setState("composition","対象外","ready");}
   updateWizard();window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
-  if(systemTest&&!systemPreparationRequested){systemPreparationRequested=true;window.dispatchEvent(new CustomEvent("orikuro:system-prepare-request",{detail:{mode}}));}
   if(mode==="standing")beginStandingPreparation();
   if(!micReady()&&!micPermissionRequest)micPermissionRequest=refreshAudioInputs(true).finally(()=>{micPermissionRequest=null;});
   const permission=micPermissionRequest;
@@ -1172,13 +1172,29 @@ updateWizard();
 
 document.addEventListener("orikuro:system-access-ready",()=>{
   systemAccessReady=true;
-  setState("session","バックグラウンド準備待ち","waiting");
+  systemPreparationRequested=true;
+  setState("session","共通スタンバイ中","working");
   updateWizard();
 });
 document.addEventListener("orikuro:service-ready",()=>{
   refreshGrantState();
   setState("session","配信経路準備中","waiting");
   if(selectedMode==="standing")beginStandingPreparation();
+});
+window.addEventListener("orikuro:stream-common-preparing",()=>{
+  if(grantReady)setState("session","フロント共通スタンバイ中","working");
+  updateWizard();
+});
+window.addEventListener("orikuro:stream-common-prepared",()=>{
+  grantReady=!!getStreamRealtimeGrant();
+  if(grantReady)setState("session","共通スタンバイ完了","ready");
+  updateWizard();
+});
+window.addEventListener("orikuro:stream-common-prepare-failed",event=>{
+  const message=event?.detail?.message||"共通スタンバイを完了できませんでした。";
+  setState("session","共通スタンバイ失敗","error");
+  setFeedback(message,"error");
+  updateWizard();
 });
 window.addEventListener("orikuro:stream-preparing",()=>{
   realtimeReady=false;

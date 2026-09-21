@@ -94,6 +94,10 @@ async function revealPrep(): Promise<void> {
   if (status) status.textContent = '';
   if (content) content.hidden = false;
   document.dispatchEvent(new CustomEvent('orikuro:system-access-ready'));
+
+  // Warm common stream infrastructure before the user chooses a mode.
+  // Mode-specific heavy preparation remains selection-triggered.
+  void prepareSystemStream();
 }
 
 async function prepareSystemStream(): Promise<void> {
