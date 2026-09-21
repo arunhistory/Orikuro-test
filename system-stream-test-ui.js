@@ -332,10 +332,14 @@ function standingImageIndex(choice=backgroundChoice){
 function standingChoiceValid(choice=backgroundChoice){
   return standingImageIndex(choice)>=0||radioPresets.has(choice);
 }
+function standingChoiceReady(choice=backgroundChoice){
+  const index=standingImageIndex(choice);
+  return index>=0?standingBackgroundUrls.has(index):radioPresets.has(choice);
+}
 function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode)&&micReady();
   if(step===2)return selectedMode==="standing"
-    ?standingPreviewReady&&backgroundPreviewReady&&standingChoiceValid()
+    ?standingPreviewReady&&standingChoiceReady()
     :radioPresets.has(backgroundChoice);
   if(step===3)return streamTitleValue().length>0&&micReady();
   if(step===4)return readyForStep(1)&&readyForStep(2)&&readyForStep(3);
@@ -489,50 +493,75 @@ async function fetchStandingBackground(index,signal,generation){
   const button=document.querySelector(`[data-standing-background-index="${index}"]`);if(button instanceof HTMLButtonElement)button.disabled=false;
   renderStandingBackgroundChoice();
 }
-async function loadAllStandingBackgrounds(signal,generation){
-  if(selectedMode!=="standing"||backgroundPreviewReady||backgroundPreviewLoading)return;
-  backgroundPreviewLoading=true;setState("composition","背景4種を並列準備中","working");updateWizard();
+async function loadInitialStandingBackground(signal,generation){
+  if(selectedMode!=="standing")return;
+  if(!standingBackgroundUrls.has(0))await fetchStandingBackground(0,signal,generation);
+  if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+  if(!standingChoiceValid(backgroundChoice))backgroundChoice="standing-image-1";
+  renderStandingBackgroundChoice();
+  updateWizard();
+}
+async function loadDeferredStandingBackgrounds(signal,generation){
+  if(selectedMode!=="standing"||backgroundPreviewReady)return;
+  setState("composition","背景2〜4をバックグラウンド準備中","working");updateWizard();
   try{
-    const pending=[0,1,2,3].filter(index=>!standingBackgroundUrls.has(index));
+    const pending=[1,2,3].filter(index=>!standingBackgroundUrls.has(index));
     await Promise.all(pending.map(index=>fetchStandingBackground(index,signal,generation)));
     if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     backgroundPreviewReady=standingBackgroundUrls.size===STANDING_IMAGE_COUNT;
-    if(!standingChoiceValid(backgroundChoice))backgroundChoice="standing-image-1";
     renderStandingBackgroundChoice();
     if(backgroundPreviewReady){
-      setState("composition",standingPreviewReady?"立ち絵・背景10種準備完了":"背景4種準備完了 / 立ち絵準備中",standingPreviewReady?"ready":"working");
+      setState("composition","立ち絵・背景10種準備完了","ready");
       window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT}}));
-      setFeedback("登録背景4種を並列準備しました。単色6種と合わせて選択できます。","ready");
+      setFeedback("登録背景4種と単色6種の準備が完了しました。","ready");
     }
   }catch(error){
     if(signal.aborted||error?.name==="AbortError")return;
     backgroundPreviewReady=false;setState("composition","背景読込失敗","error");
     setFeedback(error instanceof Error?`背景を読み込めません: ${error.message}`:"背景を読み込めません。","error");
     throw error;
-  }finally{if(generation===standingPreparationGeneration)backgroundPreviewLoading=false;updateWizard();}
+  }finally{if(generation===standingPreparationGeneration)updateWizard();}
 }
 function beginStandingPreparation(){
   if(selectedMode!=="standing"||standingPreparationPromise)return;
   const current=getStreamRealtimeGrant();if(!current)return;
   if(!standingPreparationController)standingPreparationController=new AbortController();
   const controller=standingPreparationController,generation=standingPreparationGeneration;
+  backgroundPreviewLoading=true;
   standingPreparationPromise=(async()=>{
     const backendPromise=prepareStandingBackend(controller.signal,generation);
     const standingPromise=loadStandingPreview(controller.signal,generation);
-    const backgroundsPromise=loadAllStandingBackgrounds(controller.signal,generation);
-    await Promise.all([backendPromise,standingPromise,backgroundsPromise]);
+    const initialBackgroundPromise=loadInitialStandingBackground(controller.signal,generation);
+
+    await Promise.all([standingPromise,initialBackgroundPromise]);
     if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
-    if(standingPreviewReady&&backgroundPreviewReady){
-      const chosen=standingImageIndex();
-      if(chosen>=0&&standingBackgroundUrls.has(chosen)&&chosen!==standingActiveBackgroundIndex)await activateStandingBackground(chosen);
-      if(selectedMode==="standing"&&generation===standingPreparationGeneration)setState("composition","立ち絵・背景10種準備完了","ready");
+
+    if(standingPreviewReady&&standingBackgroundUrls.has(0)){
+      setState("composition","初期表示準備完了 / 他背景を準備中","ready");
+      updateWizard();
     }
+
+    const chosen=standingImageIndex();
+    const activationPromise=chosen>=0&&standingBackgroundUrls.has(chosen)&&chosen!==standingActiveBackgroundIndex
+      ?activateStandingBackground(chosen)
+      :Promise.resolve(true);
+    const deferredPromise=loadDeferredStandingBackgrounds(controller.signal,generation);
+
+    await Promise.all([backendPromise,activationPromise,deferredPromise]);
+    if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+    if(standingPreviewReady&&backgroundPreviewReady)setState("composition","立ち絵・背景10種準備完了","ready");
   })().catch(error=>{
     if(!controller.signal.aborted&&generation===standingPreparationGeneration&&selectedMode==="standing"){
       const message=error instanceof Error?error.message:"STANDING_PREPARATION_FAILED";
       setFeedback("立ち絵配信の専用準備を完了できません: "+message,"error");
     }
-  }).finally(()=>{if(generation===standingPreparationGeneration)standingPreparationPromise=null;});
+  }).finally(()=>{
+    if(generation===standingPreparationGeneration){
+      backgroundPreviewLoading=false;
+      standingPreparationPromise=null;
+      updateWizard();
+    }
+  });
 }
 async function stopStandingTemporary(){
   const current=getStreamRealtimeGrant();if(!current)return;
