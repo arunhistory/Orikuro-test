@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260921-standing2"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260921-prep2d1"/>
   <style>
     .broadcast-prepared-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:center}
   </style>
@@ -121,7 +121,44 @@
                     <span aria-hidden="true">＋</span>
                     <p><strong>公開版では、ユーザーが自由に背景を設定できます。</strong><small>現在のテスト版は単色6種類から選択できます。</small></p>
                   </div>
-                </section>
+
+
+                  <div class="broadcast-preset-grid broadcast-standing-background-grid" role="group" aria-label="立ち絵背景" data-standing-background-controls hidden>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="standing-image-1" data-standing-background-index="0" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-standing-background-swatch="0" aria-hidden="true"></span><strong>背景1</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="standing-image-2" data-standing-background-index="1" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-standing-background-swatch="1" aria-hidden="true"></span><strong>背景2</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="standing-image-3" data-standing-background-index="2" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-standing-background-swatch="2" aria-hidden="true"></span><strong>背景3</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="standing-image-4" data-standing-background-index="3" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-standing-background-swatch="3" aria-hidden="true"></span><strong>背景4</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="solid-1" aria-pressed="false" style="--preset-color:#000000">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>黒</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="solid-2" aria-pressed="false" style="--preset-color:#FFFFFF">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>白</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="solid-3" aria-pressed="false" style="--preset-color:#C62828">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>赤</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="solid-4" aria-pressed="false" style="--preset-color:#1565C0">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>青</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="solid-5" aria-pressed="false" style="--preset-color:#2E7D32">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>緑</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-standing-background-choice="solid-6" aria-pressed="false" style="--preset-color:#6A1B9A">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>紫</strong>
+                    </button>
+                  </div>
+                  <div class="broadcast-background-public-note" aria-label="公開版の背景設定について" data-standing-background-controls hidden aria-disabled="true">
+                    <span aria-hidden="true">＋</span>
+                    <p><strong>本番では、ユーザーが自由に背景を設定できます。</strong><small>現在のテスト版では「＋」は使用できません。</small></p>
+                  </div>                </section>
 
                 <section class="broadcast-step" data-wizard-step="3" hidden>
                   <div class="broadcast-step-head">
@@ -358,8 +395,8 @@
   </main>
 
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
-  <script type="module" src="./assets/js/stream-realtime.js?v=20260921-standing2"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260921-prep2d1"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./system-stream-test-ui.js?v=20260921-background1"></script>
+  <script type="module" src="./system-stream-test-ui.js?v=20260921-prep2d1"></script>
 </body>
 </html>

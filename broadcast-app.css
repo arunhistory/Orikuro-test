@@ -1246,3 +1246,16 @@ html[data-stream-mode="standing"] .broadcast-background-preview>span[data-backgr
 @media (max-width:430px){
   .broadcast-live-like{min-height:27px;padding:2px 4px}
 }
+
+
+/* staging standing setup: 4 registered backgrounds + 6 solids */
+.broadcast-standing-background-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.broadcast-standing-background-grid .broadcast-preset-choice{min-height:54px;padding:5px 3px;gap:3px}
+.broadcast-standing-background-grid .broadcast-preset-swatch{width:30px;height:30px;border-radius:9px}
+.broadcast-preset-image-swatch{background:#202534 center/cover no-repeat}
+.broadcast-scene-character{perspective:900px;perspective-origin:50% 50%}
+.broadcast-scene-character>img[data-standing-preview-image]{transform-origin:50% 72%;backface-visibility:hidden;will-change:transform}
+@media(max-height:700px){
+  .broadcast-standing-background-grid .broadcast-preset-choice{min-height:46px}
+  .broadcast-standing-background-grid .broadcast-preset-swatch{width:25px;height:25px}
+}

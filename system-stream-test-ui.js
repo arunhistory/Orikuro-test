@@ -6,6 +6,8 @@ const root=document.querySelector("[data-stream-supported]");
 const systemTest=document.documentElement.dataset.systemTest==="true";
 const STANDING_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview";
 const BACKGROUND_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-background-preview";
+const STANDING_PREVIEW_STOP_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview-stop";
+const STANDING_IMAGE_COUNT=4;
 const supportedModes=new Set(["radio","standing"]);
 const radioPresets=new Map([
   ["solid-1",{label:"黒",color:"#000000"}],
@@ -286,7 +288,14 @@ let standingPreviewLoading=false;
 let standingPreviewUrl="";
 let backgroundPreviewReady=false;
 let backgroundPreviewLoading=false;
-let backgroundPreviewUrl="";
+const standingBackgroundUrls=new Map();
+let standingActiveBackgroundIndex=-1;
+let standingPreparationGeneration=0;
+let standingPreparationController=null;
+let standingPreparationPromise=null;
+let standingActivationQueue=Promise.resolve();
+let standingMotionRaf=0;
+let standingMotionStartedAt=0;
 let startedAt=0;
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
@@ -314,10 +323,17 @@ function micReady(){
   return micPermissionConfirmed&&micDevicesKnown&&selectedAudioInputDeviceId.length>0&&!!preparedAudioTrack();
 }
 
+function standingImageIndex(choice=backgroundChoice){
+  const match=/^standing-image-([1-4])$/.exec(choice);
+  return match?Number(match[1])-1:-1;
+}
+function standingChoiceValid(choice=backgroundChoice){
+  return standingImageIndex(choice)>=0||radioPresets.has(choice);
+}
 function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode)&&micReady();
   if(step===2)return selectedMode==="standing"
-    ?standingPreviewReady&&backgroundPreviewReady
+    ?standingPreviewReady&&backgroundPreviewReady&&standingChoiceValid()
     :radioPresets.has(backgroundChoice);
   if(step===3)return streamTitleValue().length>0&&micReady();
   if(step===4)return readyForStep(1)&&readyForStep(2)&&readyForStep(3);
@@ -353,143 +369,182 @@ function updateStreamIdentity(){
   });
 }
 
-async function loadStandingPreview(){
+function revokeStandingBackgroundUrls(){
+  for(const url of standingBackgroundUrls.values())URL.revokeObjectURL(url);
+  standingBackgroundUrls.clear();
+  document.querySelectorAll("[data-standing-background-swatch]").forEach(el=>{if(el instanceof HTMLElement)el.style.backgroundImage="";});
+  document.querySelectorAll("[data-standing-background-index]").forEach(button=>{if(button instanceof HTMLButtonElement)button.disabled=true;});
+}
+function resetStandingMotionFrame(){
+  window.__orikuroStandingFrameState={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:1,lod:0,faceLocalWarp:0};
+  document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement)img.style.transform="";});
+}
+function stopStandingMotion(reset=true){
+  if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
+  standingMotionRaf=0;standingMotionStartedAt=0;if(reset)resetStandingMotionFrame();
+}
+function startStandingMotion(){
+  if(standingMotionRaf||selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
+  if(!standingMotionStartedAt)standingMotionStartedAt=performance.now();
+  const tick=now=>{
+    standingMotionRaf=0;
+    if(selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
+    const t=(now-standingMotionStartedAt)/1000;
+    const breath=(Math.sin(t*Math.PI*2/4.2)+1)*0.5;
+    const state={x:Math.sin(t*.85)*.018,y:Math.sin(t*1.15)*.004-breath*.0025,z:Math.sin(t*.52)*.018,yaw:Math.sin(t*.72)*8,pitch:Math.sin(t*.54)*3.5,roll:Math.sin(t*.63)*2.4,confidence:1,lod:0,faceLocalWarp:0};
+    window.__orikuroStandingFrameState=state;
+    const sx=(1+state.z)*(1-Math.min(Math.abs(state.yaw)/18,1)*.06);
+    const sy=(1+state.z)*(1-Math.min(Math.abs(state.pitch)/14,1)*.04)*(1+breath*.003);
+    document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{
+      if(!(img instanceof HTMLImageElement))return;
+      img.style.transform=`translate3d(${(state.x*100).toFixed(3)}%,${(state.y*100).toFixed(3)}%,0) perspective(900px) rotateY(${state.yaw.toFixed(3)}deg) rotateX(${(-state.pitch).toFixed(3)}deg) rotateZ(${state.roll.toFixed(3)}deg) scale(${sx.toFixed(5)},${sy.toFixed(5)})`;
+    });
+    standingMotionRaf=requestAnimationFrame(tick);
+  };
+  standingMotionRaf=requestAnimationFrame(tick);
+}
+function renderStandingBackgroundChoice(){
+  const imageIndex=standingImageIndex();
+  const imageUrl=imageIndex>=0?standingBackgroundUrls.get(imageIndex)||"":"";
+  const solid=radioPresets.get(backgroundChoice);
+  const useImage=selectedMode==="standing"&&imageIndex>=0&&!!imageUrl;
+  const useSolid=selectedMode==="standing"&&!!solid;
+  document.querySelectorAll("[data-background-preview-image]").forEach(el=>{
+    if(!(el instanceof HTMLImageElement))return;
+    if(useImage){if(el.src!==imageUrl)el.src=imageUrl;el.hidden=false;}else el.hidden=true;
+  });
+  document.querySelectorAll("[data-radio-background]").forEach(el=>{
+    if(!(el instanceof HTMLElement))return;
+    if(selectedMode==="radio")el.hidden=false;
+    else if(useSolid){el.hidden=false;el.dataset.radioPreset=backgroundChoice;el.style.setProperty("--radio-background-color",solid.color);}
+    else el.hidden=true;
+  });
+  document.querySelectorAll("[data-standing-background-choice]").forEach(button=>{
+    const active=button.dataset.standingBackgroundChoice===backgroundChoice;
+    button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",active?"true":"false");
+  });
+}
+async function loadStandingPreview(signal,generation){
   if(selectedMode!=="standing"||standingPreviewReady||standingPreviewLoading)return;
-  const current=getStreamRealtimeGrant();
-  if(!current)return;
-  standingPreviewLoading=true;
-  setState("composition","立ち絵を復元中","working");
+  const current=getStreamRealtimeGrant();if(!current)return;
+  standingPreviewLoading=true;setState("composition","立ち絵を復元中","working");
   document.querySelectorAll("[data-preview-character-label],[data-live-character-label]").forEach(el=>{el.textContent="R2素材を配信用一時コピーへ復元中…";});
   updateWizard();
   try{
-    const response=await fetch(STANDING_PREVIEW_URL,{
-      method:"POST",
-      headers:{"content-type":"application/json"},
-      body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability}),
-      credentials:"omit",
-      cache:"no-store",
-      referrerPolicy:"no-referrer",
-    });
-    if(!response.ok){
-      const payload=await response.json().catch(()=>null);
-      throw new Error(typeof payload?.code==="string"?payload.code:"STANDING_PREVIEW_FAILED");
-    }
+    const response=await fetch(STANDING_PREVIEW_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",signal});
+    if(!response.ok){const payload=await response.json().catch(()=>null);throw new Error(typeof payload?.code==="string"?payload.code:"STANDING_PREVIEW_FAILED");}
     const blob=await response.blob();
+    if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("STANDING_PREVIEW_INVALID");
     const nextUrl=URL.createObjectURL(blob);
     const images=Array.from(document.querySelectorAll("[data-standing-preview-image]")).filter(img=>img instanceof HTMLImageElement);
     images.forEach(img=>{img.src=nextUrl;img.hidden=false;});
     await Promise.all(images.map(img=>img.decode()));
+    if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){URL.revokeObjectURL(nextUrl);return;}
     if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);
-    standingPreviewUrl=nextUrl;
-    standingPreviewReady=true;
-    setState("composition","背景を復元中","working");
-    setFeedback("R2の立ち絵を復元しました。続けて背景を準備しています。","info");
+    standingPreviewUrl=nextUrl;standingPreviewReady=true;startStandingMotion();
+    setState("composition","背景4種を先行準備中","working");setFeedback("立ち絵を復元しました。背景4種を先行準備しています。","info");
   }catch(error){
-    standingPreviewReady=false;
-    setState("composition","立ち絵読込失敗","error");
-    setFeedback(error instanceof Error?`立ち絵を読み込めません: ${error.message}`:"立ち絵を読み込めません。","error");
-  }finally{
-    standingPreviewLoading=false;
-    updateWizard();
-  }
+    if(signal.aborted||error?.name==="AbortError")return;
+    standingPreviewReady=false;setState("composition","立ち絵読込失敗","error");
+    setFeedback(error instanceof Error?`立ち絵を読み込めません: ${error.message}`:"立ち絵を読み込めません。","error");throw error;
+  }finally{if(generation===standingPreparationGeneration)standingPreviewLoading=false;updateWizard();}
 }
-
-async function loadBackgroundPreview(){
-  if(selectedMode!=="standing"||!standingPreviewReady||backgroundPreviewReady||backgroundPreviewLoading)return;
-  const current=getStreamRealtimeGrant();
-  if(!current)return;
-  backgroundPreviewLoading=true;
-  setState("composition","背景を復元中","working");
-  updateWizard();
+async function fetchStandingBackground(index,signal,generation){
+  const current=getStreamRealtimeGrant();if(!current)throw new Error("STREAM_GRANT_MISSING");
+  const response=await fetch(BACKGROUND_PREVIEW_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",signal});
+  if(!response.ok){const payload=await response.json().catch(()=>null);throw new Error(typeof payload?.code==="string"?payload.code:"BACKGROUND_PREVIEW_FAILED");}
+  const blob=await response.blob();
+  if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+  if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("BACKGROUND_PREVIEW_INVALID");
+  const nextUrl=URL.createObjectURL(blob),previous=standingBackgroundUrls.get(index);if(previous)URL.revokeObjectURL(previous);
+  standingBackgroundUrls.set(index,nextUrl);standingActiveBackgroundIndex=index;
+  const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);if(swatch instanceof HTMLElement)swatch.style.backgroundImage=`url("${nextUrl}")`;
+  const button=document.querySelector(`[data-standing-background-index="${index}"]`);if(button instanceof HTMLButtonElement)button.disabled=false;
+  renderStandingBackgroundChoice();
+}
+async function loadAllStandingBackgrounds(signal,generation){
+  if(selectedMode!=="standing"||backgroundPreviewReady||backgroundPreviewLoading)return;
+  backgroundPreviewLoading=true;setState("composition","背景4種を先行準備中","working");updateWizard();
   try{
-    const response=await fetch(BACKGROUND_PREVIEW_URL,{
-      method:"POST",
-      headers:{"content-type":"application/json"},
-      body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability}),
-      credentials:"omit",
-      cache:"no-store",
-      referrerPolicy:"no-referrer",
-    });
-    if(!response.ok){
-      const payload=await response.json().catch(()=>null);
-      throw new Error(typeof payload?.code==="string"?payload.code:"BACKGROUND_PREVIEW_FAILED");
+    for(const index of [1,2,3,0]){
+      if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+      if(!standingBackgroundUrls.has(index))await fetchStandingBackground(index,signal,generation);
     }
-    const blob=await response.blob();
-    if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("BACKGROUND_PREVIEW_INVALID");
-    const nextUrl=URL.createObjectURL(blob);
-    const images=Array.from(document.querySelectorAll("[data-background-preview-image]")).filter(img=>img instanceof HTMLImageElement);
-    images.forEach(img=>{img.src=nextUrl;img.hidden=false;});
-    await Promise.all(images.map(img=>img.decode()));
-    if(backgroundPreviewUrl)URL.revokeObjectURL(backgroundPreviewUrl);
-    backgroundPreviewUrl=nextUrl;
-    backgroundPreviewReady=true;
-    backgroundChoice="r2-prepared";
-    setState("composition","立ち絵・背景準備完了","ready");
-    setFeedback("R2の立ち絵と背景を、暗号化された配信用一時コピーから読み込みました。","ready");
+    if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+    backgroundPreviewReady=standingBackgroundUrls.size===STANDING_IMAGE_COUNT;
+    if(!standingChoiceValid(backgroundChoice))backgroundChoice="standing-image-1";
+    const chosen=standingImageIndex();if(chosen>=0&&chosen!==standingActiveBackgroundIndex)await activateStandingBackground(chosen);
+    renderStandingBackgroundChoice();setState("composition","立ち絵・背景10種準備完了","ready");
+    setFeedback("立ち絵と登録背景4種を先行準備しました。単色6種と合わせて選択できます。","ready");
   }catch(error){
-    backgroundPreviewReady=false;
-    setState("composition","背景読込失敗","error");
+    if(signal.aborted||error?.name==="AbortError")return;
+    backgroundPreviewReady=false;setState("composition","背景読込失敗","error");
     setFeedback(error instanceof Error?`背景を読み込めません: ${error.message}`:"背景を読み込めません。","error");
-  }finally{
-    backgroundPreviewLoading=false;
-    updateWizard();
-  }
+  }finally{if(generation===standingPreparationGeneration)backgroundPreviewLoading=false;updateWizard();}
+}
+function beginStandingPreparation(){
+  if(selectedMode!=="standing"||standingPreparationPromise)return;
+  const current=getStreamRealtimeGrant();if(!current)return;
+  if(!standingPreparationController)standingPreparationController=new AbortController();
+  const controller=standingPreparationController,generation=standingPreparationGeneration;
+  standingPreparationPromise=(async()=>{await loadStandingPreview(controller.signal,generation);if(!controller.signal.aborted&&generation===standingPreparationGeneration&&selectedMode==="standing")await loadAllStandingBackgrounds(controller.signal,generation);})().finally(()=>{if(generation===standingPreparationGeneration)standingPreparationPromise=null;});
+}
+async function stopStandingTemporary(){
+  const current=getStreamRealtimeGrant();if(!current)return;
+  try{
+    const response=await fetch(STANDING_PREVIEW_STOP_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",keepalive:true});
+    try{await response.body?.cancel();}catch{}
+  }catch{}
+}
+function cancelStandingPreparation(stopRemote=true){
+  standingPreparationGeneration++;standingPreparationController?.abort();standingPreparationController=null;standingPreparationPromise=null;
+  standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;backgroundPreviewReady=false;standingActiveBackgroundIndex=-1;
+  stopStandingMotion(true);
+  if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);standingPreviewUrl="";revokeStandingBackgroundUrls();
+  document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement){img.removeAttribute("src");img.hidden=true;}});
+  document.querySelectorAll("[data-background-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement){img.removeAttribute("src");img.hidden=true;}});
+  if(stopRemote)void stopStandingTemporary();
+}
+async function activateStandingBackground(index){
+  if(index<0||index>=STANDING_IMAGE_COUNT||selectedMode!=="standing"||!standingBackgroundUrls.has(index))return false;
+  if(index===standingActiveBackgroundIndex)return true;
+  const current=getStreamRealtimeGrant();if(!current)return false;
+  standingActivationQueue=standingActivationQueue.catch(()=>undefined).then(async()=>{
+    if(selectedMode!=="standing"||standingImageIndex()!==index)return;
+    setState("composition","背景を切り替え中","working");
+    const response=await fetch(BACKGROUND_PREVIEW_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"});
+    if(!response.ok){const payload=await response.json().catch(()=>null);throw new Error(typeof payload?.code==="string"?payload.code:"BACKGROUND_ACTIVATE_FAILED");}
+    try{await response.body?.cancel();}catch{}
+    standingActiveBackgroundIndex=index;
+    if(selectedMode==="standing"&&standingImageIndex()===index)setState("composition","立ち絵・背景10種準備完了","ready");
+  }).catch(error=>{if(selectedMode==="standing"){setState("composition","背景切替失敗","error");setFeedback(error instanceof Error?`背景を切り替えられません: ${error.message}`:"背景を切り替えられません。","error");}});
+  await standingActivationQueue;return standingActiveBackgroundIndex===index;
+}
+function applyStandingBackgroundChoice(choiceId){
+  if(selectedMode!=="standing"||!standingChoiceValid(choiceId))return;
+  backgroundChoice=choiceId;renderStandingBackgroundChoice();updateWizard();
+  const index=standingImageIndex(choiceId);if(index>=0&&backgroundPreviewReady)void activateStandingBackground(index);
+  window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{detail:{choiceId,index}}));
 }
 
 function updateScenePreview(){
-  const labels={
-    radio:"ラジオ / 音声配信",
-    standing:"立ち絵配信",
-    live2d:"Live2D配信",
-    "3d":"3Dモデル配信",
-    camera:"実写キャプチャー",
-  };
-  const characterLabels={
-    standing:"立ち絵プレビュー",
-    live2d:"Live2Dプレビュー",
-    "3d":"3Dモデルプレビュー",
-    camera:"カメラプレビュー",
-  };
-  document.querySelectorAll("[data-stream-preview-copy]").forEach(el=>{
-    el.textContent=labels[selectedMode]||"配信形式未選択";
-  });
-  document.querySelectorAll("[data-radio-scene-main]").forEach(el=>{
-    el.hidden=selectedMode!==""&&selectedMode!=="radio";
-  });
-  document.querySelectorAll("[data-preview-character-layer]").forEach(el=>{
-    el.hidden=!characterLabels[selectedMode];
-  });
-  document.querySelectorAll("[data-preview-character-label]").forEach(el=>{
-    el.textContent=characterLabels[selectedMode]||"配信モデルプレビュー";
-  });
-  document.querySelectorAll("[data-live-character-layer]").forEach(el=>{
-    el.hidden=!characterLabels[selectedMode];
-  });
-  document.querySelectorAll("[data-live-character-label]").forEach(el=>{
-    el.textContent=selectedMode==="standing"?(standingPreviewReady?"":"立ち絵を読み込み中"):characterLabels[selectedMode]?.replace("プレビュー","")||"配信モデル";
-  });
-  document.querySelectorAll("[data-preview-character-label]").forEach(el=>{
-    if(selectedMode==="standing")el.textContent=standingPreviewReady?"":"立ち絵を読み込み中";
-  });
-  document.querySelectorAll("[data-standing-preview-image]").forEach(el=>{
-    el.hidden=selectedMode!=="standing"||!standingPreviewReady;
-  });
-  document.querySelectorAll("[data-background-preview-image]").forEach(el=>{
-    el.hidden=selectedMode!=="standing"||!backgroundPreviewReady;
-  });
-  document.querySelectorAll("[data-radio-background]").forEach(el=>{
-    el.hidden=selectedMode==="standing";
-  });
-  document.querySelectorAll("[data-radio-background-controls]").forEach(el=>{
-    el.hidden=selectedMode==="standing";
-  });
-  const title=document.querySelector("[data-step2-title]");
-  const description=document.querySelector("[data-step2-description]");
-  const backgroundLabel=document.querySelector("[data-background-preview-label]");
-  if(title)title.textContent=selectedMode==="standing"?"立ち絵と背景を設定":"背景を選択";
-  if(description)description.textContent=selectedMode==="standing"?"R2に登録した立ち絵と背景を、配信用一時コピーで確認します。":"ラジオ画面に使う背景を決めます。";
-  if(backgroundLabel)backgroundLabel.textContent=selectedMode==="standing"?(backgroundPreviewReady?"登録済み立ち絵＋背景 / 配信用一時コピー":standingPreviewReady?"背景を準備中":"立ち絵を準備中"):"背景プレビュー";
+  const labels={radio:"ラジオ / 音声配信",standing:"立ち絵配信",live2d:"Live2D配信","3d":"3Dモデル配信",camera:"実写キャプチャー"};
+  const characterLabels={standing:"立ち絵プレビュー",live2d:"Live2Dプレビュー","3d":"3Dモデルプレビュー",camera:"カメラプレビュー"};
+  document.querySelectorAll("[data-stream-preview-copy]").forEach(el=>{el.textContent=labels[selectedMode]||"配信形式未選択";});
+  document.querySelectorAll("[data-radio-scene-main]").forEach(el=>{el.hidden=selectedMode!==""&&selectedMode!=="radio";});
+  document.querySelectorAll("[data-preview-character-layer]").forEach(el=>{el.hidden=!characterLabels[selectedMode];});
+  document.querySelectorAll("[data-preview-character-label]").forEach(el=>{el.textContent=selectedMode==="standing"?(standingPreviewReady?"":"立ち絵を読み込み中"):(characterLabels[selectedMode]||"配信モデルプレビュー");});
+  document.querySelectorAll("[data-live-character-layer]").forEach(el=>{el.hidden=!characterLabels[selectedMode];});
+  document.querySelectorAll("[data-live-character-label]").forEach(el=>{el.textContent=selectedMode==="standing"?(standingPreviewReady?"":"立ち絵を読み込み中"):characterLabels[selectedMode]?.replace("プレビュー","")||"配信モデル";});
+  document.querySelectorAll("[data-standing-preview-image]").forEach(el=>{el.hidden=selectedMode!=="standing"||!standingPreviewReady;});
+  document.querySelectorAll("[data-radio-background-controls]").forEach(el=>{el.hidden=selectedMode==="standing";});
+  document.querySelectorAll("[data-standing-background-controls]").forEach(el=>{el.hidden=selectedMode!=="standing";});
+  renderStandingBackgroundChoice();
+  const title=document.querySelector("[data-step2-title]"),description=document.querySelector("[data-step2-description]"),backgroundLabel=document.querySelector("[data-background-preview-label]");
+  if(title)title.textContent="背景を選択";
+  if(description)description.textContent=selectedMode==="standing"?"登録済み背景4種または単色6種から選択します。＋はテスト版では使用できません。":"ラジオ画面に使う背景を決めます。";
+  if(backgroundLabel)backgroundLabel.textContent=selectedMode==="standing"?(backgroundPreviewReady?"登録背景4種＋単色6種 / 準備完了":standingPreviewReady?"背景4種を先行準備中":"立ち絵を準備中"):"背景プレビュー";
 }
 
 function updateSummary(){
@@ -497,7 +552,10 @@ function updateSummary(){
   const background=document.querySelector("[data-summary-background]");
   const mic=document.querySelector("[data-summary-mic]");
   if(mode)mode.textContent=selectedMode==="radio"?"ラジオ":selectedMode==="standing"?"立ち絵":"未選択";
-  if(background)background.textContent=selectedMode==="standing"?(backgroundPreviewReady?"R2登録背景":"準備中"):(radioPresets.get(backgroundChoice)?.label||"未選択");
+  if(background){
+    if(selectedMode==="standing"){const imageIndex=standingImageIndex();background.textContent=imageIndex>=0?`登録背景${imageIndex+1}`:(radioPresets.get(backgroundChoice)?.label||"準備中");}
+    else background.textContent=radioPresets.get(backgroundChoice)?.label||"未選択";
+  }
   if(mic)mic.textContent=currentMicLabel();
   updateStreamIdentity();
   updateScenePreview();
@@ -736,50 +794,25 @@ async function switchPreparedAudioInput(deviceId){
 
 async function applyMode(mode){
   if(!supportedModes.has(mode))return;
-  selectedMode=mode;
-  document.documentElement.dataset.streamMode=mode;
-  document.querySelectorAll("[data-stream-mode]").forEach(button=>{
-    const active=button.dataset.streamMode===mode;
-    button.classList.toggle("is-selected",active);
-    button.setAttribute("aria-pressed",active?"true":"false");
-  });
+  const previousMode=selectedMode;
+  if(previousMode==="standing"&&mode!=="standing")cancelStandingPreparation(true);
+  selectedMode=mode;document.documentElement.dataset.streamMode=mode;
+  document.querySelectorAll("[data-stream-mode]").forEach(button=>{const active=button.dataset.streamMode===mode;button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",active?"true":"false");});
   if(mode==="standing"){
-    standingPreviewReady=false;
-    backgroundPreviewReady=false;
-    backgroundChoice="r2-prepared";
-    setState("composition","立ち絵・背景確認待ち","waiting");
-  }else{
-    if(backgroundChoice==="r2-prepared")backgroundChoice="";
-    setState("composition","対象外","ready");
-  }
-  updateWizard();
-  window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
-
-  // Server/network preparation begins immediately while the user continues setup.
-  if(systemTest&&!systemPreparationRequested){
-    systemPreparationRequested=true;
-    window.dispatchEvent(new CustomEvent("orikuro:system-prepare-request",{detail:{mode}}));
-  }
-
-  if(!micReady()){
-    if(!micPermissionRequest){
-      micPermissionRequest=refreshAudioInputs(true).finally(()=>{micPermissionRequest=null;});
-    }
-    await micPermissionRequest;
-  }
-
-  if(mode==="standing"){
-    await loadStandingPreview();
-    await loadBackgroundPreview();
-  }
-  if(micReady()){
-    window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));
-  }
+    if(previousMode!=="standing"){standingPreparationGeneration++;standingPreparationController=new AbortController();standingPreviewReady=false;backgroundPreviewReady=false;backgroundChoice="standing-image-1";setState("composition","立ち絵・背景を先行準備中","working");}
+  }else{if(!radioPresets.has(backgroundChoice))backgroundChoice="";setState("composition","対象外","ready");}
+  updateWizard();window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
+  if(systemTest&&!systemPreparationRequested){systemPreparationRequested=true;window.dispatchEvent(new CustomEvent("orikuro:system-prepare-request",{detail:{mode}}));}
+  if(mode==="standing")beginStandingPreparation();
+  if(!micReady()&&!micPermissionRequest)micPermissionRequest=refreshAudioInputs(true).finally(()=>{micPermissionRequest=null;});
+  const permission=micPermissionRequest;
+  if(permission){void permission.then(()=>{if(selectedMode===mode&&micReady())window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));});}
+  else if(micReady())window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));
 }
 
 function applyBackgroundPreset(presetId){
   const preset=radioPresets.get(presetId);
-  if(!preset)return;
+  if(!preset||selectedMode!=="radio")return;
   backgroundChoice=presetId;
   document.documentElement.dataset.radioPresetId=presetId;
   document.querySelectorAll("[data-radio-background]").forEach(el=>{
@@ -836,6 +869,9 @@ document.querySelectorAll("[data-stream-mode]").forEach(button=>{
 });
 document.querySelectorAll("[data-radio-preset]").forEach(button=>{
   button.addEventListener("click",()=>applyBackgroundPreset(button.dataset.radioPreset||""));
+});
+document.querySelectorAll("[data-standing-background-choice]").forEach(button=>{
+  button.addEventListener("click",()=>applyStandingBackgroundChoice(button.dataset.standingBackgroundChoice||""));
 });
 document.querySelector("[data-wizard-next]")?.addEventListener("click",()=>{
   if(readyForStep(currentStep))goStep(currentStep+1);
@@ -1113,14 +1149,14 @@ navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
 });
 window.addEventListener("pagehide",()=>{
-  if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);
-  standingPreviewUrl="";
-  if(backgroundPreviewUrl)URL.revokeObjectURL(backgroundPreviewUrl);
-  backgroundPreviewUrl="";
-  if(!document.documentElement.dataset.broadcastPhase||document.documentElement.dataset.broadcastPhase!=="live"){
-    releasePreparedAudioStream();
-  }
+  standingPreparationController?.abort();stopStandingMotion(false);
+  if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);standingPreviewUrl="";revokeStandingBackgroundUrls();
+  if(!document.documentElement.dataset.broadcastPhase||document.documentElement.dataset.broadcastPhase!=="live")releasePreparedAudioStream();
 },{once:true});
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);standingMotionRaf=0;}
+  else if(selectedMode==="standing"&&standingPreviewReady)startStandingMotion();
+});
 
 if(compatibility.supported){
   setState("transport","対応","ready");
@@ -1142,7 +1178,7 @@ document.addEventListener("orikuro:system-access-ready",()=>{
 document.addEventListener("orikuro:service-ready",()=>{
   refreshGrantState();
   setState("session","配信経路準備中","waiting");
-  if(selectedMode==="standing")void loadStandingPreview().then(loadBackgroundPreview);
+  if(selectedMode==="standing")beginStandingPreparation();
 });
 window.addEventListener("orikuro:stream-preparing",()=>{
   realtimeReady=false;
