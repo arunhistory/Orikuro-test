@@ -4,6 +4,7 @@ import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
 const systemTest=document.documentElement.dataset.systemTest==="true";
+const STANDING_PREPARE_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-prepare";
 const STANDING_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview";
 const BACKGROUND_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-background-preview";
 const BACKGROUND_ACTIVATE_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-background-activate";
@@ -425,6 +426,30 @@ function renderStandingBackgroundChoice(){
     button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",active?"true":"false");
   });
 }
+async function prepareStandingBackend(signal,generation){
+  if(selectedMode!=="standing")return;
+  const current=getStreamRealtimeGrant();if(!current)throw new Error("STREAM_GRANT_MISSING");
+  const response=await fetch(STANDING_PREPARE_URL,{
+    method:"POST",
+    headers:{"content-type":"application/json"},
+    body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability}),
+    credentials:"omit",
+    cache:"no-store",
+    referrerPolicy:"no-referrer",
+    signal
+  });
+  if(!response.ok){
+    const payload=await response.json().catch(()=>null);
+    throw new Error(typeof payload?.code==="string"?payload.code:"STANDING_PREPARE_FAILED");
+  }
+  const payload=await response.json().catch(()=>null);
+  if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+  if(payload?.ok!==true||payload?.result?.backgroundCount!==STANDING_IMAGE_COUNT)throw new Error("STANDING_PREPARE_INVALID");
+  window.dispatchEvent(new CustomEvent("orikuro:standing-backend-ready",{detail:{
+    standingReady:payload.result.standingReady===true,
+    backgroundCount:payload.result.backgroundCount
+  }}));
+}
 async function loadStandingPreview(signal,generation){
   if(selectedMode!=="standing"||standingPreviewReady||standingPreviewLoading)return;
   const current=getStreamRealtimeGrant();if(!current)return;
@@ -492,10 +517,10 @@ function beginStandingPreparation(){
   if(!standingPreparationController)standingPreparationController=new AbortController();
   const controller=standingPreparationController,generation=standingPreparationGeneration;
   standingPreparationPromise=(async()=>{
-    await Promise.all([
-      loadStandingPreview(controller.signal,generation),
-      loadAllStandingBackgrounds(controller.signal,generation)
-    ]);
+    const backendPromise=prepareStandingBackend(controller.signal,generation);
+    const standingPromise=loadStandingPreview(controller.signal,generation);
+    const backgroundsPromise=loadAllStandingBackgrounds(controller.signal,generation);
+    await Promise.all([backendPromise,standingPromise,backgroundsPromise]);
     if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     if(standingPreviewReady&&backgroundPreviewReady){
       const chosen=standingImageIndex();
@@ -1199,6 +1224,10 @@ document.addEventListener("orikuro:service-ready",()=>{
   refreshGrantState();
   setState("session","配信経路準備中","waiting");
   if(selectedMode==="standing")beginStandingPreparation();
+});
+window.addEventListener("orikuro:standing-backend-ready",()=>{
+  if(selectedMode==="standing"&&!standingPreviewReady)setState("composition","専用バックエンド準備完了 / 表示素材受信中","working");
+  updateWizard();
 });
 window.addEventListener("orikuro:stream-common-preparing",()=>{
   if(grantReady)setState("session","フロント共通スタンバイ中","working");
