@@ -1406,12 +1406,14 @@ async function startRealtime(): Promise<void> {
   if (pageStopping) return;
   grant = getStreamRealtimeGrant();
   if (!grant) return;
-  setText('[data-realtime-status]', '共通配信経路をスタンバイ中');
-  await prepareCommonStreaming();
-  if (selectedMode === 'standing') void prepareStandingVideoRuntime();
+  setText('[data-realtime-status]', '共通・専用配信経路を並列スタンバイ中');
+
+  const tasks: Promise<void>[] = [prepareCommonStreaming()];
+  if (selectedMode === 'standing') tasks.push(prepareStandingVideoRuntime());
   if (preparationRequestedMode && preparedAudioStreamAvailable()) {
-    await prepareStreaming(preparationRequestedMode);
+    tasks.push(prepareStreaming(preparationRequestedMode));
   }
+  await Promise.all(tasks);
 }
 
 function serviceReady(): boolean {
