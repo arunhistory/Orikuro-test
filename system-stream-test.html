@@ -7,6 +7,9 @@
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
   <link rel="stylesheet" href="./broadcast-app.css?v=20260921-standing2"/>
+  <style>
+    .broadcast-prepared-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:center}
+  </style>
 </head>
 <body class="broadcast-app-page">
   <main class="stream-main">
@@ -87,13 +90,14 @@
                     <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
                       
                     </div>
+                    <img class="broadcast-prepared-background" data-background-preview-image alt="R2から配信用一時コピーへ復元した背景" hidden/>
                     <div class="broadcast-scene-character broadcast-standing-preview-layer" data-preview-character-layer hidden>
                       <img data-standing-preview-image alt="R2から配信用一時コピーへ復元した立ち絵"/>
                       <span data-preview-character-label>立ち絵を読み込み中</span>
                     </div>
                     <span data-background-preview-label>背景プレビュー</span>
                   </div>
-                  <div class="broadcast-preset-grid" role="group" aria-label="ラジオ背景">
+                  <div class="broadcast-preset-grid" role="group" aria-label="ラジオ背景" data-radio-background-controls>
                     <button class="broadcast-preset-choice" type="button" data-radio-preset="solid-1" aria-pressed="false" style="--preset-color:#000000">
                       <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>黒</strong>
                     </button>
@@ -113,7 +117,7 @@
                       <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>紫</strong>
                     </button>
                   </div>
-                  <div class="broadcast-background-public-note" aria-label="公開版の背景設定について">
+                  <div class="broadcast-background-public-note" aria-label="公開版の背景設定について" data-radio-background-controls>
                     <span aria-hidden="true">＋</span>
                     <p><strong>公開版では、ユーザーが自由に背景を設定できます。</strong><small>現在のテスト版は単色6種類から選択できます。</small></p>
                   </div>
@@ -160,6 +164,7 @@
                   </div>
                   <div class="broadcast-final-preview broadcast-scene-preview" data-prelive-preview>
                     <div class="broadcast-radio-background" data-radio-background aria-hidden="true"></div>
+                    <img class="broadcast-prepared-background" data-background-preview-image alt="R2から配信用一時コピーへ復元した背景" hidden/>
                     <div class="broadcast-scene-main" data-radio-scene-main>
                       <img src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                     </div>
@@ -199,6 +204,7 @@
             <section class="broadcast-live-screen" data-live-screen hidden>
               <div class="broadcast-live-preview">
                 <div class="broadcast-radio-background" data-radio-background aria-hidden="true"></div>
+                <img class="broadcast-prepared-background" data-background-preview-image alt="配信中の背景" hidden/>
                 <div class="broadcast-scene-main" data-radio-scene-main>
                   <img src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                 </div>
@@ -354,6 +360,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260921-standing2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./stream-test-ui.js?v=20260921-standing2"></script>
+  <script type="module" src="./system-stream-test-ui.js?v=20260921-background1"></script>
 </body>
 </html>
