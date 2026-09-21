@@ -54,6 +54,8 @@ let pageStopping = false;
 let streamWanted = false;
 let liveTransmission = false;
 let realtimePrepared = false;
+let commonPrepared = false;
+let commonPreparePromise: Promise<void> | null = null;
 let preparationRequestedMode: string | null = null;
 let preparePromise: Promise<void> | null = null;
 let serverLivePromise: Promise<boolean> | null = null;
@@ -102,6 +104,8 @@ let videoFrameIndex = 0;
 let videoStartedAt = 0;
 let videoBackpressureUntil = 0;
 let h264ParameterSets: Uint8Array | null = null;
+let preparedVideoConfig: VideoEncoderConfig | null = null;
+let standingVideoPreparePromise: Promise<void> | null = null;
 let videoStandingImage: HTMLImageElement | null = null;
 let videoBackgroundImage: HTMLImageElement | null = null;
 let videoBackgroundColor = '#151827';
@@ -670,6 +674,116 @@ async function prepareAudio(current: StreamRealtimeGrant): Promise<void> {
   setText('[data-audio-status]', '開始待機中');
 }
 
+async function prefetchAudioWorklet(): Promise<void> {
+  try {
+    const response = await fetch(WORKLET_URL, {
+      method: 'GET',
+      cache: 'force-cache',
+      credentials: 'same-origin',
+    });
+    try { await response.body?.cancel(); } catch {}
+  } catch {}
+}
+
+async function prepareCommonStreaming(): Promise<void> {
+  if (pageStopping || commonPrepared) return;
+  if (commonPreparePromise) {
+    await commonPreparePromise;
+    return;
+  }
+  const current = validGrant();
+  if (!current) return;
+
+  window.dispatchEvent(new CustomEvent('orikuro:stream-common-preparing'));
+  commonPreparePromise = (async () => {
+    await Promise.all([
+      connectComments(),
+      connectDeliveryMonitor(current, false),
+      connectAudio(current, false),
+      prefetchAudioWorklet(),
+    ]);
+    commonPrepared = true;
+    window.dispatchEvent(new CustomEvent('orikuro:stream-common-prepared'));
+  })();
+
+  try {
+    await commonPreparePromise;
+  } catch (error) {
+    commonPrepared = false;
+    window.dispatchEvent(new CustomEvent('orikuro:stream-common-prepare-failed', {
+      detail: { message: startErrorMessage(error) },
+    }));
+  } finally {
+    commonPreparePromise = null;
+  }
+}
+
+function releaseStandingVideoStandby(): void {
+  standingVideoPreparePromise = null;
+  preparedVideoConfig = null;
+  if (videoTimer !== null) {
+    clearInterval(videoTimer);
+    videoTimer = null;
+  }
+  if (videoEncoder) {
+    try { videoEncoder.close(); } catch {}
+    videoEncoder = null;
+  }
+  h264ParameterSets = null;
+  if (videoSocket) {
+    try { videoSocket.close(1000, 'standing standby released'); } catch {}
+    videoSocket = null;
+  }
+  videoCanvas = null;
+  videoContext = null;
+  videoStandingImage = null;
+  videoBackgroundImage = null;
+  videoBackgroundColor = '#151827';
+}
+
+async function prepareStandingVideoRuntime(): Promise<void> {
+  if (pageStopping || selectedMode !== 'standing') return;
+  if (standingVideoPreparePromise) {
+    await standingVideoPreparePromise;
+    return;
+  }
+  const current = validGrant();
+  if (!current) return;
+
+  standingVideoPreparePromise = (async () => {
+    const config = preparedVideoConfig ?? await supportedVideoConfig();
+    if (selectedMode !== 'standing' || pageStopping) return;
+    preparedVideoConfig = config;
+
+    if (!videoCanvas || !videoContext) {
+      const canvas = document.createElement('canvas');
+      canvas.width = TARGET_WIDTH;
+      canvas.height = TARGET_HEIGHT;
+      const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
+      if (!context) throw new Error('VIDEO_CANVAS_UNAVAILABLE');
+      videoCanvas = canvas;
+      videoContext = context;
+    }
+
+    await connectVideo(current);
+    if (selectedMode !== 'standing' || pageStopping) return;
+    if (!videoEncoder || videoEncoder.state !== 'configured') createEncoder(config);
+    window.dispatchEvent(new CustomEvent('orikuro:standing-runtime-ready'));
+  })();
+
+  try {
+    await standingVideoPreparePromise;
+  } catch (error) {
+    if (selectedMode === 'standing') {
+      window.dispatchEvent(new CustomEvent('orikuro:standing-runtime-failed', {
+        detail: { message: startErrorMessage(error) },
+      }));
+    }
+  } finally {
+    standingVideoPreparePromise = null;
+  }
+}
+
 async function prepareStreaming(mode: string): Promise<void> {
   preparationRequestedMode = mode === 'standing' ? 'standing' : 'radio';
   if (pageStopping || realtimePrepared || preparePromise) {
@@ -855,6 +969,11 @@ function handleVideoControl(raw: unknown): void {
 }
 
 async function connectVideo(current: StreamRealtimeGrant): Promise<void> {
+  if (videoSocket && videoSocket.readyState === WebSocket.OPEN) return;
+  if (videoSocket && videoSocket.readyState === WebSocket.CONNECTING) {
+    await waitOpen(videoSocket);
+    return;
+  }
   const socket = new WebSocket(current.cloudflareWebSocketUrl, [VIDEO_SUBPROTOCOL, `bearer.${current.publisherCapability}`]);
   socket.binaryType = 'arraybuffer';
   videoSocket = socket;
@@ -946,17 +1065,30 @@ function encodeVideoFrame(): void {
   try{const keyFrame=videoFrameIndex%KEYFRAME_INTERVAL===0;videoEncoder.encode(frame,{keyFrame});videoFrameIndex+=1;}finally{frame.close();}
 }
 async function startVideo(current:StreamRealtimeGrant):Promise<void>{
+  await prepareStandingVideoRuntime();
   const image=Array.from(document.querySelectorAll<HTMLImageElement>('[data-standing-preview-image]')).find(item=>!item.hidden&&item.complete&&item.naturalWidth>0);
   if(!image)throw new Error('STANDING_PREVIEW_MISSING');
-  const config=await supportedVideoConfig(),canvas=document.createElement('canvas');canvas.width=TARGET_WIDTH;canvas.height=TARGET_HEIGHT;
-  const context=canvas.getContext('2d',{alpha:false,desynchronized:true});if(!context)throw new Error('VIDEO_CANVAS_UNAVAILABLE');
+  if(!videoCanvas||!videoContext)throw new Error('VIDEO_CANVAS_UNAVAILABLE');
+  if(!videoSocket||videoSocket.readyState!==WebSocket.OPEN)await connectVideo(current);
+  if(!preparedVideoConfig)preparedVideoConfig=await supportedVideoConfig();
+  if(!videoEncoder||videoEncoder.state!=='configured')createEncoder(preparedVideoConfig);
+
   const preparedBackground=Array.from(document.querySelectorAll<HTMLImageElement>('[data-background-preview-image]')).find(item=>!item.hidden&&item.complete&&item.naturalWidth>0)??null;
   const solidBackground=Array.from(document.querySelectorAll<HTMLElement>('[data-radio-background]')).find(item=>!item.hidden)??null;
   const backgroundColor=solidBackground?getComputedStyle(solidBackground).getPropertyValue('--radio-background-color').trim():'#151827';
-  videoStandingImage=image;videoBackgroundImage=preparedBackground;videoBackgroundColor=/^#[0-9a-f]{6}$/i.test(backgroundColor)?backgroundColor:'#151827';videoCanvas=canvas;videoContext=context;drawStandingVideoScene();
-  await connectVideo(current);videoSequence=0;videoFrameIndex=0;videoStartedAt=streamStartedAtPerfMs;
+
+  videoStandingImage=image;
+  videoBackgroundImage=preparedBackground;
+  videoBackgroundColor=/^#[0-9a-f]{6}$/i.test(backgroundColor)?backgroundColor:'#151827';
+  drawStandingVideoScene();
+
+  videoSequence=0;videoFrameIndex=0;videoStartedAt=streamStartedAtPerfMs;
   const configPayload=encoderText.encode(JSON.stringify({codec:'h264-annexb',profile:H264_CODEC,width:TARGET_WIDTH,height:TARGET_HEIGHT,fps:TARGET_FPS,keyframeIntervalFrames:KEYFRAME_INTERVAL,source:'standing-2.5d-streaming-temporary-copy',staging:true,faceLocalWarp:0}));
-  videoSocket?.send(buildVideoPacket(MEDIA_KIND_CONFIG,configPayload,false,0));createEncoder(config);encodeVideoFrame();videoTimer=window.setInterval(encodeVideoFrame,FRAME_INTERVAL_MS);window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
+  videoSocket?.send(buildVideoPacket(MEDIA_KIND_CONFIG,configPayload,false,0));
+  encodeVideoFrame();
+  if(videoTimer!==null)clearInterval(videoTimer);
+  videoTimer=window.setInterval(encodeVideoFrame,FRAME_INTERVAL_MS);
+  window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
 }
 
 async function requestServerLive(): Promise<boolean> {
@@ -1103,6 +1235,8 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
     const shouldNotify = notifyServer && !!current && !serverStopped;
     liveTransmission = false;
     realtimePrepared = false;
+    commonPrepared = false;
+    commonPreparePromise = null;
     preparationRequestedMode = null;
     streamWanted = false;
 
@@ -1141,6 +1275,8 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
     }
     videoCanvas = null;
     videoContext = null;
+    preparedVideoConfig = null;
+    standingVideoPreparePromise = null;
     videoStandingImage = null;
     videoBackgroundImage = null;
     videoBackgroundColor = '#151827';
@@ -1228,8 +1364,14 @@ function bindUI(): void {
   window.addEventListener('orikuro:stream-mode-change', (event) => {
     const detail = objectValue((event as CustomEvent).detail);
     const mode = typeof detail?.mode === 'string' ? detail.mode : 'radio';
+    const previousMode = selectedMode;
     selectedMode = mode === 'standing' ? 'standing' : 'radio';
-    if (selectedMode === 'radio') void ensureAudioRuntime().catch(() => undefined);
+    if (selectedMode === 'standing') {
+      void prepareStandingVideoRuntime();
+    } else {
+      if (previousMode === 'standing' && !liveTransmission) releaseStandingVideoStandby();
+      void ensureAudioRuntime().catch(() => undefined);
+    }
   });
   window.addEventListener('orikuro:audio-input-change', (event) => {
     if (liveTransmission) return;
@@ -1264,7 +1406,9 @@ async function startRealtime(): Promise<void> {
   if (pageStopping) return;
   grant = getStreamRealtimeGrant();
   if (!grant) return;
-  setText('[data-realtime-status]', '配信経路を準備できます。');
+  setText('[data-realtime-status]', '共通配信経路をスタンバイ中');
+  await prepareCommonStreaming();
+  if (selectedMode === 'standing') void prepareStandingVideoRuntime();
   if (preparationRequestedMode && preparedAudioStreamAvailable()) {
     await prepareStreaming(preparationRequestedMode);
   }
