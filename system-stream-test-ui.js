@@ -6,6 +6,7 @@ const root=document.querySelector("[data-stream-supported]");
 const systemTest=document.documentElement.dataset.systemTest==="true";
 const STANDING_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview";
 const BACKGROUND_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-background-preview";
+const BACKGROUND_ACTIVATE_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-background-activate";
 const STANDING_PREVIEW_STOP_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview-stop";
 const STANDING_IMAGE_COUNT=4;
 const supportedModes=new Set(["radio","standing"]);
@@ -458,30 +459,31 @@ async function fetchStandingBackground(index,signal,generation){
   if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
   if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("BACKGROUND_PREVIEW_INVALID");
   const nextUrl=URL.createObjectURL(blob),previous=standingBackgroundUrls.get(index);if(previous)URL.revokeObjectURL(previous);
-  standingBackgroundUrls.set(index,nextUrl);standingActiveBackgroundIndex=index;
+  standingBackgroundUrls.set(index,nextUrl);
   const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);if(swatch instanceof HTMLElement)swatch.style.backgroundImage=`url("${nextUrl}")`;
   const button=document.querySelector(`[data-standing-background-index="${index}"]`);if(button instanceof HTMLButtonElement)button.disabled=false;
   renderStandingBackgroundChoice();
 }
 async function loadAllStandingBackgrounds(signal,generation){
   if(selectedMode!=="standing"||backgroundPreviewReady||backgroundPreviewLoading)return;
-  backgroundPreviewLoading=true;setState("composition","背景4種を先行準備中","working");updateWizard();
+  backgroundPreviewLoading=true;setState("composition","背景4種を並列準備中","working");updateWizard();
   try{
-    for(const index of [0,1,2,3]){
-      if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
-      if(!standingBackgroundUrls.has(index))await fetchStandingBackground(index,signal,generation);
-    }
+    const pending=[0,1,2,3].filter(index=>!standingBackgroundUrls.has(index));
+    await Promise.all(pending.map(index=>fetchStandingBackground(index,signal,generation)));
     if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     backgroundPreviewReady=standingBackgroundUrls.size===STANDING_IMAGE_COUNT;
     if(!standingChoiceValid(backgroundChoice))backgroundChoice="standing-image-1";
-    const chosen=standingImageIndex();if(chosen>=0&&chosen!==standingActiveBackgroundIndex)await activateStandingBackground(chosen);
-    renderStandingBackgroundChoice();setState("composition","立ち絵・背景10種準備完了","ready");
-    window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT}}));
-    setFeedback("立ち絵と登録背景4種を先行準備しました。単色6種と合わせて選択できます。","ready");
+    renderStandingBackgroundChoice();
+    if(backgroundPreviewReady){
+      setState("composition",standingPreviewReady?"立ち絵・背景10種準備完了":"背景4種準備完了 / 立ち絵準備中",standingPreviewReady?"ready":"working");
+      window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT}}));
+      setFeedback("登録背景4種を並列準備しました。単色6種と合わせて選択できます。","ready");
+    }
   }catch(error){
     if(signal.aborted||error?.name==="AbortError")return;
     backgroundPreviewReady=false;setState("composition","背景読込失敗","error");
     setFeedback(error instanceof Error?`背景を読み込めません: ${error.message}`:"背景を読み込めません。","error");
+    throw error;
   }finally{if(generation===standingPreparationGeneration)backgroundPreviewLoading=false;updateWizard();}
 }
 function beginStandingPreparation(){
@@ -489,7 +491,23 @@ function beginStandingPreparation(){
   const current=getStreamRealtimeGrant();if(!current)return;
   if(!standingPreparationController)standingPreparationController=new AbortController();
   const controller=standingPreparationController,generation=standingPreparationGeneration;
-  standingPreparationPromise=(async()=>{await loadStandingPreview(controller.signal,generation);if(!controller.signal.aborted&&generation===standingPreparationGeneration&&selectedMode==="standing")await loadAllStandingBackgrounds(controller.signal,generation);})().finally(()=>{if(generation===standingPreparationGeneration)standingPreparationPromise=null;});
+  standingPreparationPromise=(async()=>{
+    await Promise.all([
+      loadStandingPreview(controller.signal,generation),
+      loadAllStandingBackgrounds(controller.signal,generation)
+    ]);
+    if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+    if(standingPreviewReady&&backgroundPreviewReady){
+      const chosen=standingImageIndex();
+      if(chosen>=0&&standingBackgroundUrls.has(chosen)&&chosen!==standingActiveBackgroundIndex)await activateStandingBackground(chosen);
+      if(selectedMode==="standing"&&generation===standingPreparationGeneration)setState("composition","立ち絵・背景10種準備完了","ready");
+    }
+  })().catch(error=>{
+    if(!controller.signal.aborted&&generation===standingPreparationGeneration&&selectedMode==="standing"){
+      const message=error instanceof Error?error.message:"STANDING_PREPARATION_FAILED";
+      setFeedback("立ち絵配信の専用準備を完了できません: "+message,"error");
+    }
+  }).finally(()=>{if(generation===standingPreparationGeneration)standingPreparationPromise=null;});
 }
 async function stopStandingTemporary(){
   const current=getStreamRealtimeGrant();if(!current)return;
@@ -514,9 +532,10 @@ async function activateStandingBackground(index){
   standingActivationQueue=standingActivationQueue.catch(()=>undefined).then(async()=>{
     if(selectedMode!=="standing"||standingImageIndex()!==index)return;
     setState("composition","背景を切り替え中","working");
-    const response=await fetch(BACKGROUND_PREVIEW_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"});
+    const response=await fetch(BACKGROUND_ACTIVATE_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"});
     if(!response.ok){const payload=await response.json().catch(()=>null);throw new Error(typeof payload?.code==="string"?payload.code:"BACKGROUND_ACTIVATE_FAILED");}
-    try{await response.body?.cancel();}catch{}
+    const payload=await response.json().catch(()=>null);
+    if(payload?.ok!==true||payload?.result?.ready!==true)throw new Error("BACKGROUND_ACTIVATE_INVALID");
     standingActiveBackgroundIndex=index;
     if(selectedMode==="standing"&&standingImageIndex()===index)setState("composition","立ち絵・背景10種準備完了","ready");
   }).catch(error=>{if(selectedMode==="standing"){setState("composition","背景切替失敗","error");setFeedback(error instanceof Error?`背景を切り替えられません: ${error.message}`:"背景を切り替えられません。","error");}});
@@ -525,7 +544,7 @@ async function activateStandingBackground(index){
 function applyStandingBackgroundChoice(choiceId){
   if(selectedMode!=="standing"||!standingChoiceValid(choiceId))return;
   backgroundChoice=choiceId;renderStandingBackgroundChoice();updateWizard();
-  const index=standingImageIndex(choiceId);if(index>=0&&backgroundPreviewReady)void activateStandingBackground(index);
+  const index=standingImageIndex(choiceId);if(index>=0&&standingPreviewReady&&standingBackgroundUrls.has(index))void activateStandingBackground(index);
   window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{detail:{choiceId,index}}));
 }
 
