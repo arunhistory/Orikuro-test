@@ -1,7 +1,7 @@
 /* YuNet provider worker. Raw camera pixels never leave this worker/provider path. */
 const ORT_DIST='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/';
 const ORT_SCRIPT=ORT_DIST+'ort.webgpu.min.js';
-const YUNET_MODEL='https://cdn.jsdelivr.net/gh/opencv/opencv_zoo@47534e27c9851bb1128ccc0102f1145e27f23f98/models/face_detection_yunet/face_detection_yunet_2026may.onnx';
+const YUNET_MODEL='https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models/face_detection_yunet/face_detection_yunet_2026may.onnx';
 const STRIDES=[8,16,32];
 const SCORE_THRESHOLD=0.40;
 const NMS_THRESHOLD=0.30;
