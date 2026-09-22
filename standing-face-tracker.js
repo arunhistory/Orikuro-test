@@ -23,8 +23,8 @@ export class StandingFaceTracker{
   }
 
   async start(){
-    if(this.running)return;
     if(this.readyPromise)return await this.readyPromise;
+    if(this.running)return;
     this.readyPromise=this.#startInternal();
     try{await this.readyPromise;}finally{this.readyPromise=null;}
   }
@@ -39,8 +39,11 @@ export class StandingFaceTracker{
       this.worker.addEventListener('message',event=>this.#onWorkerMessage(event));
       this.worker.addEventListener('error',()=>this.#fail('FACE_PROVIDER_WORKER_ERROR'));
       this.worker.postMessage({type:'init'});
+      await providerReady;
+      if(!this.running)return;
 
       this.stream=await media.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}}});
+      if(!this.running){this.stream.getTracks().forEach(track=>track.stop());this.stream=null;return;}
       const track=this.stream.getVideoTracks()[0];
       if(!track||track.readyState!=='live')throw new Error('CAMERA_TRACK_MISSING');
       track.addEventListener('ended',()=>this.#fail('CAMERA_TRACK_ENDED'),{once:true});
@@ -49,13 +52,13 @@ export class StandingFaceTracker{
       video.muted=true;video.playsInline=true;video.autoplay=true;video.srcObject=this.stream;
       this.video=video;
       await video.play();
+      if(!this.running)return;
       await this.#waitForVideoGeometry(video);
-      await providerReady;
       if(!this.running)return;
       this.#schedule();
       window.dispatchEvent(new CustomEvent('orikuro:standing-tracking-ready',{detail:{backend:this.backend,provider:'yunet-onnxruntime-web',rawCameraUpload:false}}));
     }catch(error){
-      const code=error instanceof Error&&error.message?error.message:'STANDING_TRACKING_START_FAILED';
+      const code=error instanceof DOMException&&error.name?error.name:error instanceof Error&&error.message?error.message:'STANDING_TRACKING_START_FAILED';
       this.stop();
       throw new Error(code);
     }
