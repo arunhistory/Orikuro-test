@@ -111,6 +111,9 @@ let videoBackgroundImage: HTMLImageElement | null = null;
 let videoBackgroundColor = '#151827';
 type StandingFrameState = Readonly<{x:number;y:number;z:number;yaw:number;pitch:number;roll:number;confidence:number;lod:number;faceLocalWarp:number;}>;
 type StandingFrameWindow = Window & { __orikuroStandingFrameState?: StandingFrameState };
+type FaceRegionControl = Readonly<{type:'face_region_v1';frameId:number;timestampNS:number;present:boolean;centerX:number;centerY:number;size:number;angleRad:number;confidence:number;}>;
+let lastFaceRegionFrameId=0;
+let lastFaceRegionTimestampNS=0;
 
 function objectValue(value: unknown): JsonObject | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : null;
@@ -937,6 +940,31 @@ async function supportedVideoConfig(): Promise<VideoEncoderConfig> {
   return support.config ?? config;
 }
 
+function faceRegionControl(raw: unknown): FaceRegionControl | null {
+  const value=objectValue(raw);
+  if(!value)return null;
+  const frameId=Number(value.frameId),timestampNS=Number(value.timestampNS);
+  const present=value.present;
+  const centerX=Number(value.centerX),centerY=Number(value.centerY),size=Number(value.size),angleRad=Number(value.angleRad),confidence=Number(value.confidence);
+  if(!Number.isSafeInteger(frameId)||frameId<=0||!Number.isSafeInteger(timestampNS)||timestampNS<=0||typeof present!=='boolean')return null;
+  if(!Number.isFinite(confidence)||confidence<0||confidence>1)return null;
+  if(!present)return {type:'face_region_v1',frameId,timestampNS,present:false,centerX:0,centerY:0,size:0,angleRad:0,confidence:0};
+  if(!Number.isFinite(centerX)||centerX<0||centerX>1||!Number.isFinite(centerY)||centerY<0||centerY>1||!Number.isFinite(size)||size<=0||size>1||!Number.isFinite(angleRad)||angleRad<-Math.PI||angleRad>Math.PI)return null;
+  return {type:'face_region_v1',frameId,timestampNS,present:true,centerX,centerY,size,angleRad,confidence};
+}
+
+function sendFaceRegionControl(raw: unknown): void {
+  if(pageStopping||selectedMode!=='standing')return;
+  const sample=faceRegionControl(raw);
+  if(!sample)return;
+  if(sample.frameId<=lastFaceRegionFrameId||sample.timestampNS<=lastFaceRegionTimestampNS)return;
+  const socket=videoSocket;
+  if(!socket||socket.readyState!==WebSocket.OPEN||socket.bufferedAmount>MAX_VIDEO_BUFFERED_BYTES)return;
+  socket.send(JSON.stringify(sample));
+  lastFaceRegionFrameId=sample.frameId;
+  lastFaceRegionTimestampNS=sample.timestampNS;
+}
+
 function handleVideoControl(raw: unknown): void {
   const payload = parseText(raw);
   if (!payload || typeof payload.type !== 'string') return;
@@ -952,6 +980,11 @@ function handleVideoControl(raw: unknown): void {
   }
   if (payload.type === 'ready') {
     window.dispatchEvent(new CustomEvent('orikuro:transport-ready'));
+    return;
+  }
+  if (payload.type === 'face_region_received') {
+    const frameId=Number(payload.frameId);
+    if(Number.isSafeInteger(frameId)&&frameId>0)window.dispatchEvent(new CustomEvent('orikuro:face-region-cloudflare-received',{detail:{frameId}}));
     return;
   }
   if (payload.type === 'session_warning') {
@@ -1269,6 +1302,8 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
       videoStream.getTracks().forEach((track) => track.stop());
       videoStream = null;
     }
+    lastFaceRegionFrameId=0;
+    lastFaceRegionTimestampNS=0;
     if (videoElement) {
       videoElement.srcObject = null;
       videoElement = null;
@@ -1372,6 +1407,9 @@ function bindUI(): void {
       if (previousMode === 'standing' && !liveTransmission) releaseStandingVideoStandby();
       void ensureAudioRuntime().catch(() => undefined);
     }
+  });
+  window.addEventListener('orikuro:face-region-sample', (event) => {
+    sendFaceRegionControl((event as CustomEvent).detail);
   });
   window.addEventListener('orikuro:audio-input-change', (event) => {
     if (liveTransmission) return;
