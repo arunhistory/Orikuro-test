@@ -1,5 +1,6 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
+import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260922-yunet1";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
@@ -298,6 +299,9 @@ let standingPreparationPromise=null;
 let standingActivationQueue=Promise.resolve();
 let standingMotionRaf=0;
 let standingMotionStartedAt=0;
+let standingFaceTracker=null;
+let standingTrackingReady=false;
+let standingTrackingStart=null;
 let startedAt=0;
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
@@ -337,7 +341,7 @@ function standingChoiceReady(choice=backgroundChoice){
   return index>=0?standingBackgroundUrls.has(index):radioPresets.has(choice);
 }
 function readyForStep(step){
-  if(step===1)return supportedModes.has(selectedMode)&&micReady();
+  if(step===1)return supportedModes.has(selectedMode)&&micReady()&&(selectedMode!=="standing"||standingTrackingReady);
   if(step===2)return selectedMode==="standing"
     ?standingPreviewReady&&standingChoiceReady()
     :radioPresets.has(backgroundChoice);
@@ -687,6 +691,52 @@ function dispatchAudioInputSelection(){
   window.dispatchEvent(new CustomEvent("orikuro:audio-input-change",{detail:{deviceId:selectedAudioInputDeviceId}}));
 }
 
+function setCameraTrackingStatus(text,state="waiting",visible=selectedMode==="standing"){
+  const el=document.querySelector("[data-camera-tracking-status]");
+  if(!el)return;
+  el.hidden=!visible;
+  el.textContent=text;
+  el.dataset.state=state;
+}
+
+function releaseStandingTracking(){
+  standingTrackingStart=null;
+  standingTrackingReady=false;
+  standingFaceTracker?.stop?.();
+  standingFaceTracker=null;
+  setCameraTrackingStatus("立ち絵を選択するとカメラの使用許可を確認します。","waiting",false);
+}
+
+async function ensureStandingTracking(){
+  if(selectedMode!=="standing"||standingTrackingReady)return;
+  if(standingTrackingStart)return await standingTrackingStart;
+  if(!standingFaceTracker)standingFaceTracker=new StandingFaceTracker();
+  const tracker=standingFaceTracker;
+  setCameraTrackingStatus("カメラの使用許可と顔追従を準備しています…","working",true);
+  standingTrackingStart=tracker.start().then(()=>{
+    if(selectedMode!=="standing"||standingFaceTracker!==tracker){tracker.stop();return;}
+    standingTrackingReady=true;
+    const backend=tracker.backend==="webgpu"?"WebGPU":"WASM";
+    setCameraTrackingStatus(`顔追従準備完了（YuNet / ${backend}）`,"ready",true);
+    updateWizard();
+  }).catch(error=>{
+    if(standingFaceTracker===tracker){tracker.stop();standingFaceTracker=null;}
+    standingTrackingReady=false;
+    if(selectedMode==="standing"){
+      const code=error instanceof Error?error.message:"STANDING_TRACKING_START_FAILED";
+      const message=code==="NotAllowedError"||code==="CAMERA_PERMISSION_DENIED"
+        ?"カメラの使用が許可されていません。ブラウザのカメラ許可を確認してください。"
+        :code==="NotFoundError"||code==="CAMERA_TRACK_MISSING"
+          ?"使用できるカメラが見つかりません。"
+          :`顔追従を開始できません: ${code}`;
+      setCameraTrackingStatus(message,"error",true);
+      setFeedback(message,"error");
+      updateWizard();
+    }
+  }).finally(()=>{if(standingTrackingStart)standingTrackingStart=null;});
+  await standingTrackingStart;
+}
+
 function audioCaptureConstraints(deviceId=""){
   const audio={
     echoCancellation:false,
@@ -869,18 +919,26 @@ async function switchPreparedAudioInput(deviceId){
 async function applyMode(mode){
   if(!supportedModes.has(mode))return;
   const previousMode=selectedMode;
-  if(previousMode==="standing"&&mode!=="standing")cancelStandingPreparation(true);
+  if(previousMode==="standing"&&mode!=="standing"){cancelStandingPreparation(true);releaseStandingTracking();}
   selectedMode=mode;document.documentElement.dataset.streamMode=mode;
   document.querySelectorAll("[data-stream-mode]").forEach(button=>{const active=button.dataset.streamMode===mode;button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",active?"true":"false");});
   if(mode==="standing"){
     if(previousMode!=="standing"){standingPreparationGeneration++;standingPreparationController=new AbortController();standingPreviewReady=false;backgroundPreviewReady=false;backgroundChoice="standing-image-1";setState("composition","立ち絵・背景を先行準備中","working");}
   }else{if(!radioPresets.has(backgroundChoice))backgroundChoice="";setState("composition","対象外","ready");}
   updateWizard();window.dispatchEvent(new CustomEvent("orikuro:stream-mode-change",{detail:{mode}}));
-  if(mode==="standing")beginStandingPreparation();
+  if(mode==="standing"){beginStandingPreparation();setCameraTrackingStatus("マイク許可の確認後にカメラ許可を確認します。","waiting",true);}
+  else setCameraTrackingStatus("", "waiting", false);
   if(!micReady()&&!micPermissionRequest)micPermissionRequest=refreshAudioInputs(true).finally(()=>{micPermissionRequest=null;});
   const permission=micPermissionRequest;
-  if(permission){void permission.then(()=>{if(selectedMode===mode&&micReady())window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));});}
-  else if(micReady())window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));
+  if(permission){void permission.then(()=>{
+    if(selectedMode!==mode||!micReady())return;
+    if(mode==="standing")void ensureStandingTracking();
+    window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));
+  });}
+  else if(micReady()){
+    if(mode==="standing")void ensureStandingTracking();
+    window.dispatchEvent(new CustomEvent("orikuro:stream-prepare-request",{detail:{mode}}));
+  }
 }
 
 function applyBackgroundPreset(presetId){
@@ -1222,7 +1280,7 @@ navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
 });
 window.addEventListener("pagehide",()=>{
-  standingPreparationController?.abort();stopStandingMotion(false);
+  standingPreparationController?.abort();stopStandingMotion(false);releaseStandingTracking();
   if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);standingPreviewUrl="";revokeStandingBackgroundUrls();
   if(!document.documentElement.dataset.broadcastPhase||document.documentElement.dataset.broadcastPhase!=="live")releasePreparedAudioStream();
 },{once:true});
@@ -1256,6 +1314,13 @@ document.addEventListener("orikuro:service-ready",()=>{
 });
 window.addEventListener("orikuro:standing-backend-ready",()=>{
   if(selectedMode==="standing"&&!standingPreviewReady)setState("composition","専用バックエンド準備完了 / 表示素材受信中","working");
+  updateWizard();
+});
+window.addEventListener("orikuro:standing-tracking-failed",event=>{
+  if(selectedMode!=="standing")return;
+  standingTrackingReady=false;
+  const code=event?.detail?.code||"STANDING_TRACKING_FAILED";
+  setCameraTrackingStatus(`顔追従を継続できません: ${code}`,"error",true);
   updateWizard();
 });
 window.addEventListener("orikuro:stream-common-preparing",()=>{
