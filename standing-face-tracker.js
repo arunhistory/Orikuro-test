@@ -1,6 +1,6 @@
 import{adaptYuNetDetectionToFaceRegionSample,createLostFaceRegionSample}from'./standing-face-region.js?v=20260922-yunet1';
 
-const WORKER_URL='./standing-face-worker.js?v=20260922-yunet1';
+const WORKER_URL='./standing-face-worker.js?v=20260923-mobilefix2';
 const MAX_INFERENCE_SIDE=320;
 const TARGET_INTERVAL_MS=1000/30;
 
@@ -13,6 +13,7 @@ export class StandingFaceTracker{
     this.context=null;
     this.running=false;
     this.busy=false;
+    this.failedFrames=0;
     this.frameId=0;
     this.lastTimestampNS=0;
     this.lastSubmitMs=0;
@@ -70,7 +71,7 @@ export class StandingFaceTracker{
     }
     if(this.animationHandle)cancelAnimationFrame(this.animationHandle);
     this.videoFrameHandle=0;this.animationHandle=0;
-    this.running=false;this.busy=false;
+    this.running=false;this.busy=false;this.failedFrames=0;
     try{this.worker?.postMessage({type:'dispose'});}catch{}
     try{this.worker?.terminate();}catch{}
     this.worker=null;
@@ -115,9 +116,17 @@ export class StandingFaceTracker{
   #schedule(){
     if(!this.running||!this.video)return;
     if(typeof this.video.requestVideoFrameCallback==='function'){
-      this.videoFrameHandle=this.video.requestVideoFrameCallback(now=>{this.videoFrameHandle=0;this.#tick(now);this.#schedule();});
+      this.videoFrameHandle=this.video.requestVideoFrameCallback(now=>{
+        this.videoFrameHandle=0;
+        try{this.#tick(now);}catch{this.#fail('FACE_CAPTURE_FRAME_FAILED');}
+        this.#schedule();
+      });
     }else{
-      this.animationHandle=requestAnimationFrame(now=>{this.animationHandle=0;this.#tick(now);this.#schedule();});
+      this.animationHandle=requestAnimationFrame(now=>{
+        this.animationHandle=0;
+        try{this.#tick(now);}catch{this.#fail('FACE_CAPTURE_FRAME_FAILED');}
+        this.#schedule();
+      });
     }
   }
 
@@ -153,6 +162,7 @@ export class StandingFaceTracker{
     if(!data)return;
     if(data.type==='result'){
       this.busy=false;
+      this.failedFrames=0;
       try{
         const sample=adaptYuNetDetectionToFaceRegionSample(data.detection,{frameId:data.frameId,timestampNS:data.timestampNS,contentWidth:data.contentWidth,contentHeight:data.contentHeight});
         window.dispatchEvent(new CustomEvent('orikuro:face-region-sample',{detail:sample}));
@@ -161,6 +171,11 @@ export class StandingFaceTracker{
       }
     }else if(data.type==='frame-error'){
       this.busy=false;
+      this.failedFrames++;
+      if(this.failedFrames>=3){
+        this.#fail('FACE_PROVIDER_REPEATED_FRAME_ERROR');
+        return;
+      }
       const frameId=Number(data.frameId),timestampNS=Number(data.timestampNS);
       if(Number.isSafeInteger(frameId)&&frameId>0&&Number.isSafeInteger(timestampNS)&&timestampNS>0){
         try{window.dispatchEvent(new CustomEvent('orikuro:face-region-sample',{detail:createLostFaceRegionSample(frameId,timestampNS)}));}catch{}

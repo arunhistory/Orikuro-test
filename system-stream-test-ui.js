@@ -1,6 +1,6 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
-import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260922-yunet1";
+import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260923-mobilefix2";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
@@ -393,6 +393,29 @@ function stopStandingMotion(reset=true){
   if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
   standingMotionRaf=0;standingMotionStartedAt=0;if(reset)resetStandingMotionFrame();
 }
+function standingAssetViewActive(el){
+  const live=el.closest("[data-live-screen]");
+  if(live)return !live.hidden;
+  const step=el.closest("[data-wizard-step]");
+  const wizard=el.closest("[data-broadcast-wizard]");
+  const retainedFrame=document.documentElement.dataset.broadcastPhase==="live"&&step?.dataset.wizardStep==="4";
+  if(wizard?.hidden&&!retainedFrame)return false;
+  return !step||!step.hidden||retainedFrame;
+}
+function syncVisibleStandingAssets(){
+  const available=selectedMode==="standing"&&standingPreviewReady&&!!standingPreviewUrl;
+  document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{
+    if(!(img instanceof HTMLImageElement))return;
+    if(available&&standingAssetViewActive(img)){
+      if(img.getAttribute("src")!==standingPreviewUrl)img.src=standingPreviewUrl;
+      img.hidden=false;
+    }else{
+      img.hidden=true;
+      if(img.hasAttribute("src"))img.removeAttribute("src");
+    }
+  });
+  renderStandingBackgroundChoice();
+}
 function startStandingMotion(){
   if(standingMotionRaf||selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
   if(!standingMotionStartedAt)standingMotionStartedAt=performance.now();
@@ -406,7 +429,7 @@ function startStandingMotion(){
     const sx=(1+state.z)*(1-Math.min(Math.abs(state.yaw)/18,1)*.06);
     const sy=(1+state.z)*(1-Math.min(Math.abs(state.pitch)/14,1)*.04)*(1+breath*.003);
     document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{
-      if(!(img instanceof HTMLImageElement))return;
+      if(!(img instanceof HTMLImageElement)||!img.hasAttribute("src")||!standingAssetViewActive(img))return;
       img.style.transform=`translate3d(${(state.x*100).toFixed(3)}%,${(state.y*100).toFixed(3)}%,0) perspective(900px) rotateY(${state.yaw.toFixed(3)}deg) rotateX(${(-state.pitch).toFixed(3)}deg) rotateZ(${state.roll.toFixed(3)}deg) scale(${sx.toFixed(5)},${sy.toFixed(5)})`;
     });
     standingMotionRaf=requestAnimationFrame(tick);
@@ -421,7 +444,13 @@ function renderStandingBackgroundChoice(){
   const useSolid=selectedMode==="standing"&&!!solid;
   document.querySelectorAll("[data-background-preview-image]").forEach(el=>{
     if(!(el instanceof HTMLImageElement))return;
-    if(useImage){if(el.src!==imageUrl)el.src=imageUrl;el.hidden=false;}else el.hidden=true;
+    if(useImage&&standingAssetViewActive(el)){
+      if(el.getAttribute("src")!==imageUrl)el.src=imageUrl;
+      el.hidden=false;
+    }else{
+      el.hidden=true;
+      if(el.hasAttribute("src"))el.removeAttribute("src");
+    }
   });
   document.querySelectorAll("[data-radio-background]").forEach(el=>{
     if(!(el instanceof HTMLElement))return;
@@ -478,7 +507,8 @@ async function loadStandingPreview(signal,generation){
     if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){
       URL.revokeObjectURL(nextUrl);return;
     }
-    images.slice(1).forEach(img=>{img.src=nextUrl;img.hidden=false;});
+    // Duplicate full-resolution images in hidden wizard/live views can exhaust iOS GPU memory.
+    // They are assigned only when their view becomes visible; step 4 is retained while encoding.
     if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){URL.revokeObjectURL(nextUrl);return;}
     if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);
     standingPreviewUrl=nextUrl;standingPreviewReady=true;startStandingMotion();
@@ -717,6 +747,7 @@ function updateWizard(){
     start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported;
   }
   updateSummary();
+  syncVisibleStandingAssets();
 }
 
 function goStep(step){
@@ -1451,6 +1482,7 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.documentElement.dataset.broadcastPhase="live";
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
+  syncVisibleStandingAssets();
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
   clearLiveNotes();
   testMetrics={...TEST_METRICS_BASE};
@@ -1512,8 +1544,33 @@ startButton?.addEventListener("click",()=>{
   if(currentStep!==4||!readyForStep(4)||!sessionReady()||!supportedModes.has(selectedMode))return;
   startButton.disabled=true;
   document.documentElement.dataset.broadcastPhase="starting";
-  setFeedback("配信を開始しています…","working");
-  window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:selectedMode,radioPresetId:backgroundChoice}}));
+  const requestedMode=selectedMode,requestedChoice=backgroundChoice;
+  setFeedback("配信画像を確認しています…","working");
+  void (async()=>{
+    try{
+      if(requestedMode==="standing"){
+        const final=document.querySelector('[data-wizard-step="4"]');
+        const avatar=final?.querySelector("[data-standing-preview-image]");
+        if(!(avatar instanceof HTMLImageElement)||!avatar.src)throw new Error("STANDING_PREVIEW_MISSING");
+        await avatar.decode();
+        if(standingImageIndex(requestedChoice)>=0){
+          const background=final?.querySelector("[data-background-preview-image]");
+          if(!(background instanceof HTMLImageElement)||!background.src)throw new Error("BACKGROUND_PREVIEW_MISSING");
+          await background.decode();
+        }
+      }
+      if(selectedMode!==requestedMode||backgroundChoice!==requestedChoice||document.documentElement.dataset.broadcastPhase!=="starting")return;
+      setFeedback("配信を開始しています…","working");
+      window.dispatchEvent(new CustomEvent("orikuro:stream-start-request",{detail:{mode:requestedMode,radioPresetId:requestedChoice}}));
+    }catch(error){
+      if(document.documentElement.dataset.broadcastPhase!=="starting")return;
+      document.documentElement.dataset.broadcastPhase="prep";
+      const code=error instanceof Error&&error.name==="EncodingError"
+        ?"STREAM_IMAGE_DECODE_FAILED":error instanceof Error?error.message:"STREAM_IMAGE_PREPARE_FAILED";
+      setFeedback("配信開始前の画像確認に失敗しました: "+code,"error");
+      updateWizard();
+    }
+  })();
 });
 
 if(!compatibility.supported&&root)root.hidden=true;
