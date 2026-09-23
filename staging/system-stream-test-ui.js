@@ -303,6 +303,8 @@ let standingPreparationPromise=null;
 let standingActivationQueue=Promise.resolve();
 let liveBackgroundSwitching=false;
 let liveBackgroundGeneration=0;
+let liveBackgroundIndependent=false;
+let liveBackgroundRenderedAck="";
 let standingMotionRaf=0;
 let standingMotionStartedAt=0;
 let standingFaceTracker=null;
@@ -482,7 +484,7 @@ function renderStandingBackgroundChoice(){
   const useSolid=selectedMode==="standing"&&!!solid;
   document.querySelectorAll("[data-background-preview-image]").forEach(el=>{
     if(!(el instanceof HTMLImageElement))return;
-    if(useImage&&standingAssetViewActive(el)){
+    if(useImage&&standingAssetViewActive(el)&&!(liveBackgroundIndependent&&document.documentElement.dataset.broadcastPhase==="live"&&el.closest('[data-wizard-step="4"]'))){
       if(el.getAttribute("src")!==imageUrl)el.src=imageUrl;
       el.hidden=false;
     }else{
@@ -746,12 +748,17 @@ async function applyLiveBackgroundChoice(choiceId){
     if(selectedMode==="radio"){
       applyBackgroundPreset(choiceId);
     }else{
-      backgroundChoice=choiceId;
-      // Synchronous event: the encoder switches its decoded source before DOM
-      // previews update. Existing publisher websocket, timeline, audio remain intact.
+      // Wait for the actual encoder to acknowledge its new decoded source;
+      // otherwise keep the previous UI choice and its original frame alive.
+      liveBackgroundRenderedAck="";
       window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{
         detail:{choiceId,index,image,color:solid?.color||null}
       }));
+      if(liveBackgroundRenderedAck!==choiceId)throw new Error("LIVE_BACKGROUND_RENDERER_NOT_READY");
+      backgroundChoice=choiceId;
+      liveBackgroundIndependent=true;
+      // The encoder now holds the new decoded source independently: release
+      // the redundant full-resolution image from hidden wizard step 4.
       renderStandingBackgroundChoice();
       updateWizard();
     }
@@ -1227,6 +1234,9 @@ document.querySelector("[data-mic-device]")?.addEventListener("change",event=>{
   if(!(select instanceof HTMLSelectElement))return;
   void switchPreparedAudioInput(select.value);
 });
+window.addEventListener("orikuro:live-background-rendered",event=>{
+  liveBackgroundRenderedAck=typeof event?.detail?.choiceId==="string"?event.detail.choiceId:"";
+});
 document.querySelector("[data-live-background-toggle]")?.addEventListener("click",event=>{
   const button=event.currentTarget;
   const panel=document.querySelector("[data-live-background-panel]");
@@ -1674,6 +1684,8 @@ window.addEventListener("orikuro:audio-meter-reset",()=>setMicMonitor());
 window.addEventListener("orikuro:output-ready",()=>setState("output","送出可能","ready"));
 
 window.addEventListener("orikuro:stream-live",()=>{
+  liveBackgroundIndependent=false;
+  liveBackgroundRenderedAck="";
   document.documentElement.dataset.broadcastPhase="live";
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
@@ -1707,6 +1719,8 @@ window.addEventListener("orikuro:stream-live",()=>{
 });
 
 window.addEventListener("orikuro:stream-start-failed",event=>{
+  liveBackgroundIndependent=false;
+  liveBackgroundRenderedAck="";
   liveBackgroundGeneration++;
   liveBackgroundSwitching=false;
   const backgroundPanel=document.querySelector("[data-live-background-panel]");
