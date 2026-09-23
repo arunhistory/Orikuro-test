@@ -367,7 +367,20 @@
               <div class="broadcast-live-controls">
                 <div class="broadcast-live-tools">
                   <button class="broadcast-mic-toggle" type="button" data-mic-test-toggle aria-expanded="false">マイクテスト</button>
+                  <button class="broadcast-mic-toggle" type="button" data-live-mic-switch-toggle aria-expanded="false" aria-controls="live-mic-switch-panel">マイク切替</button>
                   <button class="broadcast-memo-toggle" type="button" data-live-memo-toggle>メモ追加</button>
+                </div>
+                <div class="broadcast-mic-test broadcast-live-mic-panel" id="live-mic-switch-panel" data-live-mic-panel hidden>
+                  <div class="broadcast-mic-head">
+                    <strong>配信中のマイク切替</strong>
+                    <span data-live-mic-active>現在の入力を確認中</span>
+                  </div>
+                  <label for="oc-live-mic-device">切り替え先</label>
+                  <select id="oc-live-mic-device" data-live-mic-device aria-label="配信中に使用するマイクを選択" disabled>
+                    <option value="">マイク機材を確認中…</option>
+                  </select>
+                  <button type="button" data-live-mic-apply disabled>このマイクに切り替える</button>
+                  <p data-live-mic-switch-status data-state="waiting" role="status" aria-live="polite">切り替え先を選んでください。現在の音声接続は維持します。</p>
                 </div>
                 <div class="broadcast-mic-test" data-mic-test data-state="waiting" hidden>
                   <div class="broadcast-mic-head">
@@ -397,8 +410,8 @@
   </main>
 
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
-  <script type="module" src="./assets/js/stream-realtime.js?v=20260922-face-region1"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260923-live-micswitch1"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./system-stream-test-ui.js?v=20260923-mobilefix2"></script>
+  <script type="module" src="./system-stream-test-ui.js?v=20260923-live-micswitch1"></script>
 </body>
 </html>

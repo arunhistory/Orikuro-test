@@ -282,6 +282,10 @@ let micDevicesKnown=false;
 let micPermissionConfirmed=false;
 let micPermissionRequest=null;
 let preparedAudioStream=null;
+let liveMicActiveDeviceId="";
+let liveMicActiveLabel="";
+let liveMicChanging=false;
+let liveMicEnumeration=0;
 let grantReady=false;
 let realtimeReady=false;
 let systemPreparationRequested=false;
@@ -865,6 +869,50 @@ function releasePreparedAudioStream(){
   stream?.getTracks?.().forEach(track=>track.stop());
 }
 
+function liveMicSwitchMessage(message,state="waiting"){
+  const status=document.querySelector("[data-live-mic-switch-status]");
+  if(status){status.textContent=message;status.dataset.state=state;}
+}
+function updateLiveMicSelection(){
+  const select=document.querySelector("[data-live-mic-device]");
+  const button=document.querySelector("[data-live-mic-apply]");
+  const active=document.querySelector("[data-live-mic-active]");
+  if(active)active.textContent=liveMicActiveLabel?"使用中: "+liveMicActiveLabel:"使用中のマイクを確認中";
+  if(!(select instanceof HTMLSelectElement)||!(button instanceof HTMLButtonElement))return;
+  const live=document.documentElement.dataset.broadcastPhase==="live";
+  select.disabled=!live||liveMicChanging||select.options.length===0||!select.value;
+  button.disabled=!live||liveMicChanging||!select.value||select.value===liveMicActiveDeviceId;
+}
+async function listLiveMicDevices(){
+  const panel=document.querySelector("[data-live-mic-panel]");
+  const select=document.querySelector("[data-live-mic-device]");
+  if(panel?.hidden||!(select instanceof HTMLSelectElement)||document.documentElement.dataset.broadcastPhase!=="live")return;
+  const request=++liveMicEnumeration;
+  select.disabled=true;
+  liveMicSwitchMessage("利用できるマイクを確認しています…","working");
+  try{
+    if(!navigator.mediaDevices?.enumerateDevices)throw new Error("ENUMERATE_UNAVAILABLE");
+    const inputs=(await navigator.mediaDevices.enumerateDevices()).filter(device=>device.kind==="audioinput"&&device.deviceId);
+    if(request!==liveMicEnumeration||panel.hidden)return;
+    const preferred=inputs.some(device=>device.deviceId===select.value)?select.value:liveMicActiveDeviceId;
+    select.replaceChildren();
+    for(const [index,device] of inputs.entries()){
+      const option=document.createElement("option");
+      option.value=device.deviceId;
+      option.textContent=device.label||"マイク "+String(index+1);
+      select.append(option);
+    }
+    const selected=inputs.find(device=>device.deviceId===preferred)||inputs[0]||null;
+    if(selected)select.value=selected.deviceId;
+    const activeInput=inputs.find(device=>device.deviceId===liveMicActiveDeviceId);
+    if(activeInput?.label)liveMicActiveLabel=activeInput.label;
+    updateLiveMicSelection();
+    liveMicSwitchMessage(inputs.length?String(inputs.length)+"台の入力を認識しました。選択後に切り替えてください。":"使用可能なマイクがありません。",inputs.length?"ready":"error");
+  }catch{
+    if(request!==liveMicEnumeration||panel.hidden)return;
+    liveMicSwitchMessage("マイク一覧を取得できませんでした。現在の配信音声は維持しています。","error");
+  }
+}
 async function refreshAudioInputs(requestPermission=false){
   const media=navigator.mediaDevices;
   const select=document.querySelector("[data-mic-device]");
@@ -1103,6 +1151,48 @@ document.querySelector("[data-mic-device]")?.addEventListener("change",event=>{
   const select=event.currentTarget;
   if(!(select instanceof HTMLSelectElement))return;
   void switchPreparedAudioInput(select.value);
+});
+document.querySelector("[data-live-mic-switch-toggle]")?.addEventListener("click",event=>{
+  const button=event.currentTarget;
+  const panel=document.querySelector("[data-live-mic-panel]");
+  if(!(button instanceof HTMLButtonElement)||!panel||document.documentElement.dataset.broadcastPhase!=="live")return;
+  panel.hidden=!panel.hidden;
+  button.setAttribute("aria-expanded",panel.hidden?"false":"true");
+  if(!panel.hidden)void listLiveMicDevices();
+});
+document.querySelector("[data-live-mic-device]")?.addEventListener("change",()=>updateLiveMicSelection());
+document.querySelector("[data-live-mic-apply]")?.addEventListener("click",()=>{
+  const select=document.querySelector("[data-live-mic-device]");
+  if(!(select instanceof HTMLSelectElement)||liveMicChanging||document.documentElement.dataset.broadcastPhase!=="live")return;
+  const deviceId=select.value;
+  if(!deviceId||deviceId===liveMicActiveDeviceId)return;
+  liveMicChanging=true;
+  liveMicSwitchMessage("新しいマイクを準備しています。元の配信音声を維持します…","working");
+  updateLiveMicSelection();
+  window.dispatchEvent(new CustomEvent("orikuro:live-audio-input-change",{detail:{deviceId}}));
+});
+navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
+  const panel=document.querySelector("[data-live-mic-panel]");
+  if(panel&&!panel.hidden&&!liveMicChanging)void listLiveMicDevices();
+});
+window.addEventListener("orikuro:live-audio-input-switched",event=>{
+  const d=event?.detail||{};
+  liveMicChanging=false;
+  liveMicActiveDeviceId=typeof d.deviceId==="string"?d.deviceId:liveMicActiveDeviceId;
+  liveMicActiveLabel=typeof d.label==="string"&&d.label?d.label:liveMicActiveLabel;
+  selectedAudioInputDeviceId=liveMicActiveDeviceId;
+  liveMicSwitchMessage("マイクの切り替えが完了しました。","ready");
+  const wizard=document.querySelector("[data-mic-device]");
+  if(wizard instanceof HTMLSelectElement&&[...wizard.options].some(o=>o.value===liveMicActiveDeviceId))wizard.value=liveMicActiveDeviceId;
+  const select=document.querySelector("[data-live-mic-device]");
+  if(select instanceof HTMLSelectElement&&[...select.options].some(o=>o.value===liveMicActiveDeviceId))select.value=liveMicActiveDeviceId;
+  updateLiveMicSelection();
+});
+window.addEventListener("orikuro:live-audio-input-switch-failed",event=>{
+  liveMicChanging=false;
+  const code=event?.detail?.code||"LIVE_MIC_SWITCH_FAILED";
+  liveMicSwitchMessage("切り替えに失敗しました（"+code+"）。以前のマイクを継続しています。","error");
+  updateLiveMicSelection();
 });
 document.querySelector("[data-mic-test-toggle]")?.addEventListener("click",event=>{
   const button=event.currentTarget;
@@ -1469,6 +1559,9 @@ window.addEventListener("orikuro:audio-ready",()=>setState("audio","準備完了
 window.addEventListener("orikuro:audio-device-active",event=>{
   const detail=event?.detail||{};
   const label=typeof detail.label==="string"&&detail.label.trim()?detail.label.trim():currentMicLabel();
+  if(typeof detail.deviceId==="string"&&detail.deviceId)liveMicActiveDeviceId=detail.deviceId;
+  liveMicActiveLabel=label;
+  updateLiveMicSelection();
   setMicDeviceStatus(`使用中: ${label}`,"ready");
 });
 window.addEventListener("orikuro:audio-path-waiting",()=>setMicMonitor(0,"リスナー到達を確認中…","working"));
@@ -1488,6 +1581,12 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
   syncVisibleStandingAssets();
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
+  const liveMicPanel=document.querySelector("[data-live-mic-panel]");
+  if(liveMicPanel)liveMicPanel.hidden=true;
+  const micSwitchToggle=document.querySelector("[data-live-mic-switch-toggle]");
+  micSwitchToggle?.setAttribute("aria-expanded","false");
+  liveMicChanging=false;
+  updateLiveMicSelection();
   clearLiveNotes();
   testMetrics={...TEST_METRICS_BASE};
   updateTestMetrics();
@@ -1506,6 +1605,10 @@ window.addEventListener("orikuro:stream-live",()=>{
 
 window.addEventListener("orikuro:stream-start-failed",event=>{
   document.documentElement.dataset.broadcastPhase="prep";
+  liveMicChanging=false;
+  liveMicEnumeration++;
+  const liveMicPanel=document.querySelector("[data-live-mic-panel]");
+  if(liveMicPanel)liveMicPanel.hidden=true;
   document.querySelector("[data-live-screen]")?.setAttribute("hidden","");
   document.querySelector("[data-broadcast-wizard]")?.removeAttribute("hidden");
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
