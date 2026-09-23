@@ -411,6 +411,10 @@ function syncVisibleStandingAssets(){
       img.hidden=false;
     }else{
       img.hidden=true;
+      // Do not detach the first DOM image while loadStandingPreview() awaits decode().
+      // Microphone/device events also call updateWizard() during that pending decode.
+      const primary=document.querySelector("[data-standing-preview-image]");
+      if(standingPreviewLoading&&img===primary&&img.hasAttribute("src"))return;
       if(img.hasAttribute("src"))img.removeAttribute("src");
     }
   });
