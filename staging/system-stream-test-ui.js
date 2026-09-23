@@ -301,6 +301,8 @@ let standingPreparationGeneration=0;
 let standingPreparationController=null;
 let standingPreparationPromise=null;
 let standingActivationQueue=Promise.resolve();
+let liveBackgroundSwitching=false;
+let liveBackgroundGeneration=0;
 let standingMotionRaf=0;
 let standingMotionStartedAt=0;
 let standingFaceTracker=null;
@@ -444,6 +446,34 @@ function startStandingMotion(){
   };
   standingMotionRaf=requestAnimationFrame(tick);
 }
+function liveBackgroundStatus(message,state="waiting"){
+  const el=document.querySelector("[data-live-background-status]");
+  if(el){el.textContent=message;el.dataset.state=state;}
+}
+function updateLiveBackgroundOptions(){
+  const current=document.querySelector("[data-live-background-current]");
+  if(current){
+    const index=standingImageIndex();
+    const label=index>=0?"登録背景"+String(index+1):(radioPresets.get(backgroundChoice)?.label||"未選択");
+    current.textContent="使用中: "+label;
+  }
+  document.querySelectorAll("[data-live-background-choice]").forEach(button=>{
+    if(!(button instanceof HTMLButtonElement))return;
+    const choice=button.dataset.liveBackgroundChoice||"";
+    const index=standingImageIndex(choice);
+    const allowed=(index>=0 ? selectedMode==="standing"&&standingBackgroundUrls.has(index) : radioPresets.has(choice));
+    const visible=selectedMode==="standing"||index<0;
+    button.hidden=!visible;
+    button.disabled=!allowed||liveBackgroundSwitching||document.documentElement.dataset.broadcastPhase!=="live";
+    button.classList.toggle("is-selected",backgroundChoice===choice);
+    button.setAttribute("aria-pressed",backgroundChoice===choice?"true":"false");
+    if(index>=0){
+      const thumbnail=button.querySelector("[data-live-background-thumb]");
+      const original=document.querySelector('[data-standing-background-swatch="'+String(index)+'"]');
+      if(thumbnail instanceof HTMLElement&&original instanceof HTMLElement)thumbnail.style.backgroundImage=original.style.backgroundImage;
+    }
+  });
+}
 function renderStandingBackgroundChoice(){
   const imageIndex=standingImageIndex();
   const imageUrl=imageIndex>=0?standingBackgroundUrls.get(imageIndex)||"":"";
@@ -577,6 +607,7 @@ async function fetchStandingBackground(index,signal,generation){
   if(swatch instanceof HTMLElement)swatch.style.backgroundImage=thumbnail?`url("${thumbnail}")`:"";
   const button=document.querySelector(`[data-standing-background-index="${index}"]`);if(button instanceof HTMLButtonElement)button.disabled=false;
   renderStandingBackgroundChoice();
+  updateLiveBackgroundOptions();
 }
 async function loadInitialStandingBackground(signal,generation){
   if(selectedMode!=="standing")return;
@@ -673,12 +704,12 @@ function cancelStandingPreparation(stopRemote=true){
   document.querySelectorAll("[data-background-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement){img.removeAttribute("src");img.hidden=true;}});
   if(stopRemote)void stopStandingTemporary();
 }
-async function activateStandingBackground(index){
+async function activateStandingBackground(index,allowLiveCandidate=false){
   if(index<0||index>=STANDING_IMAGE_COUNT||selectedMode!=="standing"||!standingBackgroundUrls.has(index))return false;
   if(index===standingActiveBackgroundIndex)return true;
   const current=getStreamRealtimeGrant();if(!current)return false;
   standingActivationQueue=standingActivationQueue.catch(()=>undefined).then(async()=>{
-    if(selectedMode!=="standing"||standingImageIndex()!==index)return;
+    if(selectedMode!=="standing"||(standingImageIndex()!==index&&!(allowLiveCandidate&&document.documentElement.dataset.broadcastPhase==="live")))return;
     setState("composition","背景を切り替え中","working");
     const response=await fetch(BACKGROUND_ACTIVATE_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"});
     if(!response.ok){const payload=await response.json().catch(()=>null);throw new Error(typeof payload?.code==="string"?payload.code:"BACKGROUND_ACTIVATE_FAILED");}
@@ -688,6 +719,50 @@ async function activateStandingBackground(index){
     if(selectedMode==="standing"&&standingImageIndex()===index)setState("composition","立ち絵・背景10種準備完了","ready");
   }).catch(error=>{if(selectedMode==="standing"){setState("composition","背景切替失敗","error");setFeedback(error instanceof Error?`背景を切り替えられません: ${error.message}`:"背景を切り替えられません。","error");}});
   await standingActivationQueue;return standingActiveBackgroundIndex===index;
+}
+async function applyLiveBackgroundChoice(choiceId){
+  if(document.documentElement.dataset.broadcastPhase!=="live"||liveBackgroundSwitching||choiceId===backgroundChoice)return;
+  const index=standingImageIndex(choiceId);
+  const solid=radioPresets.get(choiceId);
+  if(selectedMode==="radio" ? !solid : selectedMode==="standing" ? (index<0&&!solid)||index>=0&&!standingBackgroundUrls.has(index) : true)return;
+  const generation=++liveBackgroundGeneration;
+  liveBackgroundSwitching=true;
+  updateLiveBackgroundOptions();
+  liveBackgroundStatus("新しい背景を準備しています。現在の配信を維持します…","working");
+  try{
+    let image=null;
+    if(selectedMode==="standing"&&index>=0){
+      // Decode exactly the requested prepared R2 temporary-copy image before
+      // switching either the cloudflare staging asset or the video encoder.
+      image=new Image();
+      image.decoding="async";
+      image.src=standingBackgroundUrls.get(index);
+      await image.decode();
+      if(!image.complete||image.naturalWidth<1||image.naturalHeight<1)throw new Error("LIVE_BACKGROUND_DECODE_INVALID");
+      if(generation!==liveBackgroundGeneration||document.documentElement.dataset.broadcastPhase!=="live")return;
+      if(!await activateStandingBackground(index,true))throw new Error("LIVE_BACKGROUND_ACTIVATE_FAILED");
+    }
+    if(generation!==liveBackgroundGeneration||document.documentElement.dataset.broadcastPhase!=="live")return;
+    if(selectedMode==="radio"){
+      applyBackgroundPreset(choiceId);
+    }else{
+      backgroundChoice=choiceId;
+      // Synchronous event: the encoder switches its decoded source before DOM
+      // previews update. Existing publisher websocket, timeline, audio remain intact.
+      window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{
+        detail:{choiceId,index,image,color:solid?.color||null}
+      }));
+      renderStandingBackgroundChoice();
+      updateWizard();
+    }
+    liveBackgroundStatus("背景の切り替えが完了しました。","ready");
+  }catch(error){
+    if(generation!==liveBackgroundGeneration||document.documentElement.dataset.broadcastPhase!=="live")return;
+    const code=error instanceof Error?error.message:"LIVE_BACKGROUND_SWITCH_FAILED";
+    liveBackgroundStatus("背景を切り替えられません: "+code+"。以前の背景を維持しています。","error");
+  }finally{
+    if(generation===liveBackgroundGeneration){liveBackgroundSwitching=false;updateLiveBackgroundOptions();}
+  }
 }
 function applyStandingBackgroundChoice(choiceId){
   if(selectedMode!=="standing"||!standingChoiceValid(choiceId))return;
@@ -1152,13 +1227,36 @@ document.querySelector("[data-mic-device]")?.addEventListener("change",event=>{
   if(!(select instanceof HTMLSelectElement))return;
   void switchPreparedAudioInput(select.value);
 });
+document.querySelector("[data-live-background-toggle]")?.addEventListener("click",event=>{
+  const button=event.currentTarget;
+  const panel=document.querySelector("[data-live-background-panel]");
+  if(!(button instanceof HTMLButtonElement)||!panel||document.documentElement.dataset.broadcastPhase!=="live")return;
+  panel.hidden=!panel.hidden;
+  button.setAttribute("aria-expanded",panel.hidden?"false":"true");
+  if(!panel.hidden){
+    const micPanel=document.querySelector("[data-live-mic-panel]");
+    if(micPanel)micPanel.hidden=true;
+    document.querySelector("[data-live-mic-switch-toggle]")?.setAttribute("aria-expanded","false");
+    updateLiveBackgroundOptions();
+  }
+});
+document.querySelectorAll("[data-live-background-choice]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    if(button instanceof HTMLButtonElement&&!button.disabled)void applyLiveBackgroundChoice(button.dataset.liveBackgroundChoice||"");
+  });
+});
 document.querySelector("[data-live-mic-switch-toggle]")?.addEventListener("click",event=>{
   const button=event.currentTarget;
   const panel=document.querySelector("[data-live-mic-panel]");
   if(!(button instanceof HTMLButtonElement)||!panel||document.documentElement.dataset.broadcastPhase!=="live")return;
   panel.hidden=!panel.hidden;
   button.setAttribute("aria-expanded",panel.hidden?"false":"true");
-  if(!panel.hidden)void listLiveMicDevices();
+  if(!panel.hidden){
+    const backgroundPanel=document.querySelector("[data-live-background-panel]");
+    if(backgroundPanel)backgroundPanel.hidden=true;
+    document.querySelector("[data-live-background-toggle]")?.setAttribute("aria-expanded","false");
+    void listLiveMicDevices();
+  }
 });
 document.querySelector("[data-live-mic-device]")?.addEventListener("change",()=>updateLiveMicSelection());
 document.querySelector("[data-live-mic-apply]")?.addEventListener("click",()=>{
@@ -1583,6 +1681,11 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
   const liveMicPanel=document.querySelector("[data-live-mic-panel]");
   if(liveMicPanel)liveMicPanel.hidden=true;
+  const liveBackgroundPanel=document.querySelector("[data-live-background-panel]");
+  if(liveBackgroundPanel)liveBackgroundPanel.hidden=true;
+  document.querySelector("[data-live-background-toggle]")?.setAttribute("aria-expanded","false");
+  liveBackgroundSwitching=false;
+  updateLiveBackgroundOptions();
   const micSwitchToggle=document.querySelector("[data-live-mic-switch-toggle]");
   micSwitchToggle?.setAttribute("aria-expanded","false");
   liveMicChanging=false;
@@ -1604,6 +1707,11 @@ window.addEventListener("orikuro:stream-live",()=>{
 });
 
 window.addEventListener("orikuro:stream-start-failed",event=>{
+  liveBackgroundGeneration++;
+  liveBackgroundSwitching=false;
+  const backgroundPanel=document.querySelector("[data-live-background-panel]");
+  if(backgroundPanel)backgroundPanel.hidden=true;
+  document.querySelector("[data-live-background-toggle]")?.setAttribute("aria-expanded","false");
   document.documentElement.dataset.broadcastPhase="prep";
   liveMicChanging=false;
   liveMicEnumeration++;
@@ -1642,6 +1750,8 @@ window.addEventListener("orikuro:stream-ended",event=>{
 
 const stopButton=document.querySelector("[data-audio-stop]");
 stopButton?.addEventListener("click",()=>{
+  liveBackgroundGeneration++;
+  liveBackgroundSwitching=false;
   stopButton.disabled=true;
   document.querySelectorAll("[data-stream-status]").forEach(status=>status.textContent="停止処理中");
 });

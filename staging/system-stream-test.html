@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20260923-live-micswitch1"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20260923-live-background1"/>
   <style>
     .broadcast-prepared-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:center}
   </style>
@@ -368,7 +368,47 @@
                 <div class="broadcast-live-tools">
                   <button class="broadcast-mic-toggle" type="button" data-mic-test-toggle aria-expanded="false">マイクテスト</button>
                   <button class="broadcast-mic-toggle" type="button" data-live-mic-switch-toggle aria-expanded="false" aria-controls="live-mic-switch-panel">マイク切替</button>
+                  <button class="broadcast-mic-toggle" type="button" data-live-background-toggle aria-expanded="false" aria-controls="live-background-panel">背景切替</button>
                   <button class="broadcast-memo-toggle" type="button" data-live-memo-toggle>メモ追加</button>
+                </div>
+                <div class="broadcast-mic-test broadcast-live-background-panel" id="live-background-panel" data-live-background-panel hidden>
+                  <div class="broadcast-mic-head">
+                    <strong>配信中の背景切替</strong>
+                    <span data-live-background-current>現在の背景を確認中</span>
+                  </div>
+                  <div class="broadcast-preset-grid broadcast-standing-background-grid broadcast-live-background-grid" role="group" aria-label="配信中の背景一覧" data-live-background-options>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="standing-image-1" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-live-background-thumb="0" aria-hidden="true"></span><strong>背景1</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="standing-image-2" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-live-background-thumb="1" aria-hidden="true"></span><strong>背景2</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="standing-image-3" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-live-background-thumb="2" aria-hidden="true"></span><strong>背景3</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="standing-image-4" aria-pressed="false" disabled>
+                      <span class="broadcast-preset-swatch broadcast-preset-image-swatch" data-live-background-thumb="3" aria-hidden="true"></span><strong>背景4</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="solid-1" aria-pressed="false" style="--preset-color:#000000">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>黒</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="solid-2" aria-pressed="false" style="--preset-color:#FFFFFF">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>白</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="solid-3" aria-pressed="false" style="--preset-color:#C62828">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>赤</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="solid-4" aria-pressed="false" style="--preset-color:#1565C0">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>青</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="solid-5" aria-pressed="false" style="--preset-color:#2E7D32">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>緑</strong>
+                    </button>
+                    <button class="broadcast-preset-choice" type="button" data-live-background-choice="solid-6" aria-pressed="false" style="--preset-color:#6A1B9A">
+                      <span class="broadcast-preset-swatch" aria-hidden="true"></span><strong>紫</strong>
+                    </button>
+                  </div>
+                  <p data-live-background-status data-state="waiting" role="status" aria-live="polite">背景を選択すると、配信中の映像を切り替えます。</p>
                 </div>
                 <div class="broadcast-mic-test broadcast-live-mic-panel" id="live-mic-switch-panel" data-live-mic-panel hidden>
                   <div class="broadcast-mic-head">
@@ -410,8 +450,8 @@
   </main>
 
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
-  <script type="module" src="./assets/js/stream-realtime.js?v=20260923-live-micswitch1"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20260923-live-background1"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./system-stream-test-ui.js?v=20260923-live-micswitch1"></script>
+  <script type="module" src="./system-stream-test-ui.js?v=20260923-live-background1"></script>
 </body>
 </html>

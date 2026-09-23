@@ -1484,6 +1484,25 @@ function bindUI(): void {
       void ensureAudioRuntime().catch(() => undefined);
     }
   });
+  window.addEventListener('orikuro:standing-background-change', (event) => {
+    if(pageStopping||!liveTransmission||selectedMode!=='standing')return;
+    const detail=objectValue((event as CustomEvent).detail);
+    const choice=typeof detail?.choiceId==='string'?detail.choiceId:'';
+    const imageIndex=Number(detail?.index);
+    if(/^standing-image-[1-4]$/.test(choice)){
+      if(imageIndex!==Number(choice.slice(-1))-1)return;
+      const image=detail?.image;
+      if(!(image instanceof HTMLImageElement)||!image.complete||image.naturalWidth<1||image.naturalHeight<1)return;
+      videoBackgroundImage=image;
+    }else if(/^solid-[1-6]$/.test(choice)){
+      const color=detail?.color;
+      if(typeof color!=='string'||!/^#[0-9a-fA-F]{6}$/.test(color))return;
+      videoBackgroundImage=null;
+      videoBackgroundColor=color;
+    }else return;
+    drawStandingVideoScene();
+    window.dispatchEvent(new CustomEvent('orikuro:live-background-rendered',{detail:{choiceId:choice}}));
+  });
   window.addEventListener('orikuro:face-region-sample', (event) => {
     sendFaceRegionControl((event as CustomEvent).detail);
   });
