@@ -61,6 +61,7 @@ let preparePromise: Promise<void> | null = null;
 let serverLivePromise: Promise<boolean> | null = null;
 let selectedMode = 'radio';
 let selectedAudioInputDeviceId = '';
+let liveAudioSwitchInProgress = false;
 
 let commentsSocket: WebSocket | null = null;
 let commentsAuthenticated = false;
@@ -828,6 +829,81 @@ async function prepareStreaming(mode: string): Promise<void> {
   }
 }
 
+async function switchLiveAudioInput(deviceId: string): Promise<void> {
+  if (liveAudioSwitchInProgress) {
+    window.dispatchEvent(new CustomEvent('orikuro:live-audio-input-switch-failed', {detail:{code:'MIC_SWITCH_BUSY'}}));
+    return;
+  }
+  if (!deviceId || deviceId.length > 512 || !navigator.mediaDevices?.getUserMedia
+      || !liveTransmission || pageStopping || stopPromise || !audioContext
+      || !audioWorklet || !audioSource || !audioStream) {
+    window.dispatchEvent(new CustomEvent('orikuro:live-audio-input-switch-failed', {detail:{code:'MIC_SWITCH_UNAVAILABLE'}}));
+    return;
+  }
+  const previousStream = audioStream;
+  const previousSource = audioSource;
+  const worklet = audioWorklet;
+  const context = audioContext;
+  const currentTrack = previousStream.getAudioTracks()[0];
+  if (currentTrack?.readyState !== 'live') {
+    window.dispatchEvent(new CustomEvent('orikuro:live-audio-input-switch-failed', {detail:{code:'MIC_CURRENT_TRACK_ENDED'}}));
+    return;
+  }
+  const oldDeviceId = currentTrack.getSettings().deviceId || selectedAudioInputDeviceId;
+  if (oldDeviceId === deviceId) {
+    window.dispatchEvent(new CustomEvent('orikuro:live-audio-input-switched', {
+      detail:{deviceId:oldDeviceId,label:currentTrack.label||''}
+    }));
+    return;
+  }
+  liveAudioSwitchInProgress = true;
+  let nextStream: MediaStream | null = null;
+  let nextSource: MediaStreamAudioSourceNode | null = null;
+  try {
+    // Acquire the selected mic while the original source continues to feed the same
+    // AudioWorklet, WebSocket, timestamps and listener-delivery monitor.
+    nextStream = await navigator.mediaDevices.getUserMedia({
+      audio:{
+        deviceId:{exact:deviceId},
+        echoCancellation:false,
+        noiseSuppression:false,
+        autoGainControl:false
+      },
+      video:false
+    });
+    const track = nextStream.getAudioTracks()[0];
+    if (!track || track.readyState !== 'live') throw new Error('MIC_NEW_TRACK_UNAVAILABLE');
+    if (!liveTransmission || pageStopping || stopPromise || audioStream !== previousStream
+        || audioSource !== previousSource || audioWorklet !== worklet
+        || audioContext !== context || worklet.context.state === 'closed')
+      throw new Error('MIC_SWITCH_CANCELLED');
+    nextSource = context.createMediaStreamSource(nextStream);
+    nextSource.connect(worklet);
+    // No asynchronous boundary between connecting the new source and retiring
+    // the previous source. In case of failure, the former source remains active.
+    previousSource.disconnect();
+    audioStream = nextStream;
+    audioSource = nextSource;
+    selectedAudioInputDeviceId = track.getSettings().deviceId || deviceId;
+    nextStream = null;
+    nextSource = null;
+    previousStream.getTracks().forEach(oldTrack=>oldTrack.stop());
+    const detail={deviceId:selectedAudioInputDeviceId,label:track.label||''};
+    window.dispatchEvent(new CustomEvent('orikuro:audio-device-active',{detail}));
+    window.dispatchEvent(new CustomEvent('orikuro:live-audio-input-switched',{detail}));
+  } catch (error) {
+    try{nextSource?.disconnect();}catch{}
+    const name=error instanceof DOMException?error.name:(error instanceof Error?error.message:'MIC_SWITCH_FAILED');
+    const safeCodes=new Set(['NotAllowedError','NotFoundError','NotReadableError','OverconstrainedError','SecurityError','AbortError','MIC_SWITCH_CANCELLED','MIC_NEW_TRACK_UNAVAILABLE']);
+    window.dispatchEvent(new CustomEvent('orikuro:live-audio-input-switch-failed',{
+      detail:{code:safeCodes.has(name)?name:'MIC_SWITCH_FAILED'}
+    }));
+  } finally {
+    nextStream?.getTracks().forEach(track=>track.stop());
+    liveAudioSwitchInProgress = false;
+  }
+}
+
 async function rebuildPreparedAudio(): Promise<void> {
   if (pageStopping || liveTransmission || !realtimePrepared) return;
   const current = validGrant();
@@ -1410,6 +1486,11 @@ function bindUI(): void {
   });
   window.addEventListener('orikuro:face-region-sample', (event) => {
     sendFaceRegionControl((event as CustomEvent).detail);
+  });
+  window.addEventListener('orikuro:live-audio-input-change', (event) => {
+    const detail=objectValue((event as CustomEvent).detail);
+    const id=typeof detail?.deviceId==='string'?detail.deviceId:'';
+    void switchLiveAudioInput(id);
   });
   window.addEventListener('orikuro:audio-input-change', (event) => {
     if (liveTransmission) return;
