@@ -14,7 +14,7 @@ let initPromise=null;
 self.addEventListener('message',event=>{
   const message=event.data&&typeof event.data==='object'?event.data:null;
   if(!message)return;
-  if(message.type==='init')void ensureSession();
+  if(message.type==='init')void ensureSession().catch(()=>{/* fatal sent by ensureSession */});
   else if(message.type==='infer')void infer(message);
   else if(message.type==='dispose')dispose();
 });
