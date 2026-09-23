@@ -423,8 +423,8 @@ body.broadcast-app-page{
 }
 .broadcast-live-tools{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:8px;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px;
   margin-bottom:8px;
 }
 .broadcast-live-tools .broadcast-mic-toggle{
@@ -1269,3 +1269,16 @@ html[data-stream-mode="standing"] .broadcast-background-preview>span[data-backgr
   .broadcast-standing-background-grid .broadcast-preset-choice{min-height:46px}
   .broadcast-standing-background-grid .broadcast-preset-swatch{width:25px;height:25px}
 }
+
+/* Live background choices use the existing prepared thumbnails; no R2 URL fetch. */
+.broadcast-live-background-panel{display:grid;gap:8px}
+.broadcast-live-background-panel[hidden]{display:none}
+.broadcast-live-background-panel .broadcast-live-background-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.broadcast-live-background-panel .broadcast-preset-choice[hidden]{display:none}
+.broadcast-live-background-panel .broadcast-preset-choice:disabled{opacity:.35}
+.broadcast-live-background-panel .broadcast-preset-choice.is-selected{outline:2px solid #9c8cff;outline-offset:-2px}
+.broadcast-live-background-panel p{margin:0;font-size:10px;line-height:1.4;color:rgba(255,255,255,.75)}
+.broadcast-live-background-panel p[data-state="ready"]{color:#6ee2b0}
+.broadcast-live-background-panel p[data-state="working"]{color:#ffd182}
+.broadcast-live-background-panel p[data-state="error"]{color:#ff88a3}
+@media(max-width:350px){.broadcast-live-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
