@@ -1309,6 +1309,10 @@ document.addEventListener("orikuro:system-access-ready",()=>{
 });
 document.addEventListener("orikuro:service-ready",()=>{
   refreshGrantState();
+  if(systemTest){
+    const stage=document.querySelector("[data-stage-wasm-status]");
+    if(stage){stage.textContent="0%ステージ: Go WASM合成入力テスト確認済み。実カメラ・配信WebSocketのE2Eは未確認（配信WebSocketは現行版）。";stage.dataset.state="ready";}
+  }
   setState("session","配信経路準備中","waiting");
   if(selectedMode==="standing")beginStandingPreparation();
 });
@@ -1354,6 +1358,10 @@ window.addEventListener("orikuro:stream-prepared",()=>{
 });
 window.addEventListener("orikuro:stream-prepare-failed",event=>{
   realtimeReady=false;
+  if(systemTest){
+    const stage=document.querySelector("[data-stage-wasm-status]");
+    if(stage&&stage.dataset.state!=="ready"){stage.textContent="0%ステージのGo WASMは未確認です。配信準備エラーを確認してください。";stage.dataset.state="error";}
+  }
   if(systemTest&&!getStreamRealtimeGrant())systemPreparationRequested=false;
   const message=event?.detail?.message||"配信準備を完了できませんでした。";
   setState("session","準備失敗","error");
