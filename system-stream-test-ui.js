@@ -452,7 +452,7 @@ async function prepareStandingBackend(signal,generation){
   }
   const payload=await response.json().catch(()=>null);
   if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
-  if(payload?.ok!==true||payload?.result?.backgroundCount!==STANDING_IMAGE_COUNT)throw new Error("STANDING_PREPARE_INVALID");
+  if(payload?.ok!==true||payload?.result?.standingReady!==true||payload?.result?.backgroundCount!==STANDING_IMAGE_COUNT||!Array.isArray(payload?.result?.backgroundReady)||payload.result.backgroundReady.length!==STANDING_IMAGE_COUNT||payload.result.backgroundReady.some(value=>value!==true))throw new Error("STANDING_PREPARE_INVALID");
   window.dispatchEvent(new CustomEvent("orikuro:standing-backend-ready",{detail:{
     standingReady:payload.result.standingReady===true,
     backgroundCount:payload.result.backgroundCount
@@ -472,8 +472,13 @@ async function loadStandingPreview(signal,generation){
     if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("STANDING_PREVIEW_INVALID");
     const nextUrl=URL.createObjectURL(blob);
     const images=Array.from(document.querySelectorAll("[data-standing-preview-image]")).filter(img=>img instanceof HTMLImageElement);
-    images.forEach(img=>{img.src=nextUrl;img.hidden=false;});
-    await Promise.all(images.map(img=>img.decode()));
+    if(images.length<1){URL.revokeObjectURL(nextUrl);throw new Error("STANDING_PREVIEW_IMAGE_MISSING");}
+    const primary=images[0];primary.src=nextUrl;primary.hidden=false;
+    try{await primary.decode();}catch{URL.revokeObjectURL(nextUrl);throw new Error("STANDING_PREVIEW_IMAGE_DECODE_FAILED");}
+    if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){
+      URL.revokeObjectURL(nextUrl);return;
+    }
+    images.slice(1).forEach(img=>{img.src=nextUrl;img.hidden=false;});
     if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){URL.revokeObjectURL(nextUrl);return;}
     if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);
     standingPreviewUrl=nextUrl;standingPreviewReady=true;startStandingMotion();
@@ -484,6 +489,35 @@ async function loadStandingPreview(signal,generation){
     setFeedback(error instanceof Error?`立ち絵を読み込めません: ${error.message}`:"立ち絵を読み込めません。","error");throw error;
   }finally{if(generation===standingPreparationGeneration)standingPreviewLoading=false;updateWizard();}
 }
+async function smallStandingBackgroundThumbnail(blob,sourceUrl){
+  const canvas=document.createElement("canvas");canvas.width=112;canvas.height=112;
+  const ctx=canvas.getContext("2d",{alpha:false});
+  if(!ctx)return "";
+  let bitmap=null,image=null;
+  try{
+    if(typeof createImageBitmap==="function"){
+      try{bitmap=await createImageBitmap(blob,{resizeWidth:112,resizeHeight:112,resizeQuality:"low"});}
+      catch{bitmap=await createImageBitmap(blob);}
+    }else{
+      image=new Image();image.decoding="async";
+      await new Promise((resolve,reject)=>{
+        image.onload=resolve;
+        image.onerror=()=>reject(new Error("BACKGROUND_THUMBNAIL_DECODE_FAILED"));
+        image.src=sourceUrl;
+      });
+    }
+    const width=bitmap?.width||image?.naturalWidth||0;
+    const height=bitmap?.height||image?.naturalHeight||0;
+    if(width<1||height<1)return "";
+    const side=Math.min(width,height),sx=(width-side)*0.5,sy=(height-side)*0.5;
+    ctx.drawImage(bitmap||image,sx,sy,side,side,0,0,112,112);
+    return canvas.toDataURL("image/jpeg",0.72);
+  }finally{
+    try{bitmap?.close?.();}catch{}
+    if(image){image.onload=null;image.onerror=null;image.removeAttribute("src");}
+    canvas.width=0;canvas.height=0;
+  }
+}
 async function fetchStandingBackground(index,signal,generation){
   const current=getStreamRealtimeGrant();if(!current)throw new Error("STREAM_GRANT_MISSING");
   const response=await fetch(BACKGROUND_PREVIEW_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",signal});
@@ -491,9 +525,18 @@ async function fetchStandingBackground(index,signal,generation){
   const blob=await response.blob();
   if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
   if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("BACKGROUND_PREVIEW_INVALID");
-  const nextUrl=URL.createObjectURL(blob),previous=standingBackgroundUrls.get(index);if(previous)URL.revokeObjectURL(previous);
+  const nextUrl=URL.createObjectURL(blob);
+  // The four original images may be large; swatches must not decode all four
+  // full-sized images at once (especially Safari on memory-constrained phones).
+  let thumbnail="";
+  try{thumbnail=await smallStandingBackgroundThumbnail(blob,nextUrl);}catch{}
+  if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){
+    URL.revokeObjectURL(nextUrl);return;
+  }
+  const previous=standingBackgroundUrls.get(index);if(previous)URL.revokeObjectURL(previous);
   standingBackgroundUrls.set(index,nextUrl);
-  const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);if(swatch instanceof HTMLElement)swatch.style.backgroundImage=`url("${nextUrl}")`;
+  const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);
+  if(swatch instanceof HTMLElement)swatch.style.backgroundImage=thumbnail?`url("${thumbnail}")`:"";
   const button=document.querySelector(`[data-standing-background-index="${index}"]`);if(button instanceof HTMLButtonElement)button.disabled=false;
   renderStandingBackgroundChoice();
 }
@@ -510,7 +553,12 @@ async function loadDeferredStandingBackgrounds(signal,generation){
   setState("composition","背景2〜4をバックグラウンド準備中","working");updateWizard();
   try{
     const pending=[1,2,3].filter(index=>!standingBackgroundUrls.has(index));
-    await Promise.all(pending.map(index=>fetchStandingBackground(index,signal,generation)));
+    // Process the optional background thumbs one by one; four simultaneous
+    // decompressions can terminate a mobile browser tab.
+    for(const index of pending){
+      if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+      await fetchStandingBackground(index,signal,generation);
+    }
     if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     backgroundPreviewReady=standingBackgroundUrls.size===STANDING_IMAGE_COUNT;
     renderStandingBackgroundChoice();
@@ -533,7 +581,10 @@ function beginStandingPreparation(){
   const controller=standingPreparationController,generation=standingPreparationGeneration;
   backgroundPreviewLoading=true;
   standingPreparationPromise=(async()=>{
-    const backendPromise=prepareStandingBackend(controller.signal,generation);
+    // Required causal order: Cloudflare finishes all encrypted R2 preparations
+    // before this page requests any avatar/background temporary-copy previews.
+    await prepareStandingBackend(controller.signal,generation);
+    if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     const standingPromise=loadStandingPreview(controller.signal,generation);
     const initialBackgroundPromise=loadInitialStandingBackground(controller.signal,generation);
 
@@ -551,12 +602,13 @@ function beginStandingPreparation(){
       :Promise.resolve(true);
     const deferredPromise=loadDeferredStandingBackgrounds(controller.signal,generation);
 
-    await Promise.all([backendPromise,activationPromise,deferredPromise]);
+    await Promise.all([activationPromise,deferredPromise]);
     if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     if(standingPreviewReady&&backgroundPreviewReady)setState("composition","立ち絵・背景10種準備完了","ready");
   })().catch(error=>{
     if(!controller.signal.aborted&&generation===standingPreparationGeneration&&selectedMode==="standing"){
       const message=error instanceof Error?error.message:"STANDING_PREPARATION_FAILED";
+      setState("composition","立ち絵・背景準備失敗","error");
       setFeedback("立ち絵配信の専用準備を完了できません: "+message,"error");
     }
   }).finally(()=>{
@@ -1311,7 +1363,7 @@ document.addEventListener("orikuro:service-ready",()=>{
   refreshGrantState();
   if(systemTest){
     const stage=document.querySelector("[data-stage-wasm-status]");
-    if(stage){stage.textContent="0%ステージ: Go WASM合成入力テスト確認済み。実カメラ・配信WebSocketのE2Eは未確認（配信WebSocketは現行版）。";stage.dataset.state="ready";}
+    if(stage){stage.textContent="0%ステージ: 認証付き診断ページで合成入力を確認できます。配信WebSocketは現行版・実カメラE2Eは未検証です。";stage.dataset.state="waiting";}
   }
   setState("session","配信経路準備中","waiting");
   if(selectedMode==="standing")beginStandingPreparation();
