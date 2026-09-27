@@ -308,6 +308,8 @@ let liveBackgroundIndependent=false;
 let liveBackgroundRenderedAck="";
 let standingMotionRaf=0;
 let standingMotionStartedAt=0;
+let standingFacePrevious=null;
+let standingMotionTarget={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
 let standingFaceTracker=null;
 let standingTrackingReady=false;
 let standingTrackingStart=null;
@@ -407,7 +409,9 @@ function resetStandingMotionFrame(){
 }
 function stopStandingMotion(reset=true){
   if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
-  standingMotionRaf=0;standingMotionStartedAt=0;if(reset)resetStandingMotionFrame();
+  standingMotionRaf=0;standingMotionStartedAt=0;standingFacePrevious=null;
+  standingMotionTarget={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
+  if(reset)resetStandingMotionFrame();
 }
 function standingAssetViewActive(el){
   const live=el.closest("[data-live-screen]");
@@ -436,23 +440,91 @@ function syncVisibleStandingAssets(){
   });
   renderStandingBackgroundChoice();
 }
+function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
+function wrapStandingAngle(value){
+  const twoPi=Math.PI*2;
+  while(value>Math.PI)value-=twoPi;
+  while(value<Math.PI*-1)value+=twoPi;
+  return value;
+}
+function applyStandingPreviewState(state){
+  window.__orikuroStandingFrameState=state;
+  const sx=(1+state.z)*(1-Math.min(Math.abs(state.yaw)/18,1)*.06);
+  const sy=(1+state.z)*(1-Math.min(Math.abs(state.pitch)/14,1)*.04);
+  document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{
+    if(!(img instanceof HTMLImageElement)||!img.hasAttribute("src")||!standingAssetViewActive(img))return;
+    img.style.transform=`translate3d(${(state.x*100).toFixed(3)}%,${(state.y*100).toFixed(3)}%,0) perspective(900px) rotateY(${state.yaw.toFixed(3)}deg) rotateX(${(-state.pitch).toFixed(3)}deg) rotateZ(${state.roll.toFixed(3)}deg) scale(${sx.toFixed(5)},${sy.toFixed(5)})`;
+  });
+}
+function acceptStandingFaceRegion(sample){
+  if(selectedMode!=="standing"||!sample||typeof sample!=="object")return;
+  const frameId=Number(sample.frameId),timestampNS=Number(sample.timestampNS),confidence=Number(sample.confidence);
+  if(!Number.isSafeInteger(frameId)||frameId<=0||!Number.isSafeInteger(timestampNS)||timestampNS<=0)return;
+  if(sample.present!==true){
+    standingFacePrevious=null;
+    standingMotionTarget={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
+    startStandingMotion();
+    return;
+  }
+  const current={
+    frameId,timestampNS,
+    centerX:Number(sample.centerX),centerY:Number(sample.centerY),size:Number(sample.size),angleRad:Number(sample.angleRad),
+    confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0
+  };
+  if(!Number.isFinite(current.centerX)||!Number.isFinite(current.centerY)||!Number.isFinite(current.size)||current.size<=0||!Number.isFinite(current.angleRad))return;
+  const previous=standingFacePrevious;
+  standingFacePrevious=current;
+  if(!previous||frameId<=previous.frameId||timestampNS<=previous.timestampNS){
+    standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
+    startStandingMotion();
+    return;
+  }
+  // Same provider-neutral temporal normalization used by the Go tracking contract.
+  const lateral=clampStandingMotion((current.centerX-previous.centerX)/.08,-1,1);
+  const vertical=clampStandingMotion((previous.centerY-current.centerY)/.08,-1,1);
+  const radial=clampStandingMotion(Math.log(current.size/previous.size)/.16,-1,1);
+  const rotational=clampStandingMotion(wrapStandingAngle(current.angleRad-previous.angleRad)/.35,-1,1);
+
+  standingMotionTarget={
+    x:clampStandingMotion(standingMotionTarget.x+lateral*.011,-.08,.08),
+    y:clampStandingMotion(standingMotionTarget.y-vertical*.009,-.08,.08),
+    z:clampStandingMotion(standingMotionTarget.z+radial*.010,-.08,.08),
+    yaw:clampStandingMotion(standingMotionTarget.yaw+lateral*2.8,-18,18),
+    pitch:clampStandingMotion(standingMotionTarget.pitch+vertical*2.2,-14,14),
+    roll:clampStandingMotion(standingMotionTarget.roll+rotational*4.2,-24,24),
+    confidence:current.confidence,
+    lod:0,
+    faceLocalWarp:0
+  };
+  startStandingMotion();
+}
 function startStandingMotion(){
   if(standingMotionRaf||selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
-  if(!standingMotionStartedAt)standingMotionStartedAt=performance.now();
   const tick=now=>{
     standingMotionRaf=0;
     if(selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
-    const t=(now-standingMotionStartedAt)/1000;
-    const breath=(Math.sin(t*Math.PI*2/4.2)+1)*0.5;
-    const state={x:Math.sin(t*.85)*.018,y:Math.sin(t*1.15)*.004-breath*.0025,z:Math.sin(t*.52)*.018,yaw:Math.sin(t*.72)*8,pitch:Math.sin(t*.54)*3.5,roll:Math.sin(t*.63)*2.4,confidence:1,lod:0,faceLocalWarp:0};
-    window.__orikuroStandingFrameState=state;
-    const sx=(1+state.z)*(1-Math.min(Math.abs(state.yaw)/18,1)*.06);
-    const sy=(1+state.z)*(1-Math.min(Math.abs(state.pitch)/14,1)*.04)*(1+breath*.003);
-    document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{
-      if(!(img instanceof HTMLImageElement)||!img.hasAttribute("src")||!standingAssetViewActive(img))return;
-      img.style.transform=`translate3d(${(state.x*100).toFixed(3)}%,${(state.y*100).toFixed(3)}%,0) perspective(900px) rotateY(${state.yaw.toFixed(3)}deg) rotateX(${(-state.pitch).toFixed(3)}deg) rotateZ(${state.roll.toFixed(3)}deg) scale(${sx.toFixed(5)},${sy.toFixed(5)})`;
-    });
-    standingMotionRaf=requestAnimationFrame(tick);
+    const current=window.__orikuroStandingFrameState||{x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
+    const blend=.34;
+    const next={
+      x:current.x+(standingMotionTarget.x-current.x)*blend,
+      y:current.y+(standingMotionTarget.y-current.y)*blend,
+      z:current.z+(standingMotionTarget.z-current.z)*blend,
+      yaw:current.yaw+(standingMotionTarget.yaw-current.yaw)*blend,
+      pitch:current.pitch+(standingMotionTarget.pitch-current.pitch)*blend,
+      roll:current.roll+(standingMotionTarget.roll-current.roll)*blend,
+      confidence:standingMotionTarget.confidence,
+      lod:0,
+      faceLocalWarp:0
+    };
+    applyStandingPreviewState(next);
+    // FaceRegion is temporal-only. Let the local display settle naturally instead of inventing idle motion.
+    standingMotionTarget={
+      x:standingMotionTarget.x*.90,y:standingMotionTarget.y*.90,z:standingMotionTarget.z*.90,
+      yaw:standingMotionTarget.yaw*.90,pitch:standingMotionTarget.pitch*.90,roll:standingMotionTarget.roll*.90,
+      confidence:standingMotionTarget.confidence,lod:0,faceLocalWarp:0
+    };
+    const active=Math.abs(next.x)+Math.abs(next.y)+Math.abs(next.z)+Math.abs(next.yaw)/18+Math.abs(next.pitch)/14+Math.abs(next.roll)/24>.001;
+    if(active||standingMotionTarget.confidence>0)standingMotionRaf=requestAnimationFrame(tick);
   };
   standingMotionRaf=requestAnimationFrame(tick);
 }
@@ -1588,6 +1660,9 @@ document.addEventListener("orikuro:service-ready",()=>{
 window.addEventListener("orikuro:standing-backend-ready",()=>{
   if(selectedMode==="standing"&&!standingPreviewReady)setState("composition","専用バックエンド準備完了 / 表示素材受信中","working");
   updateWizard();
+});
+window.addEventListener("orikuro:face-region-sample",event=>{
+  if(selectedMode==="standing")acceptStandingFaceRegion(event?.detail);
 });
 window.addEventListener("orikuro:standing-tracking-failed",event=>{
   if(selectedMode!=="standing")return;
