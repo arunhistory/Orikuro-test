@@ -296,6 +296,7 @@ let standingPreviewUrl="";
 let backgroundPreviewReady=false;
 let backgroundPreviewLoading=false;
 const standingBackgroundUrls=new Map();
+let standingBackgroundsPrepared=false;
 let standingActiveBackgroundIndex=-1;
 let standingPreparationGeneration=0;
 let standingPreparationController=null;
@@ -387,9 +388,16 @@ function updateStreamIdentity(){
   });
 }
 
+function releaseUnusedStandingBackgroundUrls(keepIndex=-1){
+  for(const [index,url] of standingBackgroundUrls){
+    if(index===keepIndex)continue;
+    URL.revokeObjectURL(url);
+    standingBackgroundUrls.delete(index);
+  }
+}
 function revokeStandingBackgroundUrls(){
-  for(const url of standingBackgroundUrls.values())URL.revokeObjectURL(url);
-  standingBackgroundUrls.clear();
+  releaseUnusedStandingBackgroundUrls(-1);
+  standingBackgroundsPrepared=false;
   document.querySelectorAll("[data-standing-background-swatch]").forEach(el=>{if(el instanceof HTMLElement)el.style.backgroundImage="";});
   document.querySelectorAll("[data-standing-background-index]").forEach(button=>{if(button instanceof HTMLButtonElement)button.disabled=true;});
 }
@@ -463,7 +471,7 @@ function updateLiveBackgroundOptions(){
     if(!(button instanceof HTMLButtonElement))return;
     const choice=button.dataset.liveBackgroundChoice||"";
     const index=standingImageIndex(choice);
-    const allowed=(index>=0 ? selectedMode==="standing"&&standingBackgroundUrls.has(index) : radioPresets.has(choice));
+    const allowed=(index>=0 ? selectedMode==="standing"&&standingBackgroundsPrepared : radioPresets.has(choice));
     const visible=selectedMode==="standing"||index<0;
     button.hidden=!visible;
     button.disabled=!allowed||liveBackgroundSwitching||document.documentElement.dataset.broadcastPhase!=="live";
@@ -522,6 +530,8 @@ async function prepareStandingBackend(signal,generation){
   const payload=await response.json().catch(()=>null);
   if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
   if(payload?.ok!==true||payload?.result?.standingReady!==true||payload?.result?.backgroundCount!==STANDING_IMAGE_COUNT||!Array.isArray(payload?.result?.backgroundReady)||payload.result.backgroundReady.length!==STANDING_IMAGE_COUNT||payload.result.backgroundReady.some(value=>value!==true))throw new Error("STANDING_PREPARE_INVALID");
+  standingBackgroundsPrepared=true;
+  document.querySelectorAll("[data-standing-background-index]").forEach(button=>{if(button instanceof HTMLButtonElement)button.disabled=false;});
   window.dispatchEvent(new CustomEvent("orikuro:standing-backend-ready",{detail:{
     standingReady:payload.result.standingReady===true,
     backgroundCount:payload.result.backgroundCount
@@ -559,35 +569,6 @@ async function loadStandingPreview(signal,generation){
     setFeedback(error instanceof Error?`立ち絵を読み込めません: ${error.message}`:"立ち絵を読み込めません。","error");throw error;
   }finally{if(generation===standingPreparationGeneration)standingPreviewLoading=false;updateWizard();}
 }
-async function smallStandingBackgroundThumbnail(blob,sourceUrl){
-  const canvas=document.createElement("canvas");canvas.width=112;canvas.height=112;
-  const ctx=canvas.getContext("2d",{alpha:false});
-  if(!ctx)return "";
-  let bitmap=null,image=null;
-  try{
-    if(typeof createImageBitmap==="function"){
-      try{bitmap=await createImageBitmap(blob,{resizeWidth:112,resizeHeight:112,resizeQuality:"low"});}
-      catch{bitmap=await createImageBitmap(blob);}
-    }else{
-      image=new Image();image.decoding="async";
-      await new Promise((resolve,reject)=>{
-        image.onload=resolve;
-        image.onerror=()=>reject(new Error("BACKGROUND_THUMBNAIL_DECODE_FAILED"));
-        image.src=sourceUrl;
-      });
-    }
-    const width=bitmap?.width||image?.naturalWidth||0;
-    const height=bitmap?.height||image?.naturalHeight||0;
-    if(width<1||height<1)return "";
-    const side=Math.min(width,height),sx=(width-side)*0.5,sy=(height-side)*0.5;
-    ctx.drawImage(bitmap||image,sx,sy,side,side,0,0,112,112);
-    return canvas.toDataURL("image/jpeg",0.72);
-  }finally{
-    try{bitmap?.close?.();}catch{}
-    if(image){image.onload=null;image.onerror=null;image.removeAttribute("src");}
-    canvas.width=0;canvas.height=0;
-  }
-}
 async function fetchStandingBackground(index,signal,generation){
   const current=getStreamRealtimeGrant();if(!current)throw new Error("STREAM_GRANT_MISSING");
   const response=await fetch(BACKGROUND_PREVIEW_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",signal});
@@ -596,17 +577,11 @@ async function fetchStandingBackground(index,signal,generation){
   if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
   if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("BACKGROUND_PREVIEW_INVALID");
   const nextUrl=URL.createObjectURL(blob);
-  // The four original images may be large; swatches must not decode all four
-  // full-sized images at once (especially Safari on memory-constrained phones).
-  let thumbnail="";
-  try{thumbnail=await smallStandingBackgroundThumbnail(blob,nextUrl);}catch{}
   if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){
     URL.revokeObjectURL(nextUrl);return;
   }
   const previous=standingBackgroundUrls.get(index);if(previous)URL.revokeObjectURL(previous);
   standingBackgroundUrls.set(index,nextUrl);
-  const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);
-  if(swatch instanceof HTMLElement)swatch.style.backgroundImage=thumbnail?`url("${thumbnail}")`:"";
   const button=document.querySelector(`[data-standing-background-index="${index}"]`);if(button instanceof HTMLButtonElement)button.disabled=false;
   renderStandingBackgroundChoice();
   updateLiveBackgroundOptions();
@@ -620,30 +595,16 @@ async function loadInitialStandingBackground(signal,generation){
   updateWizard();
 }
 async function loadDeferredStandingBackgrounds(signal,generation){
-  if(selectedMode!=="standing"||backgroundPreviewReady)return;
-  setState("composition","背景2〜4をバックグラウンド準備中","working");updateWizard();
-  try{
-    const pending=[1,2,3].filter(index=>!standingBackgroundUrls.has(index));
-    // Process the optional background thumbs one by one; four simultaneous
-    // decompressions can terminate a mobile browser tab.
-    for(const index of pending){
-      if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
-      await fetchStandingBackground(index,signal,generation);
-    }
-    if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
-    backgroundPreviewReady=standingBackgroundUrls.size===STANDING_IMAGE_COUNT;
-    renderStandingBackgroundChoice();
-    if(backgroundPreviewReady){
-      setState("composition","立ち絵・背景10種準備完了","ready");
-      window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT}}));
-      setFeedback("登録背景4種と単色6種の準備が完了しました。","ready");
-    }
-  }catch(error){
-    if(signal.aborted||error?.name==="AbortError")return;
-    backgroundPreviewReady=false;setState("composition","背景読込失敗","error");
-    setFeedback(error instanceof Error?`背景を読み込めません: ${error.message}`:"背景を読み込めません。","error");
-    throw error;
-  }finally{if(generation===standingPreparationGeneration)updateWizard();}
+  if(selectedMode!=="standing"||!standingBackgroundsPrepared)return;
+  if(signal.aborted||generation!==standingPreparationGeneration)return;
+  backgroundPreviewReady=standingPreviewReady&&standingBackgroundUrls.has(0);
+  renderStandingBackgroundChoice();
+  if(backgroundPreviewReady){
+    setState("composition","立ち絵・背景準備完了","ready");
+    window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT,lazyFullResolution:true}}));
+    setFeedback("登録背景4種と単色6種を使用できます。背景2〜4は選択時に読み込みます。","ready");
+  }
+  updateWizard();
 }
 function beginStandingPreparation(){
   if(selectedMode!=="standing"||standingPreparationPromise)return;
@@ -699,7 +660,7 @@ async function stopStandingTemporary(){
 }
 function cancelStandingPreparation(stopRemote=true){
   standingPreparationGeneration++;standingPreparationController?.abort();standingPreparationController=null;standingPreparationPromise=null;
-  standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;backgroundPreviewReady=false;standingActiveBackgroundIndex=-1;
+  standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;backgroundPreviewReady=false;standingBackgroundsPrepared=false;standingActiveBackgroundIndex=-1;
   stopStandingMotion(true);
   if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);standingPreviewUrl="";revokeStandingBackgroundUrls();
   document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement){img.removeAttribute("src");img.hidden=true;}});
@@ -726,7 +687,7 @@ async function applyLiveBackgroundChoice(choiceId){
   if(document.documentElement.dataset.broadcastPhase!=="live"||liveBackgroundSwitching||choiceId===backgroundChoice)return;
   const index=standingImageIndex(choiceId);
   const solid=radioPresets.get(choiceId);
-  if(selectedMode==="radio" ? !solid : selectedMode==="standing" ? (index<0&&!solid)||index>=0&&!standingBackgroundUrls.has(index) : true)return;
+  if(selectedMode==="radio" ? !solid : selectedMode==="standing" ? (index<0&&!solid)||index>=0&&!standingBackgroundsPrepared : true)return;
   const generation=++liveBackgroundGeneration;
   liveBackgroundSwitching=true;
   updateLiveBackgroundOptions();
@@ -734,8 +695,12 @@ async function applyLiveBackgroundChoice(choiceId){
   try{
     let image=null;
     if(selectedMode==="standing"&&index>=0){
-      // Decode exactly the requested prepared R2 temporary-copy image before
-      // switching either the cloudflare staging asset or the video encoder.
+      if(!standingBackgroundUrls.has(index)){
+        const controller=new AbortController();
+        await fetchStandingBackground(index,controller.signal,standingPreparationGeneration);
+        if(!standingBackgroundUrls.has(index))throw new Error("LIVE_BACKGROUND_LOAD_FAILED");
+      }
+      // Decode only the requested prepared R2 temporary-copy image.
       image=new Image();
       image.decoding="async";
       image.src=standingBackgroundUrls.get(index);
@@ -757,8 +722,8 @@ async function applyLiveBackgroundChoice(choiceId){
       if(liveBackgroundRenderedAck!==choiceId)throw new Error("LIVE_BACKGROUND_RENDERER_NOT_READY");
       backgroundChoice=choiceId;
       liveBackgroundIndependent=true;
-      // The encoder now holds the new decoded source independently: release
-      // the redundant full-resolution image from hidden wizard step 4.
+      releaseUnusedStandingBackgroundUrls(index);
+      // The encoder now holds the selected decoded source independently.
       renderStandingBackgroundChoice();
       updateWizard();
     }
@@ -771,10 +736,29 @@ async function applyLiveBackgroundChoice(choiceId){
     if(generation===liveBackgroundGeneration){liveBackgroundSwitching=false;updateLiveBackgroundOptions();}
   }
 }
-function applyStandingBackgroundChoice(choiceId){
+async function applyStandingBackgroundChoice(choiceId){
   if(selectedMode!=="standing"||!standingChoiceValid(choiceId))return;
+  const index=standingImageIndex(choiceId);
+  if(index>=0&&!standingBackgroundUrls.has(index)){
+    if(!standingBackgroundsPrepared)return;
+    const controller=new AbortController();
+    setState("composition","選択した背景を読み込み中","working");
+    try{await fetchStandingBackground(index,controller.signal,standingPreparationGeneration);}
+    catch(error){
+      setState("composition","背景読込失敗","error");
+      setFeedback(error instanceof Error?`背景を読み込めません: ${error.message}`:"背景を読み込めません。","error");
+      return;
+    }
+    if(!standingBackgroundUrls.has(index))return;
+  }
   backgroundChoice=choiceId;renderStandingBackgroundChoice();updateWizard();
-  const index=standingImageIndex(choiceId);if(index>=0&&standingPreviewReady&&standingBackgroundUrls.has(index))void activateStandingBackground(index);
+  if(index>=0&&standingPreviewReady){
+    const activated=await activateStandingBackground(index);
+    if(!activated)return;
+    releaseUnusedStandingBackgroundUrls(index);
+  }else if(index<0){
+    releaseUnusedStandingBackgroundUrls(-1);
+  }
   window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{detail:{choiceId,index}}));
 }
 
@@ -1219,7 +1203,7 @@ document.querySelectorAll("[data-radio-preset]").forEach(button=>{
   button.addEventListener("click",()=>applyBackgroundPreset(button.dataset.radioPreset||""));
 });
 document.querySelectorAll("[data-standing-background-choice]").forEach(button=>{
-  button.addEventListener("click",()=>applyStandingBackgroundChoice(button.dataset.standingBackgroundChoice||""));
+  button.addEventListener("click",()=>{void applyStandingBackgroundChoice(button.dataset.standingBackgroundChoice||"");});
 });
 document.querySelector("[data-wizard-next]")?.addEventListener("click",()=>{
   if(readyForStep(currentStep))goStep(currentStep+1);
