@@ -1,6 +1,14 @@
 /* YuNet provider worker. Raw camera pixels never leave this worker/provider path. */
 const ORT_DIST='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/';
-const ORT_SCRIPT=ORT_DIST+'ort.webgpu.min.js';
+const ORT_WASM_SCRIPT=ORT_DIST+'ort.wasm.min.js';
+const ORT_WEBGPU_SCRIPT=ORT_DIST+'ort.webgpu.min.js';
+
+function webkitRuntime(){
+  const ua=self.navigator?.userAgent||'';
+  const ios=/iPhone|iPad|iPod/i.test(ua);
+  const safari=/Safari/i.test(ua)&&/AppleWebKit/i.test(ua)&&!/(Chrome|Chromium|Edg|OPR)/i.test(ua);
+  return ios||safari;
+}
 const YUNET_MODEL='https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models/face_detection_yunet/face_detection_yunet_2026may.onnx';
 const STRIDES=[8,16,32];
 const SCORE_THRESHOLD=0.40;
@@ -10,6 +18,7 @@ let session=null;
 let inputName='input';
 let backend='uninitialized';
 let initPromise=null;
+let tensorScratch=null;
 
 self.addEventListener('message',event=>{
   const message=event.data&&typeof event.data==='object'?event.data:null;
@@ -24,12 +33,18 @@ async function ensureSession(){
   if(initPromise)return await initPromise;
   initPromise=(async()=>{
     try{
-      if(typeof self.ort==='undefined')importScripts(ORT_SCRIPT);
+      const forceStandardWasm=webkitRuntime()||!self.navigator?.gpu;
+      if(typeof self.ort==='undefined')importScripts(forceStandardWasm?ORT_WASM_SCRIPT:ORT_WEBGPU_SCRIPT);
       if(typeof self.ort==='undefined')throw new Error('ORT_LOAD_FAILED');
       ort.env.wasm.wasmPaths=ORT_DIST;
       ort.env.wasm.numThreads=1;
-      const canWebGPU=!!self.navigator?.gpu;
-      if(canWebGPU){
+      ort.env.wasm.proxy=false;
+
+      // ONNX Runtime Web documents the standard WASM EP as supported on
+      // Safari/iOS. Its WebGPU EP is not a supported Safari route, and the
+      // JSEP/WebGPU bundle has shown runaway WebKit memory growth. Therefore
+      // Apple/WebKit uses the non-JSEP WASM bundle directly.
+      if(!forceStandardWasm){
         try{
           session=await ort.InferenceSession.create(YUNET_MODEL,{executionProviders:['webgpu','wasm'],graphOptimizationLevel:'all'});
           backend='webgpu';
@@ -63,11 +78,18 @@ async function infer(message){
     if(!Number.isInteger(contentWidth)||!Number.isInteger(contentHeight)||contentWidth<1||contentHeight<1||contentWidth>width||contentHeight>height)throw new Error('FACE_PROVIDER_CONTENT_SIZE_INVALID');
     if(!(rgba instanceof Uint8ClampedArray)||rgba.length!==width*height*4)throw new Error('FACE_PROVIDER_RGBA_INVALID');
     const active=await ensureSession();
+    const started=performance.now();
     const tensorData=rgbaToBgrNchw(rgba,width,height);
     const tensor=new ort.Tensor('float32',tensorData,[1,3,height,width]);
-    const output=await active.run({[inputName]:tensor});
-    const detection=decodeBest(output,width,height);
-    self.postMessage({type:'result',frameId,timestampNS,width,height,contentWidth,contentHeight,detection,backend});
+    let output=null;
+    try{
+      output=await active.run({[inputName]:tensor});
+      const detection=decodeBest(output,width,height);
+      self.postMessage({type:'result',frameId,timestampNS,width,height,contentWidth,contentHeight,detection,backend,inferenceMs:performance.now()-started});
+    }finally{
+      try{tensor.dispose?.();}catch{}
+      if(output)for(const value of Object.values(output)){try{value?.dispose?.();}catch{}}
+    }
   }catch(error){
     self.postMessage({type:'frame-error',frameId,timestampNS,code:error instanceof Error?error.message:'FACE_PROVIDER_INFER_FAILED'});
   }
@@ -75,7 +97,9 @@ async function infer(message){
 
 function rgbaToBgrNchw(rgba,width,height){
   const pixels=width*height;
-  const out=new Float32Array(pixels*3);
+  const required=pixels*3;
+  if(!(tensorScratch instanceof Float32Array)||tensorScratch.length!==required)tensorScratch=new Float32Array(required);
+  const out=tensorScratch;
   for(let i=0,p=0;i<pixels;i++,p+=4){
     out[i]=rgba[p+2];
     out[pixels+i]=rgba[p+1];
@@ -146,7 +170,7 @@ function iou(a,b){
   return union>0?inter/union:0;
 }
 async function dispose(){
-  const current=session;session=null;backend='uninitialized';
+  const current=session;session=null;backend='uninitialized';tensorScratch=null;
   try{await current?.release?.();}catch{}
   self.close();
 }
