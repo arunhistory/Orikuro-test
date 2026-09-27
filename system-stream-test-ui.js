@@ -309,6 +309,7 @@ let liveBackgroundRenderedAck="";
 let standingMotionRaf=0;
 let standingMotionStartedAt=0;
 let standingFacePrevious=null;
+let standingTrackedState={x:0,y:0,z:0,yaw:0,pitch:0,roll:0};
 let standingMotionTarget={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
 let standingFaceTracker=null;
 let standingTrackingReady=false;
@@ -410,6 +411,7 @@ function resetStandingMotionFrame(){
 function stopStandingMotion(reset=true){
   if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
   standingMotionRaf=0;standingMotionStartedAt=0;standingFacePrevious=null;
+  standingTrackedState={x:0,y:0,z:0,yaw:0,pitch:0,roll:0};
   standingMotionTarget={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
   if(reset)resetStandingMotionFrame();
 }
@@ -504,7 +506,6 @@ function startStandingMotion(){
   const tick=now=>{
     standingMotionRaf=0;
     if(selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
-    const current=window.__orikuroStandingFrameState||{x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
     if(!standingMotionStartedAt)standingMotionStartedAt=now;
     const t=(now-standingMotionStartedAt)/1000;
     // Spec-defined autonomous motion: breathing 4.2s + idle sway 5-12s.
@@ -514,13 +515,14 @@ function startStandingMotion(){
     const autonomous={x:sway*.004,y:breath*-.0018,z:breath*.0032,yaw:sway2*.65,pitch:breath*.28,roll:sway*1.05};
     const blend=.30;
     const tracked={
-      x:current.x+(standingMotionTarget.x-current.x)*blend,
-      y:current.y+(standingMotionTarget.y-current.y)*blend,
-      z:current.z+(standingMotionTarget.z-current.z)*blend,
-      yaw:current.yaw+(standingMotionTarget.yaw-current.yaw)*blend,
-      pitch:current.pitch+(standingMotionTarget.pitch-current.pitch)*blend,
-      roll:current.roll+(standingMotionTarget.roll-current.roll)*blend
+      x:standingTrackedState.x+(standingMotionTarget.x-standingTrackedState.x)*blend,
+      y:standingTrackedState.y+(standingMotionTarget.y-standingTrackedState.y)*blend,
+      z:standingTrackedState.z+(standingMotionTarget.z-standingTrackedState.z)*blend,
+      yaw:standingTrackedState.yaw+(standingMotionTarget.yaw-standingTrackedState.yaw)*blend,
+      pitch:standingTrackedState.pitch+(standingMotionTarget.pitch-standingTrackedState.pitch)*blend,
+      roll:standingTrackedState.roll+(standingMotionTarget.roll-standingTrackedState.roll)*blend
     };
+    standingTrackedState=tracked;
     const next={
       x:clampStandingMotion(tracked.x+autonomous.x,-.08,.08),
       y:clampStandingMotion(tracked.y+autonomous.y,-.08,.08),
