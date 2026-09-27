@@ -1,8 +1,12 @@
 import{adaptYuNetDetectionToFaceRegionSample,createLostFaceRegionSample}from'./standing-face-region.js?v=20260922-yunet1';
 
-const WORKER_URL='./standing-face-worker.js?v=20260927-webkit-safe1';
+const WORKER_URL='./standing-face-worker.js?v=20260927-face-lock1';
 const TARGET_INTERVAL_MS=1000/30;
 const INFERENCE_SIDES=[192,256,320];
+const FACE_ACQUIRE_SCORE=.72;
+const FACE_TRACK_SCORE=.62;
+const FACE_ACQUIRE_FRAMES=3;
+const FACE_LOST_FRAMES=4;
 
 function webkitConservativeRuntime(){
   const ua=navigator.userAgent||'';
@@ -36,6 +40,10 @@ export class StandingFaceTracker{
     this.maxInferenceSide=initialInferenceSide();
     this.inferenceEmaMs=0;
     this.stableInferenceFrames=0;
+    this.faceLock=null;
+    this.faceCandidate=null;
+    this.faceCandidateFrames=0;
+    this.faceMissFrames=0;
   }
 
   async start(){
@@ -99,6 +107,7 @@ export class StandingFaceTracker{
     if(this.video){this.video.srcObject=null;this.video=null;}
     this.canvas=null;this.context=null;this.backend='uninitialized';
     this.inferenceEmaMs=0;this.stableInferenceFrames=0;
+    this.faceLock=null;this.faceCandidate=null;this.faceCandidateFrames=0;this.faceMissFrames=0;
   }
 
   #waitForProviderReady(worker){
@@ -185,7 +194,11 @@ export class StandingFaceTracker{
       this.failedFrames=0;
       this.#adaptInference(data.inferenceMs);
       try{
-        const sample=adaptYuNetDetectionToFaceRegionSample(data.detection,{frameId:data.frameId,timestampNS:data.timestampNS,contentWidth:data.contentWidth,contentHeight:data.contentHeight});
+        const gated=this.#gateDetection(data.detection,data.contentWidth,data.contentHeight);
+        if(gated.kind==='hold')return;
+        const sample=gated.kind==='lost'
+          ?createLostFaceRegionSample(Number(data.frameId),Number(data.timestampNS))
+          :adaptYuNetDetectionToFaceRegionSample(gated.detection,{frameId:data.frameId,timestampNS:data.timestampNS,contentWidth:data.contentWidth,contentHeight:data.contentHeight});
         window.dispatchEvent(new CustomEvent('orikuro:face-region-sample',{detail:sample}));
       }catch(error){
         this.#fail(error instanceof Error?error.message:'FACE_REGION_ADAPTER_FAILED');
@@ -204,6 +217,71 @@ export class StandingFaceTracker{
     }else if(data.type==='fatal'){
       this.#fail(typeof data.code==='string'?data.code:'FACE_PROVIDER_FATAL');
     }
+  }
+
+  #detectionSignature(detection,contentWidth,contentHeight){
+    if(!detection||typeof detection!=='object')return null;
+    const width=Number(detection.width),height=Number(detection.height);
+    const x=Number(detection.x),y=Number(detection.y),confidence=Number(detection.confidence);
+    const cw=Number(contentWidth),ch=Number(contentHeight);
+    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(confidence)||!Number.isFinite(cw)||!Number.isFinite(ch)||cw<=0||ch<=0)return null;
+    return {
+      detection,
+      confidence,
+      cx:(x+width*.5)/cw,
+      cy:(y+height*.5)/ch,
+      size:Math.sqrt(Math.max(Number.EPSILON,(width/cw)*(height/ch))),
+      angle:Math.atan2(Number(detection.leftEyeY)-Number(detection.rightEyeY),Number(detection.leftEyeX)-Number(detection.rightEyeX))
+    };
+  }
+
+  #sameFace(a,b,centerLimit=.13,sizeRatioLimit=1.65,angleLimit=.75){
+    if(!a||!b)return false;
+    const centerDistance=Math.hypot(a.cx-b.cx,a.cy-b.cy);
+    const sizeRatio=Math.max(a.size,b.size)/Math.max(Number.EPSILON,Math.min(a.size,b.size));
+    let angle=a.angle-b.angle;
+    while(angle>Math.PI)angle-=Math.PI*2;
+    while(angle<-Math.PI)angle+=Math.PI*2;
+    return centerDistance<=centerLimit&&sizeRatio<=sizeRatioLimit&&Math.abs(angle)<=angleLimit;
+  }
+
+  #queueCandidate(signature){
+    if(!signature||signature.confidence<FACE_ACQUIRE_SCORE){
+      this.faceCandidate=null;this.faceCandidateFrames=0;
+      return false;
+    }
+    if(this.faceCandidate&&this.#sameFace(signature,this.faceCandidate,.11,1.45,.55)){
+      this.faceCandidate=signature;
+      this.faceCandidateFrames++;
+    }else{
+      this.faceCandidate=signature;
+      this.faceCandidateFrames=1;
+    }
+    if(this.faceCandidateFrames<FACE_ACQUIRE_FRAMES)return false;
+    this.faceLock=this.faceCandidate;
+    this.faceCandidate=null;this.faceCandidateFrames=0;this.faceMissFrames=0;
+    return true;
+  }
+
+  #gateDetection(detection,contentWidth,contentHeight){
+    const signature=this.#detectionSignature(detection,contentWidth,contentHeight);
+    if(this.faceLock){
+      if(signature&&signature.confidence>=FACE_TRACK_SCORE&&this.#sameFace(signature,this.faceLock,.18,1.85,.90)){
+        this.faceLock=signature;this.faceCandidate=null;this.faceCandidateFrames=0;this.faceMissFrames=0;
+        return {kind:'accept',detection:signature.detection};
+      }
+      this.faceMissFrames++;
+      if(signature)this.#queueCandidate(signature);
+      if(this.faceCandidateFrames>=FACE_ACQUIRE_FRAMES&&this.faceLock){
+        this.faceMissFrames=0;
+        return {kind:'accept',detection:this.faceLock.detection};
+      }
+      if(this.faceMissFrames<FACE_LOST_FRAMES)return {kind:'hold'};
+      this.faceLock=null;this.faceCandidate=null;this.faceCandidateFrames=0;this.faceMissFrames=0;
+      return {kind:'lost'};
+    }
+    if(signature&&this.#queueCandidate(signature))return {kind:'accept',detection:this.faceLock.detection};
+    return {kind:'hold'};
   }
 
   #adaptInference(durationMs){
