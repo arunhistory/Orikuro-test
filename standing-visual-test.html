@@ -9,14 +9,13 @@
   <link rel="stylesheet" href="./standing-visual-test.css?v=20260920-visual1"/>
 </head>
 <body>
-  <p data-system-access-status role="status" aria-live="polite" style="position:fixed;z-index:20;left:50%;top:max(8px,env(safe-area-inset-top));transform:translateX(-50%);margin:0;padding:7px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(4,6,10,.82);color:#fff;font:800 9px -apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;white-space:nowrap">テストURLを確認しています…</p>
-  <main class="visual-test" data-service-content hidden>
+  <main class="visual-test">
     <header class="visual-head">
       <div>
         <small>STAGING / 目視テスト専用</small>
         <h1>立ち絵 2.5D</h1>
       </div>
-      <span class="visual-badge">R2立ち絵 / 合成Tracking入力</span>
+      <span class="visual-badge">合成Tracking入力</span>
     </header>
 
     <section class="visual-stage-wrap">
@@ -49,10 +48,9 @@
         <button type="button" data-play-toggle>一時停止</button>
         <label><input type="checkbox" data-skeleton-toggle checked/>骨格表示</label>
       </div>
-      <p>R2登録済みの実立ち絵を使い、合成Tracking入力だけで動き、視差、再捕捉、顔面固定を目視確認します。</p>
+      <p>Tracking Provider・実カメラは未選定のまま。ここでは動き、視差、再捕捉、顔面固定を人間の目で確認します。</p>
     </section>
   </main>
-  <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260927-visual-r2-1"></script>
-  <script type="module" src="./standing-visual-test.js?v=20260927-visual-r2-1"></script>
+  <script type="module" src="./standing-visual-test.js?v=20260920-visual1"></script>
 </body>
 </html>
