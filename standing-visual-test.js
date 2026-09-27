@@ -1,3 +1,4 @@
+import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 const canvas=document.querySelector("[data-visual-canvas]");
 const ctx=canvas.getContext("2d",{alpha:true});
 const readouts={
@@ -11,6 +12,10 @@ const readouts={
 const playButton=document.querySelector("[data-play-toggle]");
 const skeletonToggle=document.querySelector("[data-skeleton-toggle]");
 const scenarioButtons=[...document.querySelectorAll("[data-scenario]")];
+const accessStatus=document.querySelector("[data-system-access-status]");
+const STANDING_PREPARE_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-prepare";
+const STANDING_PREVIEW_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview";
+const STANDING_PREVIEW_STOP_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview-stop";
 
 const scenarioNames={follow:"通常追従",head:"頭部回転",depth:"前後・視差",lost:"Lost→再捕捉",lod:"LOD 0→5→0"};
 let scenario="follow";
@@ -20,6 +25,9 @@ let started=performance.now();
 let last=started;
 let phaseTime=0;
 let raf=0;
+let standingImage=null;
+let standingObjectUrl="";
+let standingLoadPromise=null;
 
 const state={
   x:0,y:0,z:0,yaw:0,pitch:0,roll:0,
@@ -42,6 +50,66 @@ function resize(){
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function lerp(a,b,t){return a+(b-a)*t}
 function ease(t){t=clamp(t,0,1);return t*t*(3-2*t)}
+
+function setAssetStatus(text,state="working"){
+  if(!accessStatus)return;
+  accessStatus.textContent=text;
+  accessStatus.dataset.state=state;
+}
+async function loadRegisteredStanding(){
+  if(standingImage)return standingImage;
+  if(standingLoadPromise)return await standingLoadPromise;
+  const grant=getStreamRealtimeGrant();
+  if(!grant)throw new Error("STREAM_GRANT_MISSING");
+  standingLoadPromise=(async()=>{
+    setAssetStatus("R2立ち絵を準備しています…");
+    const prepare=await fetch(STANDING_PREPARE_URL,{
+      method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({streamId:grant.streamId,controlCapability:grant.controlCapability}),
+      credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"
+    });
+    const prepared=await prepare.json().catch(()=>null);
+    if(!prepare.ok||prepared?.ok!==true||prepared?.result?.standingReady!==true)throw new Error(prepared?.code||"STANDING_PREPARE_FAILED");
+    const preview=await fetch(STANDING_PREVIEW_URL,{
+      method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({streamId:grant.streamId,controlCapability:grant.controlCapability}),
+      credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"
+    });
+    if(!preview.ok){const payload=await preview.json().catch(()=>null);throw new Error(payload?.code||"STANDING_PREVIEW_FAILED");}
+    const blob=await preview.blob();
+    if(!["image/png","image/jpeg","image/webp"].includes(blob.type)||blob.size<1||blob.size>12*1024*1024)throw new Error("STANDING_PREVIEW_INVALID");
+    const url=URL.createObjectURL(blob);
+    const image=new Image();
+    image.decoding="async";
+    image.src=url;
+    try{await image.decode();}catch{URL.revokeObjectURL(url);throw new Error("STANDING_PREVIEW_IMAGE_DECODE_FAILED");}
+    if(image.naturalWidth<1||image.naturalHeight<1){URL.revokeObjectURL(url);throw new Error("STANDING_PREVIEW_DIMENSIONS_INVALID");}
+    if(standingObjectUrl)URL.revokeObjectURL(standingObjectUrl);
+    standingObjectUrl=url;
+    standingImage=image;
+    setAssetStatus("R2立ち絵を使用中","ready");
+    draw();
+    return image;
+  })();
+  try{return await standingLoadPromise;}
+  finally{standingLoadPromise=null;}
+}
+async function stopRegisteredStanding(){
+  const grant=getStreamRealtimeGrant();
+  if(grant){
+    try{
+      const response=await fetch(STANDING_PREVIEW_STOP_URL,{
+        method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({streamId:grant.streamId,controlCapability:grant.controlCapability}),
+        credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",keepalive:true
+      });
+      try{await response.body?.cancel();}catch{}
+    }catch{}
+  }
+  standingImage=null;
+  if(standingObjectUrl)URL.revokeObjectURL(standingObjectUrl);
+  standingObjectUrl="";
+}
 
 function targetFor(t){
   const s={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,leftArm:-12,rightArm:12,confidence:1,lost:false,lod:0,idle:0,hair:0};
@@ -126,109 +194,44 @@ function draw(){
   const w=canvas.clientWidth,h=canvas.clientHeight;
   ctx.clearRect(0,0,w,h);
 
-  const H=Math.min(h*.62,w*.92);
-  const scale=H/300;
+  const H=Math.min(h*.72,w*.94);
   const centerX=w*.5+state.x*H;
-  const baseY=h*.80+state.y*H;
-  const depthScale=1+clamp(state.z,-.08,.08);
-  const bodyScale=scale*depthScale;
-  const rootDx=state.x*H;
+  const baseY=h*.90+state.y*H;
 
-  // Adopted visual parallax factors: back 0.82, body 0.96, face 1.00, front 1.08.
-  const backX=centerX-rootDx+rootDx*.82;
-  const bodyX=centerX-rootDx+rootDx*.96;
-  const faceX=centerX;
-  const frontX=centerX-rootDx+rootDx*1.08;
+  if(standingImage&&standingImage.complete&&standingImage.naturalWidth>0){
+    const baseScale=Math.min((w*.88)/standingImage.naturalWidth,(h*.82)/standingImage.naturalHeight);
+    const width=standingImage.naturalWidth*baseScale;
+    const height=standingImage.naturalHeight*baseScale;
+    const depthScale=1+clamp(state.z,-.08,.08);
+    const yawScale=1-clamp(Math.abs(state.yaw)/18,0,1)*.06;
+    const pitchScale=1-clamp(Math.abs(state.pitch)/14,0,1)*.04;
 
-  const pelvisY=baseY-78*bodyScale;
-  const chestY=pelvisY-66*bodyScale;
-  const neckY=chestY-22*bodyScale;
-  const headY=neckY-31*bodyScale;
-  const shoulderSpread=44*bodyScale;
-  const upper=43*bodyScale,fore=40*bodyScale,hand=17*bodyScale;
-
-  // Back hair and back accessory.
-  ctx.save();
-  ctx.translate(backX,headY+18*bodyScale);
-  ctx.rotate((state.roll*.45+state.hair*3)*Math.PI/180);
-  ellipse(0,18*bodyScale,35*bodyScale,57*bodyScale,"rgba(79,60,127,.96)");
-  ctx.restore();
-
-  // Torso/body.
-  ctx.save();
-  ctx.translate(bodyX,chestY+43*bodyScale);
-  ctx.rotate(state.roll*.25*Math.PI/180);
-  roundRect(-31*bodyScale,-36*bodyScale,62*bodyScale,90*bodyScale,18*bodyScale,"rgba(105,118,190,.97)");
-  roundRect(-25*bodyScale,42*bodyScale,50*bodyScale,56*bodyScale,16*bodyScale,"rgba(75,84,145,.97)");
-  ctx.restore();
-
-  // Arms: renderer-facing body motion preview.
-  const shoulderLY=chestY-2*bodyScale, shoulderRY=shoulderLY;
-  const shoulderLX=bodyX-shoulderSpread, shoulderRX=bodyX+shoulderSpread;
-  const aL=(105+state.leftArm)*Math.PI/180;
-  const aR=(75+state.rightArm)*Math.PI/180;
-  const elbowLX=shoulderLX+Math.cos(aL)*upper, elbowLY=shoulderLY+Math.sin(aL)*upper;
-  const elbowRX=shoulderRX+Math.cos(aR)*upper, elbowRY=shoulderRY+Math.sin(aR)*upper;
-  const foreL=aL+.28+Math.sin(phaseTime*.8)*.06;
-  const foreR=aR-.28-Math.sin(phaseTime*.75)*.06;
-  const wristLX=elbowLX+Math.cos(foreL)*fore, wristLY=elbowLY+Math.sin(foreL)*fore;
-  const wristRX=elbowRX+Math.cos(foreR)*fore, wristRY=elbowRY+Math.sin(foreR)*fore;
-  line(shoulderLX,shoulderLY,elbowLX,elbowLY,15*bodyScale,"rgba(118,132,204,.98)");
-  line(elbowLX,elbowLY,wristLX,wristLY,13*bodyScale,"rgba(118,132,204,.98)");
-  line(shoulderRX,shoulderRY,elbowRX,elbowRY,15*bodyScale,"rgba(118,132,204,.98)");
-  line(elbowRX,elbowRY,wristRX,wristRY,13*bodyScale,"rgba(118,132,204,.98)");
-  ellipse(wristLX+Math.cos(foreL)*hand*.45,wristLY+Math.sin(foreL)*hand*.45,7*bodyScale,10*bodyScale,"rgba(246,211,206,.98)",foreL);
-  ellipse(wristRX+Math.cos(foreR)*hand*.45,wristRY+Math.sin(foreR)*hand*.45,7*bodyScale,10*bodyScale,"rgba(246,211,206,.98)",foreR);
-
-  // FaceSurface: only whole-surface projection/rigid transform. Eyes/mouth below never move locally.
-  const yawCompression=1-clamp(Math.abs(state.yaw)/18,0,1)*.06;
-  const pitchCompression=1-clamp(Math.abs(state.pitch)/14,0,1)*.04;
-  ctx.save();
-  ctx.translate(faceX+state.yaw*.12*bodyScale,headY+state.pitch*.08*bodyScale);
-  ctx.rotate(state.roll*Math.PI/180);
-  ctx.scale(yawCompression,pitchCompression);
-  ellipse(0,0,27*bodyScale,34*bodyScale,"rgba(250,222,217,.99)");
-  // Fixed internal face artwork.
-  ellipse(-9*bodyScale,-3*bodyScale,3.2*bodyScale,4.2*bodyScale,"rgba(49,39,67,.94)");
-  ellipse(9*bodyScale,-3*bodyScale,3.2*bodyScale,4.2*bodyScale,"rgba(49,39,67,.94)");
-  line(-5*bodyScale,12*bodyScale,5*bodyScale,12*bodyScale,1.8*bodyScale,"rgba(122,70,86,.82)");
-  ctx.restore();
-
-  // Front hair parallax.
-  ctx.save();
-  ctx.translate(frontX+state.yaw*.10*bodyScale,headY-6*bodyScale);
-  ctx.rotate((state.roll*.7-state.hair*2.2)*Math.PI/180);
-  ctx.fillStyle="rgba(109,82,167,.98)";
-  ctx.beginPath();
-  ctx.moveTo(-28*bodyScale,-22*bodyScale);
-  ctx.quadraticCurveTo(0,-47*bodyScale,29*bodyScale,-19*bodyScale);
-  ctx.lineTo(21*bodyScale,4*bodyScale);
-  ctx.quadraticCurveTo(7*bodyScale,-8*bodyScale,0,4*bodyScale);
-  ctx.quadraticCurveTo(-10*bodyScale,-9*bodyScale,-23*bodyScale,5*bodyScale);
-  ctx.closePath();ctx.fill();
-  ctx.restore();
-
-  if(skeletonToggle.checked){
     ctx.save();
-    ctx.strokeStyle="rgba(99,225,190,.92)";
-    ctx.fillStyle="rgba(99,225,190,.98)";
-    ctx.lineWidth=1.4;
-    const joints=[
-      [bodyX,pelvisY],[bodyX,chestY],[bodyX,neckY],[faceX,headY],
-      [shoulderLX,shoulderLY],[elbowLX,elbowLY],[wristLX,wristLY],
-      [shoulderRX,shoulderRY],[elbowRX,elbowRY],[wristRX,wristRY],
-    ];
-    line(bodyX,pelvisY,bodyX,chestY,1.4,"rgba(99,225,190,.92)");
-    line(bodyX,chestY,bodyX,neckY,1.4,"rgba(99,225,190,.92)");
-    line(bodyX,neckY,faceX,headY,1.4,"rgba(99,225,190,.92)");
-    line(bodyX,chestY,shoulderLX,shoulderLY,1.4,"rgba(99,225,190,.92)");
-    line(shoulderLX,shoulderLY,elbowLX,elbowLY,1.4,"rgba(99,225,190,.92)");
-    line(elbowLX,elbowLY,wristLX,wristLY,1.4,"rgba(99,225,190,.92)");
-    line(bodyX,chestY,shoulderRX,shoulderRY,1.4,"rgba(99,225,190,.92)");
-    line(shoulderRX,shoulderRY,elbowRX,elbowRY,1.4,"rgba(99,225,190,.92)");
-    line(elbowRX,elbowRY,wristRX,wristRY,1.4,"rgba(99,225,190,.92)");
-    for(const [x,y] of joints)ellipse(x,y,2.6,2.6,"rgba(99,225,190,.98)");
+    ctx.translate(centerX+state.yaw*.0015*H,baseY+state.pitch*.0008*H);
+    ctx.rotate(state.roll*Math.PI/180);
+    ctx.scale(depthScale*yawScale,depthScale*pitchScale);
+    ctx.drawImage(standingImage,-width/2,-height,width,height);
     ctx.restore();
+
+    if(skeletonToggle.checked){
+      const top=baseY-height*depthScale*pitchScale;
+      const shoulderY=top+height*.32;
+      const hipY=top+height*.66;
+      ctx.save();
+      ctx.strokeStyle="rgba(99,225,190,.92)";
+      ctx.fillStyle="rgba(99,225,190,.98)";
+      ctx.lineWidth=1.4;
+      line(centerX,top+height*.16,centerX,hipY,1.4,"rgba(99,225,190,.92)");
+      line(centerX-width*.17,shoulderY,centerX+width*.17,shoulderY,1.4,"rgba(99,225,190,.92)");
+      line(centerX-width*.12,hipY,centerX+width*.12,hipY,1.4,"rgba(99,225,190,.92)");
+      for(const [x,y] of [[centerX,top+height*.16],[centerX,shoulderY],[centerX,hipY],[centerX-width*.17,shoulderY],[centerX+width*.17,shoulderY]])ellipse(x,y,2.6,2.6,"rgba(99,225,190,.98)");
+      ctx.restore();
+    }
+  }else{
+    ctx.fillStyle="rgba(255,255,255,.72)";
+    ctx.font="900 11px -apple-system,BlinkMacSystemFont,sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText("R2立ち絵を読み込み中…",w*.5,h*.52);
   }
 
   if(state.lost){
@@ -290,4 +293,11 @@ document.addEventListener("visibilitychange",()=>{
     hiddenPaused=false;schedule();
   }
 });
-resize();draw();schedule();
+document.addEventListener("orikuro:service-ready",()=>{
+  void loadRegisteredStanding().then(()=>{resize();draw();schedule();}).catch(error=>{
+    setAssetStatus(error instanceof Error?`立ち絵読込失敗: ${error.message}`:"立ち絵読込失敗","error");
+    draw();
+  });
+});
+window.addEventListener("pagehide",()=>{void stopRegisteredStanding();},{once:true});
+resize();draw();
