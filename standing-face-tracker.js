@@ -1,8 +1,20 @@
 import{adaptYuNetDetectionToFaceRegionSample,createLostFaceRegionSample}from'./standing-face-region.js?v=20260922-yunet1';
 
-const WORKER_URL='./standing-face-worker.js?v=20260923-mobilefix2';
-const MAX_INFERENCE_SIDE=320;
+const WORKER_URL='./standing-face-worker.js?v=20260927-webkit-safe1';
 const TARGET_INTERVAL_MS=1000/30;
+const INFERENCE_SIDES=[192,256,320];
+
+function webkitConservativeRuntime(){
+  const ua=navigator.userAgent||'';
+  const ios=/iPhone|iPad|iPod/i.test(ua);
+  const safari=/Safari/i.test(ua)&&/AppleWebKit/i.test(ua)&&!/(Chrome|Chromium|Edg|OPR)/i.test(ua);
+  return ios||safari;
+}
+function initialInferenceSide(){
+  if(webkitConservativeRuntime())return INFERENCE_SIDES[0];
+  if(/Android|Mobile/i.test(navigator.userAgent||''))return INFERENCE_SIDES[1];
+  return INFERENCE_SIDES[2];
+}
 
 export class StandingFaceTracker{
   constructor(){
@@ -21,6 +33,9 @@ export class StandingFaceTracker{
     this.videoFrameHandle=0;
     this.backend='uninitialized';
     this.readyPromise=null;
+    this.maxInferenceSide=initialInferenceSide();
+    this.inferenceEmaMs=0;
+    this.stableInferenceFrames=0;
   }
 
   async start(){
@@ -35,14 +50,9 @@ export class StandingFaceTracker{
     if(!media?.getUserMedia)throw new Error('CAMERA_CAPTURE_UNAVAILABLE');
     this.running=true;
     try{
-      this.worker=new Worker(WORKER_URL,{name:'orikuro-yunet-face-provider'});
-      const providerReady=this.#waitForProviderReady(this.worker);
-      this.worker.addEventListener('message',event=>this.#onWorkerMessage(event));
-      this.worker.addEventListener('error',()=>this.#fail('FACE_PROVIDER_WORKER_ERROR'));
-      this.worker.postMessage({type:'init'});
-      await providerReady;
-      if(!this.running)return;
-
+      // Ask for the camera first. Heavy ONNX initialization starts only after
+      // the permission path succeeds, avoiding a Safari/WebKit peak while the
+      // browser is also handling media permission and stream setup.
       this.stream=await media.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}}});
       if(!this.running){this.stream.getTracks().forEach(track=>track.stop());this.stream=null;return;}
       const track=this.stream.getVideoTracks()[0];
@@ -56,8 +66,17 @@ export class StandingFaceTracker{
       if(!this.running)return;
       await this.#waitForVideoGeometry(video);
       if(!this.running)return;
+
+      this.worker=new Worker(WORKER_URL,{name:'orikuro-yunet-face-provider'});
+      const providerReady=this.#waitForProviderReady(this.worker);
+      this.worker.addEventListener('message',event=>this.#onWorkerMessage(event));
+      this.worker.addEventListener('error',()=>this.#fail('FACE_PROVIDER_WORKER_ERROR'));
+      this.worker.postMessage({type:'init'});
+      await providerReady;
+      if(!this.running)return;
+
       this.#schedule();
-      window.dispatchEvent(new CustomEvent('orikuro:standing-tracking-ready',{detail:{backend:this.backend,provider:'yunet-onnxruntime-web',rawCameraUpload:false}}));
+      window.dispatchEvent(new CustomEvent('orikuro:standing-tracking-ready',{detail:{backend:this.backend,provider:'yunet-onnxruntime-web',rawCameraUpload:false,inferenceSide:this.maxInferenceSide}}));
     }catch(error){
       const code=error instanceof DOMException&&error.name?error.name:error instanceof Error&&error.message?error.message:'STANDING_TRACKING_START_FAILED';
       this.stop();
@@ -79,6 +98,7 @@ export class StandingFaceTracker{
     this.stream=null;
     if(this.video){this.video.srcObject=null;this.video=null;}
     this.canvas=null;this.context=null;this.backend='uninitialized';
+    this.inferenceEmaMs=0;this.stableInferenceFrames=0;
   }
 
   #waitForProviderReady(worker){
@@ -136,7 +156,7 @@ export class StandingFaceTracker{
     this.lastSubmitMs=now;
     const sourceW=this.video.videoWidth,sourceH=this.video.videoHeight;
     if(sourceW<1||sourceH<1)return;
-    const scale=Math.min(1,MAX_INFERENCE_SIDE/Math.max(sourceW,sourceH));
+    const scale=Math.min(1,this.maxInferenceSide/Math.max(sourceW,sourceH));
     const contentWidth=Math.max(1,Math.round(sourceW*scale));
     const contentHeight=Math.max(1,Math.round(sourceH*scale));
     const width=Math.ceil(contentWidth/32)*32,height=Math.ceil(contentHeight/32)*32;
@@ -163,6 +183,7 @@ export class StandingFaceTracker{
     if(data.type==='result'){
       this.busy=false;
       this.failedFrames=0;
+      this.#adaptInference(data.inferenceMs);
       try{
         const sample=adaptYuNetDetectionToFaceRegionSample(data.detection,{frameId:data.frameId,timestampNS:data.timestampNS,contentWidth:data.contentWidth,contentHeight:data.contentHeight});
         window.dispatchEvent(new CustomEvent('orikuro:face-region-sample',{detail:sample}));
@@ -183,6 +204,27 @@ export class StandingFaceTracker{
     }else if(data.type==='fatal'){
       this.#fail(typeof data.code==='string'?data.code:'FACE_PROVIDER_FATAL');
     }
+  }
+
+  #adaptInference(durationMs){
+    const ms=Number(durationMs);
+    if(!Number.isFinite(ms)||ms<=0)return;
+    this.inferenceEmaMs=this.inferenceEmaMs?this.inferenceEmaMs*.9+ms*.1:ms;
+    const index=INFERENCE_SIDES.indexOf(this.maxInferenceSide);
+    if(this.inferenceEmaMs>25&&index>0){
+      this.maxInferenceSide=INFERENCE_SIDES[index-1];
+      this.stableInferenceFrames=0;
+      this.canvas=null;this.context=null;
+      return;
+    }
+    if(this.inferenceEmaMs<12&&index>=0&&index<INFERENCE_SIDES.length-1&&!webkitConservativeRuntime()){
+      this.stableInferenceFrames++;
+      if(this.stableInferenceFrames>=180){
+        this.maxInferenceSide=INFERENCE_SIDES[index+1];
+        this.stableInferenceFrames=0;
+        this.canvas=null;this.context=null;
+      }
+    }else this.stableInferenceFrames=0;
   }
 
   #fail(code){
