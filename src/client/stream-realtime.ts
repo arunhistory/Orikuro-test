@@ -1158,12 +1158,11 @@ function drawStandingVideoScene():void{
   if(!videoContext||!videoStandingImage)return;
   const context=videoContext,state=currentStandingFrameState();
   context.save();context.setTransform(1,0,0,1,0,0);context.clearRect(0,0,TARGET_WIDTH,TARGET_HEIGHT);
-  if(videoBackgroundImage&&videoBackgroundImage.complete&&videoBackgroundImage.naturalWidth>0)drawCover(context,videoBackgroundImage,-state.x*TARGET_WIDTH*.18,1.02+Math.abs(state.z)*.08);
+  if(videoBackgroundImage&&videoBackgroundImage.complete&&videoBackgroundImage.naturalWidth>0)drawCover(context,videoBackgroundImage,0,1.02);
   else{context.fillStyle=/^#[0-9a-f]{6}$/i.test(videoBackgroundColor)?videoBackgroundColor:'#151827';context.fillRect(0,0,TARGET_WIDTH,TARGET_HEIGHT);}
   context.restore();
   const image=videoStandingImage,baseScale=Math.min(TARGET_WIDTH/image.naturalWidth,TARGET_HEIGHT/image.naturalHeight),width=image.naturalWidth*baseScale,height=image.naturalHeight*baseScale;
-  const depthScale=1+state.z,yawScale=1-Math.min(Math.abs(state.yaw)/18,1)*.06,pitchScale=1-Math.min(Math.abs(state.pitch)/14,1)*.04;
-  context.save();context.translate(TARGET_WIDTH/2+state.x*TARGET_HEIGHT,TARGET_HEIGHT+state.y*TARGET_HEIGHT);context.rotate(state.roll*Math.PI/180);context.scale(depthScale*yawScale,depthScale*pitchScale);context.drawImage(image,-width/2,-height,width,height);context.restore();
+  context.save();context.translate(TARGET_WIDTH/2+state.x*TARGET_HEIGHT,TARGET_HEIGHT+state.y*TARGET_HEIGHT);context.drawImage(image,-width/2,-height,width,height);context.restore();
 }
 function encodeVideoFrame(): void {
   if(!streamWanted||!liveTransmission||selectedMode!=='standing'||Date.now()<videoBackpressureUntil||!videoEncoder||videoEncoder.state!=='configured'||!videoCanvas||!videoContext)return;
