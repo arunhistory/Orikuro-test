@@ -11,9 +11,9 @@ function webkitRuntime(){
 }
 const YUNET_MODEL='https://media.githubusercontent.com/media/opencv/opencv_zoo/47534e27c9851bb1128ccc0102f1145e27f23f98/models/face_detection_yunet/face_detection_yunet_2026may.onnx';
 const STRIDES=[8,16,32];
-const SCORE_THRESHOLD=0.40;
+const SCORE_THRESHOLD=0.58;
 const NMS_THRESHOLD=0.30;
-const TOP_K=500;
+const TOP_K=300;
 let session=null;
 let inputName='input';
 let backend='uninitialized';
@@ -84,7 +84,7 @@ async function infer(message){
     let output=null;
     try{
       output=await active.run({[inputName]:tensor});
-      const detection=decodeBest(output,width,height);
+      const detection=decodeBest(output,width,height,contentWidth,contentHeight);
       self.postMessage({type:'result',frameId,timestampNS,width,height,contentWidth,contentHeight,detection,backend,inferenceMs:performance.now()-started});
     }finally{
       try{tensor.dispose?.();}catch{}
@@ -108,7 +108,7 @@ function rgbaToBgrNchw(rgba,width,height){
   return out;
 }
 
-function decodeBest(output,width,height){
+function decodeBest(output,width,height,contentWidth,contentHeight){
   const candidates=[];
   for(const stride of STRIDES){
     const cls=tensorData(output[`cls_${stride}`]);
@@ -127,7 +127,7 @@ function decodeBest(output,width,height){
         const cx=(c+bbox[b])*stride,cy=(r+bbox[b+1])*stride;
         const w=Math.exp(bbox[b+2])*stride,h=Math.exp(bbox[b+3])*stride;
         if(!Number.isFinite(cx)||!Number.isFinite(cy)||!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)continue;
-        candidates.push({
+        const candidate={
           x:cx-w*0.5,
           y:cy-h*0.5,
           width:w,
@@ -136,8 +136,15 @@ function decodeBest(output,width,height){
           rightEyeY:(kps[k+1]+r)*stride,
           leftEyeX:(kps[k+2]+c)*stride,
           leftEyeY:(kps[k+3]+r)*stride,
+          noseX:(kps[k+4]+c)*stride,
+          noseY:(kps[k+5]+r)*stride,
+          rightMouthX:(kps[k+6]+c)*stride,
+          rightMouthY:(kps[k+7]+r)*stride,
+          leftMouthX:(kps[k+8]+c)*stride,
+          leftMouthY:(kps[k+9]+r)*stride,
           confidence:score,
-        });
+        };
+        if(faceGeometryValid(candidate,contentWidth,contentHeight))candidates.push(candidate);
       }
     }
   }
@@ -153,6 +160,43 @@ function decodeBest(output,width,height){
     if(!suppressed)kept.push(candidate);
   }
   return kept[0]||null;
+}
+
+function faceGeometryValid(face,contentWidth,contentHeight){
+  const {x,y,width:w,height:h}=face;
+  if(!Number.isFinite(contentWidth)||!Number.isFinite(contentHeight)||contentWidth<1||contentHeight<1)return false;
+  const centerX=x+w*.5,centerY=y+h*.5;
+  if(centerX<0||centerY<0||centerX>contentWidth||centerY>contentHeight)return false;
+  const visibleW=Math.max(0,Math.min(x+w,contentWidth)-Math.max(x,0));
+  const visibleH=Math.max(0,Math.min(y+h,contentHeight)-Math.max(y,0));
+  if(visibleW*visibleH<w*h*.72)return false;
+
+  const area=(w*h)/(contentWidth*contentHeight);
+  const aspect=w/h;
+  if(area<.010||area>.62||aspect<.55||aspect>1.65)return false;
+
+  const points=[
+    [face.rightEyeX,face.rightEyeY],[face.leftEyeX,face.leftEyeY],[face.noseX,face.noseY],
+    [face.rightMouthX,face.rightMouthY],[face.leftMouthX,face.leftMouthY]
+  ];
+  if(points.some(([px,py])=>!Number.isFinite(px)||!Number.isFinite(py)))return false;
+  const padX=w*.22,padY=h*.22;
+  if(points.some(([px,py])=>px<x-padX||px>x+w+padX||py<y-padY||py>y+h+padY))return false;
+
+  const eyeDx=face.leftEyeX-face.rightEyeX,eyeDy=face.leftEyeY-face.rightEyeY;
+  const mouthDx=face.leftMouthX-face.rightMouthX,mouthDy=face.leftMouthY-face.rightMouthY;
+  const eyeDistance=Math.hypot(eyeDx,eyeDy),mouthDistance=Math.hypot(mouthDx,mouthDy);
+  if(eyeDistance<w*.12||eyeDistance>w*.78||mouthDistance<w*.07||mouthDistance>w*.80)return false;
+
+  const eyeY=(face.rightEyeY+face.leftEyeY)*.5;
+  const eyeX=(face.rightEyeX+face.leftEyeX)*.5;
+  const mouthY=(face.rightMouthY+face.leftMouthY)*.5;
+  const mouthX=(face.rightMouthX+face.leftMouthX)*.5;
+  if(mouthY-eyeY<h*.07)return false;
+  if(face.noseY<eyeY-h*.12||face.noseY>mouthY+h*.18)return false;
+  if(Math.abs(face.noseX-eyeX)>w*.42||Math.abs(face.noseX-mouthX)>w*.42)return false;
+  if(Math.abs(eyeDy)>h*.40||Math.abs(mouthDy)>h*.45)return false;
+  return true;
 }
 
 function tensorData(tensor){

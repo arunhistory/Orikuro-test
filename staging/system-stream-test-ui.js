@@ -1,6 +1,6 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
-import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260927-webkit-safe1";
+import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260927-face-lock1";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
@@ -480,18 +480,19 @@ function acceptStandingFaceRegion(sample){
     return;
   }
   // Same provider-neutral temporal normalization used by the Go tracking contract.
-  const lateral=clampStandingMotion((current.centerX-previous.centerX)/.08,-1,1);
-  const vertical=clampStandingMotion((previous.centerY-current.centerY)/.08,-1,1);
-  const radial=clampStandingMotion(Math.log(current.size/previous.size)/.16,-1,1);
-  const rotational=clampStandingMotion(wrapStandingAngle(current.angleRad-previous.angleRad)/.35,-1,1);
+  const deadZone=value=>Math.abs(value)<.025?0:value;
+  const lateral=deadZone(clampStandingMotion((current.centerX-previous.centerX)/.08,-1,1));
+  const vertical=deadZone(clampStandingMotion((previous.centerY-current.centerY)/.08,-1,1));
+  const radial=deadZone(clampStandingMotion(Math.log(current.size/previous.size)/.16,-1,1));
+  const rotational=deadZone(clampStandingMotion(wrapStandingAngle(current.angleRad-previous.angleRad)/.35,-1,1));
 
   standingMotionTarget={
-    x:clampStandingMotion(standingMotionTarget.x+lateral*.011,-.08,.08),
-    y:clampStandingMotion(standingMotionTarget.y-vertical*.009,-.08,.08),
-    z:clampStandingMotion(standingMotionTarget.z+radial*.010,-.08,.08),
-    yaw:clampStandingMotion(standingMotionTarget.yaw+lateral*2.8,-18,18),
-    pitch:clampStandingMotion(standingMotionTarget.pitch+vertical*2.2,-14,14),
-    roll:clampStandingMotion(standingMotionTarget.roll+rotational*4.2,-24,24),
+    x:clampStandingMotion(standingMotionTarget.x+lateral*.018,-.08,.08),
+    y:clampStandingMotion(standingMotionTarget.y-vertical*.014,-.08,.08),
+    z:clampStandingMotion(standingMotionTarget.z+radial*.014,-.08,.08),
+    yaw:clampStandingMotion(standingMotionTarget.yaw+lateral*4.2,-18,18),
+    pitch:clampStandingMotion(standingMotionTarget.pitch+vertical*3.2,-14,14),
+    roll:clampStandingMotion(standingMotionTarget.roll+rotational*6.0,-24,24),
     confidence:current.confidence,
     lod:0,
     faceLocalWarp:0
@@ -504,27 +505,41 @@ function startStandingMotion(){
     standingMotionRaf=0;
     if(selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
     const current=window.__orikuroStandingFrameState||{x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:0,lod:0,faceLocalWarp:0};
-    const blend=.34;
-    const next={
+    if(!standingMotionStartedAt)standingMotionStartedAt=now;
+    const t=(now-standingMotionStartedAt)/1000;
+    // Spec-defined autonomous motion: breathing 4.2s + idle sway 5-12s.
+    const breath=Math.sin(t*Math.PI*2/4.2);
+    const sway=Math.sin(t*Math.PI*2/8.4);
+    const sway2=Math.sin(t*Math.PI*2/6.8+1.1);
+    const autonomous={x:sway*.004,y:breath*-.0018,z:breath*.0032,yaw:sway2*.65,pitch:breath*.28,roll:sway*1.05};
+    const blend=.30;
+    const tracked={
       x:current.x+(standingMotionTarget.x-current.x)*blend,
       y:current.y+(standingMotionTarget.y-current.y)*blend,
       z:current.z+(standingMotionTarget.z-current.z)*blend,
       yaw:current.yaw+(standingMotionTarget.yaw-current.yaw)*blend,
       pitch:current.pitch+(standingMotionTarget.pitch-current.pitch)*blend,
-      roll:current.roll+(standingMotionTarget.roll-current.roll)*blend,
+      roll:current.roll+(standingMotionTarget.roll-current.roll)*blend
+    };
+    const next={
+      x:clampStandingMotion(tracked.x+autonomous.x,-.08,.08),
+      y:clampStandingMotion(tracked.y+autonomous.y,-.08,.08),
+      z:clampStandingMotion(tracked.z+autonomous.z,-.08,.08),
+      yaw:clampStandingMotion(tracked.yaw+autonomous.yaw,-18,18),
+      pitch:clampStandingMotion(tracked.pitch+autonomous.pitch,-14,14),
+      roll:clampStandingMotion(tracked.roll+autonomous.roll,-24,24),
       confidence:standingMotionTarget.confidence,
       lod:0,
       faceLocalWarp:0
     };
     applyStandingPreviewState(next);
-    // FaceRegion is temporal-only. Let the local display settle naturally instead of inventing idle motion.
+    // Real tracking impulses decay; autonomous motion is a separate always-on path.
     standingMotionTarget={
-      x:standingMotionTarget.x*.90,y:standingMotionTarget.y*.90,z:standingMotionTarget.z*.90,
-      yaw:standingMotionTarget.yaw*.90,pitch:standingMotionTarget.pitch*.90,roll:standingMotionTarget.roll*.90,
+      x:standingMotionTarget.x*.965,y:standingMotionTarget.y*.965,z:standingMotionTarget.z*.965,
+      yaw:standingMotionTarget.yaw*.965,pitch:standingMotionTarget.pitch*.965,roll:standingMotionTarget.roll*.965,
       confidence:standingMotionTarget.confidence,lod:0,faceLocalWarp:0
     };
-    const active=Math.abs(next.x)+Math.abs(next.y)+Math.abs(next.z)+Math.abs(next.yaw)/18+Math.abs(next.pitch)/14+Math.abs(next.roll)/24>.001;
-    if(active||standingMotionTarget.confidence>0)standingMotionRaf=requestAnimationFrame(tick);
+    standingMotionRaf=requestAnimationFrame(tick);
   };
   standingMotionRaf=requestAnimationFrame(tick);
 }
