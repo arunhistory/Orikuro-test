@@ -352,7 +352,7 @@ function standingChoiceReady(choice=backgroundChoice){
   return index>=0?standingBackgroundUrls.has(index):radioPresets.has(choice);
 }
 function readyForStep(step){
-  if(step===1)return supportedModes.has(selectedMode)&&micReady()&&(selectedMode!=="standing"||standingTrackingReady);
+  if(step===1)return supportedModes.has(selectedMode)&&micReady();
   if(step===2)return selectedMode==="standing"
     ?standingPreviewReady&&standingChoiceReady()
     :radioPresets.has(backgroundChoice);
@@ -918,7 +918,7 @@ function updateWizard(){
   if(start){
     start.hidden=currentStep!==4;
     start.textContent=selectedMode==="standing"?"立ち絵配信スタート":"ラジオ配信スタート";
-    start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported;
+    start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported||(selectedMode==="standing"&&!standingTrackingReady);
   }
   updateSummary();
   syncVisibleStandingAssets();
@@ -927,6 +927,10 @@ function updateWizard(){
 function goStep(step){
   if(step<1||step>4)return;
   currentStep=step;
+  if(step===4&&selectedMode==="standing"&&!standingTrackingReady){
+    setFeedback("顔追従をバックグラウンド準備中です。準備完了まで配信開始できません。","working");
+    void ensureStandingTracking();
+  }
   updateWizard();
 }
 
@@ -975,6 +979,9 @@ async function ensureStandingTracking(){
     standingTrackingReady=true;
     const backend=tracker.backend==="webgpu"?"WebGPU":"WASM";
     setCameraTrackingStatus(`顔追従準備完了（YuNet / ${backend}）`,"ready",true);
+    if(currentStep===4){
+      setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
+    }
     updateWizard();
   }).catch(error=>{
     if(standingFaceTracker===tracker){tracker.stop();standingFaceTracker=null;}
@@ -1730,10 +1737,6 @@ window.addEventListener("orikuro:stream-prepared",()=>{
 });
 window.addEventListener("orikuro:stream-prepare-failed",event=>{
   realtimeReady=false;
-  if(systemTest){
-    const stage=document.querySelector("[data-stage-wasm-status]");
-    if(stage&&stage.dataset.state!=="ready"){stage.textContent="0%ステージのGo WASMは未確認です。配信準備エラーを確認してください。";stage.dataset.state="error";}
-  }
   if(systemTest&&!getStreamRealtimeGrant())systemPreparationRequested=false;
   const message=event?.detail?.message||"配信準備を完了できませんでした。";
   setState("session","準備失敗","error");
@@ -1859,7 +1862,7 @@ stopButton?.addEventListener("click",()=>{
 
 const startButton=document.querySelector("[data-stream-start]");
 startButton?.addEventListener("click",()=>{
-  if(currentStep!==4||!readyForStep(4)||!sessionReady()||!supportedModes.has(selectedMode))return;
+  if(currentStep!==4||!readyForStep(4)||!sessionReady()||!supportedModes.has(selectedMode)||(selectedMode==="standing"&&!standingTrackingReady))return;
   startButton.disabled=true;
   document.documentElement.dataset.broadcastPhase="starting";
   const requestedMode=selectedMode,requestedChoice=backgroundChoice;
