@@ -1,6 +1,6 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
-import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260927-face-lock1";
+import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260928-shape1";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
@@ -307,8 +307,7 @@ let liveBackgroundGeneration=0;
 let liveBackgroundIndependent=false;
 let liveBackgroundRenderedAck="";
 let standingMotionRaf=0;
-let standingFacePrevious=null;
-let standingFaceNeutral=null;
+let standingShapePrevious=null;
 let standingTrackedState={x:0,y:0};
 let standingMotionTarget={x:0,y:0,confidence:0};
 let standingFaceTracker=null;
@@ -410,7 +409,7 @@ function resetStandingMotionFrame(){
 }
 function stopStandingMotion(reset=true){
   if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
-  standingMotionRaf=0;standingFacePrevious=null;standingFaceNeutral=null;
+  standingMotionRaf=0;standingShapePrevious=null;
   standingTrackedState={x:0,y:0};
   standingMotionTarget={x:0,y:0,confidence:0};
   if(reset)resetStandingMotionFrame();
@@ -442,17 +441,64 @@ function syncVisibleStandingAssets(){
   });
   renderStandingBackgroundChoice();
 }
-const STANDING_XY_DEAD_ZONE=.008;
-const STANDING_XY_GAIN_X=.85;
-const STANDING_XY_GAIN_Y=.75;
-const STANDING_XY_LIMIT_X=.10;
-const STANDING_XY_LIMIT_Y=.08;
-const STANDING_XY_BLEND=.30;
+const STANDING_SHAPE_DEAD_ZONE=.0015;
+const STANDING_SHAPE_GAIN_X=.85;
+const STANDING_SHAPE_GAIN_Y=.75;
+const STANDING_SHAPE_LIMIT_X=.08;
+const STANDING_SHAPE_LIMIT_Y=.08;
+const STANDING_SHAPE_BLEND=.30;
+const STANDING_SHAPE_ROTATION_GAIN=.35;
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
-function standingAxisOffset(value){
+function standingShapeAxis(value){
   const magnitude=Math.abs(value);
-  if(magnitude<=STANDING_XY_DEAD_ZONE)return 0;
-  return Math.sign(value)*(magnitude-STANDING_XY_DEAD_ZONE);
+  if(magnitude<=STANDING_SHAPE_DEAD_ZONE)return 0;
+  return Math.sign(value)*(magnitude-STANDING_SHAPE_DEAD_ZONE);
+}
+function medianStanding(values){
+  const sorted=[...values].sort((a,b)=>a-b);
+  return sorted[Math.floor(sorted.length/2)]||0;
+}
+function buildStandingShape(sample){
+  if(!Array.isArray(sample?.shape)||sample.shape.length!==5)return null;
+  const points=sample.shape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
+  if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1))return null;
+  const center={
+    x:points.reduce((sum,point)=>sum+point.x,0)/points.length,
+    y:points.reduce((sum,point)=>sum+point.y,0)/points.length
+  };
+  const radius=Math.sqrt(points.reduce((sum,point)=>{
+    const dx=point.x-center.x,dy=point.y-center.y;
+    return sum+dx*dx+dy*dy;
+  },0)/points.length);
+  if(!Number.isFinite(radius)||radius<.0001)return null;
+  const normalized=points.map(point=>({x:(point.x-center.x)/radius,y:(point.y-center.y)/radius}));
+  return {points,center,radius,normalized};
+}
+function standingShapeRotation(previous,current){
+  let dot=0,cross=0;
+  for(let index=0;index<previous.normalized.length;index++){
+    const a=previous.normalized[index],b=current.normalized[index];
+    dot+=a.x*b.x+a.y*b.y;
+    cross+=a.x*b.y-a.y*b.x;
+  }
+  return Math.atan2(cross,dot);
+}
+function standingShapeFlow(previous,current){
+  const translationX=current.center.x-previous.center.x;
+  const translationY=current.center.y-previous.center.y;
+  const residualX=[],residualY=[];
+  for(let index=0;index<previous.normalized.length;index++){
+    residualX.push(current.normalized[index].x-previous.normalized[index].x);
+    residualY.push(current.normalized[index].y-previous.normalized[index].y);
+  }
+  const scale=(previous.radius+current.radius)*.5;
+  const deformationX=medianStanding(residualX)*scale;
+  const deformationY=medianStanding(residualY)*scale;
+  const rotation=standingShapeRotation(previous,current);
+  return {
+    x:translationX+deformationX+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
+    y:translationY+deformationY
+  };
 }
 function applyStandingPreviewState(state){
   window.__orikuroStandingFrameState=state;
@@ -466,35 +512,29 @@ function acceptStandingFaceRegion(sample){
   const frameId=Number(sample.frameId),timestampNS=Number(sample.timestampNS),confidence=Number(sample.confidence);
   if(!Number.isSafeInteger(frameId)||frameId<=0||!Number.isSafeInteger(timestampNS)||timestampNS<=0)return;
   if(sample.present!==true){
-    standingFacePrevious=null;
-    standingFaceNeutral=null;
+    standingShapePrevious=null;
     standingMotionTarget={x:0,y:0,confidence:0};
     startStandingMotion();
     return;
   }
-  const current={
-    frameId,timestampNS,
-    centerX:Number(sample.centerX),centerY:Number(sample.centerY),
-    confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0
-  };
-  if(!Number.isFinite(current.centerX)||current.centerX<0||current.centerX>1||
-     !Number.isFinite(current.centerY)||current.centerY<0||current.centerY>1)return;
-  const previous=standingFacePrevious;
+  const currentShape=buildStandingShape(sample);
+  if(!currentShape)return;
+  const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
+  const previous=standingShapePrevious;
   if(previous&&(frameId<=previous.frameId||timestampNS<=previous.timestampNS))return;
-  standingFacePrevious=current;
-
-  if(!standingFaceNeutral){
-    standingFaceNeutral={x:current.centerX,y:current.centerY};
-    standingMotionTarget={x:0,y:0,confidence:current.confidence};
+  standingShapePrevious=current;
+  if(!previous){
+    standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
     startStandingMotion();
     return;
   }
 
-  const offsetX=standingAxisOffset(current.centerX-standingFaceNeutral.x);
-  const offsetY=standingAxisOffset(current.centerY-standingFaceNeutral.y);
+  const flow=standingShapeFlow(previous.shape,current.shape);
+  const moveX=standingShapeAxis(flow.x);
+  const moveY=standingShapeAxis(flow.y);
   standingMotionTarget={
-    x:clampStandingMotion(offsetX*STANDING_XY_GAIN_X,-STANDING_XY_LIMIT_X,STANDING_XY_LIMIT_X),
-    y:clampStandingMotion(offsetY*STANDING_XY_GAIN_Y,-STANDING_XY_LIMIT_Y,STANDING_XY_LIMIT_Y),
+    x:clampStandingMotion(standingMotionTarget.x+moveX*STANDING_SHAPE_GAIN_X,-STANDING_SHAPE_LIMIT_X,STANDING_SHAPE_LIMIT_X),
+    y:clampStandingMotion(standingMotionTarget.y+moveY*STANDING_SHAPE_GAIN_Y,-STANDING_SHAPE_LIMIT_Y,STANDING_SHAPE_LIMIT_Y),
     confidence:current.confidence
   };
   startStandingMotion();
@@ -504,8 +544,8 @@ function startStandingMotion(){
   const tick=()=>{
     standingMotionRaf=0;
     if(selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
-    const nextX=standingTrackedState.x+(standingMotionTarget.x-standingTrackedState.x)*STANDING_XY_BLEND;
-    const nextY=standingTrackedState.y+(standingMotionTarget.y-standingTrackedState.y)*STANDING_XY_BLEND;
+    const nextX=standingTrackedState.x+(standingMotionTarget.x-standingTrackedState.x)*STANDING_SHAPE_BLEND;
+    const nextY=standingTrackedState.y+(standingMotionTarget.y-standingTrackedState.y)*STANDING_SHAPE_BLEND;
     standingTrackedState={x:nextX,y:nextY};
     applyStandingPreviewState({
       x:nextX,y:nextY,z:0,yaw:0,pitch:0,roll:0,
