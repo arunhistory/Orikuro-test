@@ -713,14 +713,25 @@ function beginStandingPreparation(){
   const controller=standingPreparationController,generation=standingPreparationGeneration;
   backgroundPreviewLoading=true;
   standingPreparationPromise=(async()=>{
-    // Required causal order: Cloudflare finishes all encrypted R2 preparations
-    // before this page requests any avatar/background temporary-copy previews.
-    await prepareStandingBackend(controller.signal,generation);
-    if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+    // Start the authenticated Cloudflare preparation and immediately request the
+    // avatar preview in parallel. The preview endpoint already waits for the
+    // prepared avatar source, so the avatar no longer waits for all four
+    // background decrypt/copy operations to finish.
+    const backendPromise=prepareStandingBackend(controller.signal,generation);
     const standingPromise=loadStandingPreview(controller.signal,generation);
-    const initialBackgroundPromise=loadInitialStandingBackground(controller.signal,generation);
 
-    await Promise.all([standingPromise,initialBackgroundPromise]);
+    await standingPromise;
+    if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+    if(standingPreviewReady){
+      setState("composition","立ち絵表示完了 / 背景を準備中","working");
+      updateWizard();
+    }
+
+    await backendPromise;
+    if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+
+    const initialBackgroundPromise=loadInitialStandingBackground(controller.signal,generation);
+    await initialBackgroundPromise;
     if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
 
     if(standingPreviewReady&&standingBackgroundUrls.has(0)){
