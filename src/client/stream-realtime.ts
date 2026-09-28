@@ -1180,17 +1180,32 @@ function createEncoder(config: VideoEncoderConfig): void {
   videoEncoder.configure(config);
 }
 
-function standingVideoMotionBounds(image:HTMLImageElement|null):{minX:number;maxX:number;minY:number;maxY:number}|null{
+const STANDING_LAYER_LEFT=.12;
+const STANDING_LAYER_RIGHT=.12;
+const STANDING_LAYER_TOP=.12;
+const STANDING_LAYER_BOTTOM=.05;
+function standingVideoLayout(image:HTMLImageElement|null):{width:number;height:number;centerX:number;centerY:number;bottom:number}|null{
   if(!image||image.naturalWidth<1||image.naturalHeight<1)return null;
-  const baseScale=Math.min(TARGET_WIDTH/image.naturalWidth,TARGET_HEIGHT/image.naturalHeight);
+  const layerLeft=TARGET_WIDTH*STANDING_LAYER_LEFT;
+  const layerRight=TARGET_WIDTH*(1-STANDING_LAYER_RIGHT);
+  const layerTop=TARGET_HEIGHT*STANDING_LAYER_TOP;
+  const layerBottom=TARGET_HEIGHT*(1-STANDING_LAYER_BOTTOM);
+  const layerWidth=layerRight-layerLeft,layerHeight=layerBottom-layerTop;
+  const baseScale=Math.min(layerWidth/image.naturalWidth,layerHeight/image.naturalHeight);
   const width=image.naturalWidth*baseScale,height=image.naturalHeight*baseScale;
-  const centerX=TARGET_WIDTH/2;
-  const centerY=TARGET_HEIGHT-height/2;
+  const centerX=layerLeft+layerWidth/2;
+  const bottom=layerBottom;
+  const centerY=bottom-height/2;
+  return {width,height,centerX,centerY,bottom};
+}
+function standingVideoMotionBounds(image:HTMLImageElement|null):{minX:number;maxX:number;minY:number;maxY:number}|null{
+  const layout=standingVideoLayout(image);
+  if(!layout)return null;
   return {
-    minX:-centerX/TARGET_HEIGHT,
-    maxX:(TARGET_WIDTH-centerX)/TARGET_HEIGHT,
-    minY:-centerY/TARGET_HEIGHT,
-    maxY:(TARGET_HEIGHT-centerY)/TARGET_HEIGHT,
+    minX:-layout.centerX/TARGET_HEIGHT,
+    maxX:(TARGET_WIDTH-layout.centerX)/TARGET_HEIGHT,
+    minY:-layout.centerY/TARGET_HEIGHT,
+    maxY:(TARGET_HEIGHT-layout.centerY)/TARGET_HEIGHT,
   };
 }
 function currentStandingFrameState(): StandingFrameState {
@@ -1222,8 +1237,12 @@ function drawStandingVideoScene():void{
   if(videoBackgroundImage&&videoBackgroundImage.complete&&videoBackgroundImage.naturalWidth>0)drawCover(context,videoBackgroundImage,0,1.02);
   else{context.fillStyle=/^#[0-9a-f]{6}$/i.test(videoBackgroundColor)?videoBackgroundColor:'#151827';context.fillRect(0,0,TARGET_WIDTH,TARGET_HEIGHT);}
   context.restore();
-  const image=videoStandingImage,baseScale=Math.min(TARGET_WIDTH/image.naturalWidth,TARGET_HEIGHT/image.naturalHeight),width=image.naturalWidth*baseScale,height=image.naturalHeight*baseScale;
-  context.save();context.translate(TARGET_WIDTH/2+state.x*TARGET_HEIGHT,TARGET_HEIGHT+state.y*TARGET_HEIGHT);context.drawImage(image,-width/2,-height,width,height);context.restore();
+  const image=videoStandingImage,layout=standingVideoLayout(image);
+  if(!layout)return;
+  context.save();
+  context.translate(layout.centerX+state.x*TARGET_HEIGHT,layout.bottom+state.y*TARGET_HEIGHT);
+  context.drawImage(image,-layout.width/2,-layout.height,layout.width,layout.height);
+  context.restore();
 }
 function encodeVideoFrame(): void {
   if(!streamWanted||!liveTransmission||selectedMode!=='standing'||Date.now()<videoBackpressureUntil||!videoEncoder||videoEncoder.state!=='configured'||!videoCanvas||!videoContext)return;
