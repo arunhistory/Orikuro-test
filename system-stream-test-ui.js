@@ -443,8 +443,8 @@ function syncVisibleStandingAssets(){
   renderStandingBackgroundChoice();
 }
 const STANDING_SHAPE_DEAD_ZONE=.0015;
-const STANDING_SHAPE_GAIN_X=.85;
-const STANDING_SHAPE_GAIN_Y=.75;
+const STANDING_SHAPE_GAIN_X=4;
+const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
