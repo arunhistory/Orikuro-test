@@ -366,7 +366,29 @@
                     <strong>コメント</strong>
                     <span data-comment-status role="status" aria-live="polite">接続待ち</span>
                   </header>
-                  <ol data-comment-list aria-live="polite" aria-relevant="additions text"></ol>
+                  <ol data-comment-list aria-live="polite" aria-relevant="additions text">
+                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
+                      <strong class="realtime-comment-name">テストリスナー 01</strong>
+                      <span class="realtime-comment-text">こんばんは〜！今日も来た！</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
+                      <strong class="realtime-comment-name">テストリスナー 03</strong>
+                      <span class="realtime-comment-text">初見です！</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="gift" data-comment-demo>
+                      <span class="realtime-system-text">テストリスナー 05が「ペンギン」を投げました</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
+                      <strong class="realtime-comment-name">テストリスナー 07</strong>
+                      <span class="realtime-comment-text">草</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="fan_level_up" data-comment-demo>
+                      <span class="realtime-system-text">テストリスナー 12のファンレベルがLv.2に上がりました</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="superchat" data-comment-demo>
+                      <span class="realtime-system-text">テストリスナー 10がスパチャ 1,000pt を送りました</span>
+                    </li>
+                  </ol>
                 </section>
 
                 <div class="broadcast-live-notes" data-live-notes aria-label="配信メモ"></div>
@@ -460,6 +482,6 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20260920-instantlive2"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20260928-framebounds2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./system-stream-test-ui.js?v=20260928-gain4x1"></script>
+  <script type="module" src="./system-stream-test-ui.js?v=20260928-frontref1"></script>
 </body>
 </html>

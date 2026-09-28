@@ -12,6 +12,7 @@ export function createLostFaceRegionSample(frameId,timestampNS){
     angleRad:0,
     confidence:0,
     shape:Object.freeze([]),
+    localShape:Object.freeze([]),
   });
 }
 
@@ -57,6 +58,20 @@ export function adaptYuNetDetectionToFaceRegionSample(detection,frame){
     point(rightMouthX,rightMouthY),
     point(leftMouthX,leftMouthY),
   ]);
+  // Stable face-local coordinates: the zero reference is fixed and never
+  // replaced by whichever pose happens to be detected after a loss.
+  const localPoint=(px,py)=>Object.freeze({
+    x:(px-x)/w,
+    y:(py-y)/h,
+  });
+  const localShape=Object.freeze([
+    localPoint(rightEyeX,rightEyeY),
+    localPoint(leftEyeX,leftEyeY),
+    localPoint(noseX,noseY),
+    localPoint(rightMouthX,rightMouthY),
+    localPoint(leftMouthX,leftMouthY),
+  ]);
+  if(localShape.some(({x:lx,y:ly})=>!Number.isFinite(lx)||!Number.isFinite(ly)))throw new Error('FACE_REGION_LOCAL_SHAPE_INVALID');
 
   return Object.freeze({
     frameId,
@@ -68,6 +83,7 @@ export function adaptYuNetDetectionToFaceRegionSample(detection,frame){
     angleRad:clamp(angleRad,-Math.PI,Math.PI),
     confidence:clamp(confidence,0,1),
     shape,
+    localShape,
   });
 }
 

@@ -1,4 +1,4 @@
-import{adaptYuNetDetectionToFaceRegionSample,createLostFaceRegionSample}from'./standing-face-region.js?v=20260928-shape1';
+import{adaptYuNetDetectionToFaceRegionSample,createLostFaceRegionSample}from'./standing-face-region.js?v=20260928-frontref1';
 
 const WORKER_URL='./standing-face-worker.js?v=20260928-init2';
 const TARGET_INTERVAL_MS=1000/30;
