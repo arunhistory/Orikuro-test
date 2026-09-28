@@ -445,8 +445,6 @@ function syncVisibleStandingAssets(){
 const STANDING_SHAPE_DEAD_ZONE=.0015;
 const STANDING_SHAPE_GAIN_X=.85;
 const STANDING_SHAPE_GAIN_Y=.75;
-const STANDING_SHAPE_LIMIT_X=.08;
-const STANDING_SHAPE_LIMIT_Y=.08;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
@@ -533,9 +531,12 @@ function acceptStandingFaceRegion(sample){
   const flow=standingShapeFlow(previous.shape,current.shape);
   const moveX=standingShapeAxis(flow.x);
   const moveY=standingShapeAxis(flow.y);
+  const nextTargetX=standingMotionTarget.x+moveX*STANDING_SHAPE_GAIN_X;
+  const nextTargetY=standingMotionTarget.y+moveY*STANDING_SHAPE_GAIN_Y;
+  if(!Number.isFinite(nextTargetX)||!Number.isFinite(nextTargetY))return;
   standingMotionTarget={
-    x:clampStandingMotion(standingMotionTarget.x+moveX*STANDING_SHAPE_GAIN_X,-STANDING_SHAPE_LIMIT_X,STANDING_SHAPE_LIMIT_X),
-    y:clampStandingMotion(standingMotionTarget.y+moveY*STANDING_SHAPE_GAIN_Y,-STANDING_SHAPE_LIMIT_Y,STANDING_SHAPE_LIMIT_Y),
+    x:nextTargetX,
+    y:nextTargetY,
     confidence:current.confidence
   };
   startStandingMotion();
