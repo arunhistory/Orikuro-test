@@ -1135,11 +1135,27 @@ function createEncoder(config: VideoEncoderConfig): void {
   videoEncoder.configure(config);
 }
 
+function standingVideoMotionBounds(image:HTMLImageElement|null):{minX:number;maxX:number;minY:number;maxY:number}|null{
+  if(!image||image.naturalWidth<1||image.naturalHeight<1)return null;
+  const baseScale=Math.min(TARGET_WIDTH/image.naturalWidth,TARGET_HEIGHT/image.naturalHeight);
+  const width=image.naturalWidth*baseScale,height=image.naturalHeight*baseScale;
+  const centerX=TARGET_WIDTH/2;
+  const centerY=TARGET_HEIGHT-height/2;
+  return {
+    minX:-centerX/TARGET_HEIGHT,
+    maxX:(TARGET_WIDTH-centerX)/TARGET_HEIGHT,
+    minY:-centerY/TARGET_HEIGHT,
+    maxY:(TARGET_HEIGHT-centerY)/TARGET_HEIGHT,
+  };
+}
 function currentStandingFrameState(): StandingFrameState {
   const state=(window as StandingFrameWindow).__orikuroStandingFrameState;
+  const bounds=standingVideoMotionBounds(videoStandingImage);
+  const rawX=Number.isFinite(state?.x)?Number(state?.x):0;
+  const rawY=Number.isFinite(state?.y)?Number(state?.y):0;
   return {
-    x:Number.isFinite(state?.x)?Number(state?.x):0,
-    y:Number.isFinite(state?.y)?Number(state?.y):0,
+    x:bounds?Math.max(bounds.minX,Math.min(bounds.maxX,rawX)):rawX,
+    y:bounds?Math.max(bounds.minY,Math.min(bounds.maxY,rawY)):rawY,
     z:Number.isFinite(state?.z)?Math.max(-0.08,Math.min(0.08,Number(state?.z))):0,
     yaw:Number.isFinite(state?.yaw)?Math.max(-18,Math.min(18,Number(state?.yaw))):0,
     pitch:Number.isFinite(state?.pitch)?Math.max(-14,Math.min(14,Number(state?.pitch))):0,
