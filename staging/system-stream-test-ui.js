@@ -440,6 +440,8 @@ function syncVisibleStandingAssets(){
       if(img.hasAttribute("src"))img.removeAttribute("src");
     }
   });
+  const currentState=window.__orikuroStandingFrameState;
+  if(available&&currentState&&typeof currentState==="object")applyStandingPreviewState(currentState);
   renderStandingBackgroundChoice();
 }
 const STANDING_SHAPE_DEAD_ZONE=.0015;
@@ -521,12 +523,9 @@ function standingShapeRotation(reference,current){
 }
 function standingShapeFromFront(current){
   const reference={
-    center:{x:.5,y:.5},
     radius:current.radius,
     normalized:STANDING_FRONTAL_SHAPE
   };
-  const translationX=current.center.x-reference.center.x;
-  const translationY=current.center.y-reference.center.y;
   const residualX=[],residualY=[];
   for(let index=0;index<reference.normalized.length;index++){
     residualX.push(current.normalized[index].x-reference.normalized[index].x);
@@ -536,8 +535,8 @@ function standingShapeFromFront(current){
   const deformationY=medianStanding(residualY)*current.radius;
   const rotation=standingShapeRotation(reference,current);
   return {
-    x:translationX+deformationX+rotation*current.radius*STANDING_SHAPE_ROTATION_GAIN,
-    y:translationY+deformationY
+    x:deformationX+rotation*current.radius*STANDING_SHAPE_ROTATION_GAIN,
+    y:deformationY
   };
 }
 function applyStandingPreviewState(state){
