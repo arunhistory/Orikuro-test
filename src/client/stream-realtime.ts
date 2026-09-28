@@ -239,6 +239,10 @@ function parseText(raw: unknown): JsonObject | null {
   try { return objectValue(JSON.parse(raw)); } catch { return null; }
 }
 
+function clearCommentDemo(): void {
+  document.querySelectorAll<HTMLElement>('[data-comment-demo]').forEach((item) => item.remove());
+}
+
 function appendComment(raw: unknown): void {
   const message = objectValue(raw);
   if (!message) return;
@@ -260,6 +264,7 @@ function appendComment(raw: unknown): void {
 
   const list = document.querySelector<HTMLOListElement>('[data-comment-list]');
   if (!list) return;
+  clearCommentDemo();
 
   const item = document.createElement('li');
   item.className = 'realtime-comment-item';
