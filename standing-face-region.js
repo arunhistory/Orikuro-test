@@ -11,6 +11,7 @@ export function createLostFaceRegionSample(frameId,timestampNS){
     size:0,
     angleRad:0,
     confidence:0,
+    shape:Object.freeze([]),
   });
 }
 
@@ -30,7 +31,14 @@ export function adaptYuNetDetectionToFaceRegionSample(detection,frame){
   const confidence=Number(detection.confidence);
   const rightEyeX=Number(detection.rightEyeX),rightEyeY=Number(detection.rightEyeY);
   const leftEyeX=Number(detection.leftEyeX),leftEyeY=Number(detection.leftEyeY);
-  const values=[x,y,w,h,confidence,rightEyeX,rightEyeY,leftEyeX,leftEyeY];
+  const noseX=Number(detection.noseX),noseY=Number(detection.noseY);
+  const rightMouthX=Number(detection.rightMouthX),rightMouthY=Number(detection.rightMouthY);
+  const leftMouthX=Number(detection.leftMouthX),leftMouthY=Number(detection.leftMouthY);
+  const values=[
+    x,y,w,h,confidence,
+    rightEyeX,rightEyeY,leftEyeX,leftEyeY,noseX,noseY,
+    rightMouthX,rightMouthY,leftMouthX,leftMouthY
+  ];
   if(values.some(value=>!Number.isFinite(value)))throw new Error('FACE_REGION_DETECTION_NON_FINITE');
   if(w<=0||h<=0)throw new Error('FACE_REGION_DETECTION_SIZE_INVALID');
 
@@ -38,6 +46,17 @@ export function adaptYuNetDetectionToFaceRegionSample(detection,frame){
   const centerY=clamp((y+h*0.5)/contentHeight,0,1);
   const size=clamp(Math.sqrt(Math.max(0,(w/contentWidth)*(h/contentHeight))),Number.EPSILON,1);
   const angleRad=Math.atan2(leftEyeY-rightEyeY,leftEyeX-rightEyeX);
+  const point=(px,py)=>Object.freeze({
+    x:clamp(px/contentWidth,0,1),
+    y:clamp(py/contentHeight,0,1),
+  });
+  const shape=Object.freeze([
+    point(rightEyeX,rightEyeY),
+    point(leftEyeX,leftEyeY),
+    point(noseX,noseY),
+    point(rightMouthX,rightMouthY),
+    point(leftMouthX,leftMouthY),
+  ]);
 
   return Object.freeze({
     frameId,
@@ -48,6 +67,7 @@ export function adaptYuNetDetectionToFaceRegionSample(detection,frame){
     size,
     angleRad:clamp(angleRad,-Math.PI,Math.PI),
     confidence:clamp(confidence,0,1),
+    shape,
   });
 }
 
