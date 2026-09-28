@@ -291,6 +291,7 @@ let realtimeReady=false;
 let systemPreparationRequested=false;
 let systemAccessReady=document.documentElement.dataset.systemAccessReady==="true";
 let standingPreviewReady=false;
+let standingPreviewDecoded=false;
 let standingPreviewLoading=false;
 let standingPreviewUrl="";
 let backgroundPreviewReady=false;
@@ -354,7 +355,7 @@ function standingChoiceReady(choice=backgroundChoice){
 function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode)&&micReady();
   if(step===2)return selectedMode==="standing"
-    ?standingPreviewReady&&standingChoiceReady()
+    ?standingPreviewReady&&standingPreviewDecoded&&standingChoiceReady()
     :radioPresets.has(backgroundChoice);
   if(step===3)return streamTitleValue().length>0&&micReady();
   if(step===4)return readyForStep(1)&&readyForStep(2)&&readyForStep(3);
@@ -637,10 +638,39 @@ async function prepareStandingBackend(signal,generation){
     backgroundCount:payload.result.backgroundCount
   }}));
 }
+async function verifyStandingPreviewDecode(url,signal,generation){
+  const probe=new Image();
+  probe.decoding="async";
+  probe.src=url;
+  try{
+    await probe.decode();
+  }catch{
+    if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"||standingPreviewUrl!==url)return;
+    standingPreviewDecoded=false;
+    standingPreviewReady=false;
+    standingPreviewUrl="";
+    URL.revokeObjectURL(url);
+    syncVisibleStandingAssets();
+    setState("composition","立ち絵表示失敗","error");
+    setFeedback("立ち絵の受信は完了しましたが、画像デコードに失敗しました。","error");
+    updateWizard();
+    return;
+  }
+  if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"||standingPreviewUrl!==url)return;
+  standingPreviewDecoded=true;
+  if(backgroundPreviewReady){
+    setState("composition","立ち絵・背景準備完了","ready");
+    window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT,lazyFullResolution:true}}));
+    setFeedback("立ち絵と背景の表示準備が完了しました。","ready");
+  }else{
+    setState("composition","立ち絵表示準備完了 / 背景を準備中","working");
+  }
+  updateWizard();
+}
 async function loadStandingPreview(signal,generation){
   if(selectedMode!=="standing"||standingPreviewReady||standingPreviewLoading)return;
   const current=getStreamRealtimeGrant();if(!current)return;
-  standingPreviewLoading=true;setState("composition","立ち絵を復元中","working");
+  standingPreviewLoading=true;standingPreviewDecoded=false;setState("composition","立ち絵を復元中","working");
   document.querySelectorAll("[data-preview-character-label],[data-live-character-label]").forEach(el=>{el.textContent="R2素材を配信用一時コピーへ復元中…";});
   updateWizard();
   try{
@@ -652,20 +682,19 @@ async function loadStandingPreview(signal,generation){
     const nextUrl=URL.createObjectURL(blob);
     const images=Array.from(document.querySelectorAll("[data-standing-preview-image]")).filter(img=>img instanceof HTMLImageElement);
     if(images.length<1){URL.revokeObjectURL(nextUrl);throw new Error("STANDING_PREVIEW_IMAGE_MISSING");}
-    const primary=images[0];primary.src=nextUrl;primary.hidden=false;
-    try{await primary.decode();}catch{URL.revokeObjectURL(nextUrl);throw new Error("STANDING_PREVIEW_IMAGE_DECODE_FAILED");}
-    if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){
-      URL.revokeObjectURL(nextUrl);return;
-    }
-    // Duplicate full-resolution images in hidden wizard/live views can exhaust iOS GPU memory.
-    // They are assigned only when their view becomes visible; step 4 is retained while encoding.
     if(signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing"){URL.revokeObjectURL(nextUrl);return;}
     if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);
-    standingPreviewUrl=nextUrl;standingPreviewReady=true;startStandingMotion();
-    setState("composition","背景4種を先行準備中","working");setFeedback("立ち絵を復元しました。背景4種を先行準備しています。","info");
+    standingPreviewUrl=nextUrl;
+    standingPreviewReady=true;
+    standingPreviewDecoded=false;
+    syncVisibleStandingAssets();
+    startStandingMotion();
+    setState("composition","立ち絵受信完了 / 表示確認中","working");
+    setFeedback("立ち絵データを受信しました。表示確認をバックグラウンドで続けています。","info");
+    void verifyStandingPreviewDecode(nextUrl,signal,generation);
   }catch(error){
     if(signal.aborted||error?.name==="AbortError")return;
-    standingPreviewReady=false;setState("composition","立ち絵読込失敗","error");
+    standingPreviewDecoded=false;standingPreviewReady=false;setState("composition","立ち絵読込失敗","error");
     setFeedback(error instanceof Error?`立ち絵を読み込めません: ${error.message}`:"立ち絵を読み込めません。","error");throw error;
   }finally{if(generation===standingPreparationGeneration)standingPreviewLoading=false;updateWizard();}
 }
@@ -700,9 +729,13 @@ async function loadDeferredStandingBackgrounds(signal,generation){
   backgroundPreviewReady=standingPreviewReady&&standingBackgroundUrls.has(0);
   renderStandingBackgroundChoice();
   if(backgroundPreviewReady){
-    setState("composition","立ち絵・背景準備完了","ready");
-    window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT,lazyFullResolution:true}}));
-    setFeedback("登録背景4種と単色6種を使用できます。背景2〜4は選択時に読み込みます。","ready");
+    if(standingPreviewDecoded){
+      setState("composition","立ち絵・背景準備完了","ready");
+      window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT,lazyFullResolution:true}}));
+      setFeedback("登録背景4種と単色6種を使用できます。背景2〜4は選択時に読み込みます。","ready");
+    }else{
+      setState("composition","背景準備完了 / 立ち絵表示確認中","working");
+    }
   }
   updateWizard();
 }
@@ -771,7 +804,7 @@ async function stopStandingTemporary(){
 }
 function cancelStandingPreparation(stopRemote=true){
   standingPreparationGeneration++;standingPreparationController?.abort();standingPreparationController=null;standingPreparationPromise=null;
-  standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;backgroundPreviewReady=false;standingBackgroundsPrepared=false;standingActiveBackgroundIndex=-1;
+  standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;standingPreviewDecoded=false;backgroundPreviewReady=false;standingBackgroundsPrepared=false;standingActiveBackgroundIndex=-1;
   stopStandingMotion(true);
   if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);standingPreviewUrl="";revokeStandingBackgroundUrls();
   document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement){img.removeAttribute("src");img.hidden=true;}});
