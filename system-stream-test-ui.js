@@ -1,6 +1,6 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
-import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260928-init2";
+import{StandingFaceTracker}from"./standing-face-tracker.js?v=20260928-frontref1";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
@@ -446,7 +446,15 @@ const STANDING_SHAPE_DEAD_ZONE=.0015;
 const STANDING_SHAPE_GAIN_X=4;
 const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
-const STANDING_SHAPE_ROTATION_GAIN=.35;
+// Fixed generic front-facing 5-point reference in YuNet face-box coordinates.
+// This remains the zero point before and after every detection loss.
+const STANDING_FRONTAL_SHAPE=Object.freeze([
+  Object.freeze({x:.32,y:.38}),
+  Object.freeze({x:.68,y:.38}),
+  Object.freeze({x:.50,y:.56}),
+  Object.freeze({x:.38,y:.73}),
+  Object.freeze({x:.62,y:.73}),
+]);
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
 function standingShapeAxis(value){
   const magnitude=Math.abs(value);
@@ -486,45 +494,20 @@ function standingMotionWithinFrame(x,y,bounds=standingMotionBounds()){
   };
 }
 function buildStandingShape(sample){
-  if(!Array.isArray(sample?.shape)||sample.shape.length!==5)return null;
-  const points=sample.shape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
-  if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1))return null;
-  const center={
-    x:points.reduce((sum,point)=>sum+point.x,0)/points.length,
-    y:points.reduce((sum,point)=>sum+point.y,0)/points.length
-  };
-  const radius=Math.sqrt(points.reduce((sum,point)=>{
-    const dx=point.x-center.x,dy=point.y-center.y;
-    return sum+dx*dx+dy*dy;
-  },0)/points.length);
-  if(!Number.isFinite(radius)||radius<.0001)return null;
-  const normalized=points.map(point=>({x:(point.x-center.x)/radius,y:(point.y-center.y)/radius}));
-  return {points,center,radius,normalized};
+  if(!Array.isArray(sample?.localShape)||sample.localShape.length!==STANDING_FRONTAL_SHAPE.length)return null;
+  const points=sample.localShape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
+  if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<-.25||point.x>1.25||point.y<-.25||point.y>1.25))return null;
+  return {points};
 }
-function standingShapeRotation(previous,current){
-  let dot=0,cross=0;
-  for(let index=0;index<previous.normalized.length;index++){
-    const a=previous.normalized[index],b=current.normalized[index];
-    dot+=a.x*b.x+a.y*b.y;
-    cross+=a.x*b.y-a.y*b.x;
+function standingShapeFromFront(current){
+  const deltaX=[],deltaY=[];
+  for(let index=0;index<STANDING_FRONTAL_SHAPE.length;index++){
+    deltaX.push(current.points[index].x-STANDING_FRONTAL_SHAPE[index].x);
+    deltaY.push(current.points[index].y-STANDING_FRONTAL_SHAPE[index].y);
   }
-  return Math.atan2(cross,dot);
-}
-function standingShapeFlow(previous,current){
-  const translationX=current.center.x-previous.center.x;
-  const translationY=current.center.y-previous.center.y;
-  const residualX=[],residualY=[];
-  for(let index=0;index<previous.normalized.length;index++){
-    residualX.push(current.normalized[index].x-previous.normalized[index].x);
-    residualY.push(current.normalized[index].y-previous.normalized[index].y);
-  }
-  const scale=(previous.radius+current.radius)*.5;
-  const deformationX=medianStanding(residualX)*scale;
-  const deformationY=medianStanding(residualY)*scale;
-  const rotation=standingShapeRotation(previous,current);
   return {
-    x:translationX+deformationX+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
-    y:translationY+deformationY
+    x:medianStanding(deltaX),
+    y:medianStanding(deltaY)
   };
 }
 function applyStandingPreviewState(state){
@@ -541,41 +524,38 @@ function acceptStandingFaceRegion(sample){
   if(selectedMode!=="standing"||!sample||typeof sample!=="object")return;
   const frameId=Number(sample.frameId),timestampNS=Number(sample.timestampNS),confidence=Number(sample.confidence);
   if(!Number.isSafeInteger(frameId)||frameId<=0||!Number.isSafeInteger(timestampNS)||timestampNS<=0)return;
-  if(sample.present!==true){
-    standingShapePrevious=null;
-    standingMotionTarget={x:0,y:0,confidence:0};
-    startStandingMotion();
-    return;
-  }
-  const currentShape=buildStandingShape(sample);
-  if(!currentShape)return;
-  const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
   const previous=standingShapePrevious;
   if(previous&&(frameId<=previous.frameId||timestampNS<=previous.timestampNS))return;
-  standingShapePrevious=current;
-  if(!previous){
-    standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
-    startStandingMotion();
+
+  if(sample.present!==true){
+    // The existing YuNet worker keeps running. Character motion alone freezes
+    // at the exact last displayed state until a face is seen again.
+    standingShapePrevious={frameId,timestampNS,shape:null,confidence:0};
+    if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
+    standingMotionRaf=0;
+    standingMotionTarget={x:standingTrackedState.x,y:standingTrackedState.y,confidence:0};
     return;
   }
 
-  const flow=standingShapeFlow(previous.shape,current.shape);
-  const moveX=standingShapeAxis(flow.x);
-  const moveY=standingShapeAxis(flow.y);
+  const currentShape=buildStandingShape(sample);
+  if(!currentShape)return;
+  const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
+  standingShapePrevious=current;
+
+  const direction=standingShapeFromFront(currentShape);
+  const moveX=standingShapeAxis(direction.x);
+  const moveY=standingShapeAxis(direction.y);
   const bounds=standingMotionBounds();
   if(!bounds){
     standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
     return;
   }
-  const nextTargetX=standingMotionTarget.x+moveX*STANDING_SHAPE_GAIN_X;
-  const nextTargetY=standingMotionTarget.y+moveY*STANDING_SHAPE_GAIN_Y;
-  if(!Number.isFinite(nextTargetX)||!Number.isFinite(nextTargetY))return;
-  const bounded=standingMotionWithinFrame(nextTargetX,nextTargetY,bounds);
-  standingMotionTarget={
-    x:bounded.x,
-    y:bounded.y,
-    confidence:current.confidence
-  };
+
+  const targetX=moveX*STANDING_SHAPE_GAIN_X;
+  const targetY=moveY*STANDING_SHAPE_GAIN_Y;
+  if(!Number.isFinite(targetX)||!Number.isFinite(targetY))return;
+  const bounded=standingMotionWithinFrame(targetX,targetY,bounds);
+  standingMotionTarget={x:bounded.x,y:bounded.y,confidence:current.confidence};
   startStandingMotion();
 }
 function startStandingMotion(){
