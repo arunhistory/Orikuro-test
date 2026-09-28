@@ -242,21 +242,61 @@ function parseText(raw: unknown): JsonObject | null {
 function appendComment(raw: unknown): void {
   const message = objectValue(raw);
   if (!message) return;
+
   const sequence = message.sequence;
-  const text = message.text;
-  if (!Number.isSafeInteger(sequence) || Number(sequence) <= 0 || typeof text !== 'string' || text.length === 0) return;
+  if (!Number.isSafeInteger(sequence) || Number(sequence) <= 0) return;
   const n = Number(sequence);
   if (n <= commentLastSequence) return;
-  commentLastSequence = n;
+
+  const rawKind = typeof message.kind === 'string' ? message.kind : 'comment';
+  const kind = rawKind === 'gift' || rawKind === 'fan_level_up' || rawKind === 'superchat' ? rawKind : 'comment';
+
+  const candidateName = typeof message.displayName === 'string'
+    ? message.displayName
+    : typeof message.userName === 'string'
+      ? message.userName
+      : '';
+  const displayName = candidateName.trim().slice(0, 80) || 'リスナー';
+
   const list = document.querySelector<HTMLOListElement>('[data-comment-list]');
   if (!list) return;
+
   const item = document.createElement('li');
   item.className = 'realtime-comment-item';
-  const body = document.createElement('span');
-  body.textContent = text;
-  const seq = document.createElement('small');
-  seq.textContent = `#${n}`;
-  item.append(body, seq);
+  item.dataset.feedKind = kind;
+
+  if (kind === 'comment') {
+    const text = typeof message.text === 'string' ? message.text.trim() : '';
+    if (!text) return;
+    const name = document.createElement('strong');
+    name.className = 'realtime-comment-name';
+    name.textContent = displayName;
+    const body = document.createElement('span');
+    body.className = 'realtime-comment-text';
+    body.textContent = text;
+    item.append(name, body);
+  } else {
+    const system = document.createElement('span');
+    system.className = 'realtime-system-text';
+
+    if (kind === 'gift') {
+      const giftName = typeof message.giftName === 'string' ? message.giftName.trim().slice(0, 80) : '';
+      system.textContent = `${displayName}が「${giftName || 'ギフト'}」を投げました`;
+    } else if (kind === 'fan_level_up') {
+      const level = Number(message.fanLevel ?? message.level);
+      system.textContent = Number.isInteger(level) && level > 0 && level <= 99
+        ? `${displayName}のファンレベルがLv.${level}に上がりました`
+        : `${displayName}のファンレベルが上がりました`;
+    } else {
+      const amount = Number(message.amount);
+      system.textContent = Number.isSafeInteger(amount) && amount > 0
+        ? `${displayName}がスパチャ ${amount.toLocaleString('ja-JP')}pt を送りました`
+        : `${displayName}がスパチャを送りました`;
+    }
+    item.append(system);
+  }
+
+  commentLastSequence = n;
   list.append(item);
   list.scrollTop = list.scrollHeight;
 }
