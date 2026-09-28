@@ -446,14 +446,15 @@ const STANDING_SHAPE_DEAD_ZONE=.0015;
 const STANDING_SHAPE_GAIN_X=4;
 const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
-// Fixed generic front-facing 5-point reference in YuNet face-box coordinates.
-// This remains the zero point before and after every detection loss.
+const STANDING_SHAPE_ROTATION_GAIN=.35;
+// Fixed "straight ahead" face geometry. It is the permanent zero reference;
+// detection loss or reacquisition never replaces it.
 const STANDING_FRONTAL_SHAPE=Object.freeze([
-  Object.freeze({x:.32,y:.38}),
-  Object.freeze({x:.68,y:.38}),
-  Object.freeze({x:.50,y:.56}),
-  Object.freeze({x:.38,y:.73}),
-  Object.freeze({x:.62,y:.73}),
+  Object.freeze({x:-.8658,y:-.8465}),
+  Object.freeze({x:.8658,y:-.8465}),
+  Object.freeze({x:0,y:.0192}),
+  Object.freeze({x:-.5772,y:.8369}),
+  Object.freeze({x:.5772,y:.8369}),
 ]);
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
 function standingShapeAxis(value){
@@ -494,20 +495,49 @@ function standingMotionWithinFrame(x,y,bounds=standingMotionBounds()){
   };
 }
 function buildStandingShape(sample){
-  if(!Array.isArray(sample?.localShape)||sample.localShape.length!==STANDING_FRONTAL_SHAPE.length)return null;
-  const points=sample.localShape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
-  if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<-.25||point.x>1.25||point.y<-.25||point.y>1.25))return null;
-  return {points};
+  if(!Array.isArray(sample?.shape)||sample.shape.length!==5)return null;
+  const points=sample.shape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
+  if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1))return null;
+  const center={
+    x:points.reduce((sum,point)=>sum+point.x,0)/points.length,
+    y:points.reduce((sum,point)=>sum+point.y,0)/points.length
+  };
+  const radius=Math.sqrt(points.reduce((sum,point)=>{
+    const dx=point.x-center.x,dy=point.y-center.y;
+    return sum+dx*dx+dy*dy;
+  },0)/points.length);
+  if(!Number.isFinite(radius)||radius<.0001)return null;
+  const normalized=points.map(point=>({x:(point.x-center.x)/radius,y:(point.y-center.y)/radius}));
+  return {points,center,radius,normalized};
+}
+function standingShapeRotation(reference,current){
+  let dot=0,cross=0;
+  for(let index=0;index<reference.normalized.length;index++){
+    const a=reference.normalized[index],b=current.normalized[index];
+    dot+=a.x*b.x+a.y*b.y;
+    cross+=a.x*b.y-a.y*b.x;
+  }
+  return Math.atan2(cross,dot);
 }
 function standingShapeFromFront(current){
-  const deltaX=[],deltaY=[];
-  for(let index=0;index<STANDING_FRONTAL_SHAPE.length;index++){
-    deltaX.push(current.points[index].x-STANDING_FRONTAL_SHAPE[index].x);
-    deltaY.push(current.points[index].y-STANDING_FRONTAL_SHAPE[index].y);
+  const reference={
+    center:{x:.5,y:.5},
+    radius:current.radius,
+    normalized:STANDING_FRONTAL_SHAPE
+  };
+  const translationX=current.center.x-reference.center.x;
+  const translationY=current.center.y-reference.center.y;
+  const residualX=[],residualY=[];
+  for(let index=0;index<reference.normalized.length;index++){
+    residualX.push(current.normalized[index].x-reference.normalized[index].x);
+    residualY.push(current.normalized[index].y-reference.normalized[index].y);
   }
+  const deformationX=medianStanding(residualX)*current.radius;
+  const deformationY=medianStanding(residualY)*current.radius;
+  const rotation=standingShapeRotation(reference,current);
   return {
-    x:medianStanding(deltaX),
-    y:medianStanding(deltaY)
+    x:translationX+deformationX+rotation*current.radius*STANDING_SHAPE_ROTATION_GAIN,
+    y:translationY+deformationY
   };
 }
 function applyStandingPreviewState(state){
