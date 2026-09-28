@@ -711,7 +711,10 @@ async function fetchStandingBackground(index,signal,generation){
   }
   const previous=standingBackgroundUrls.get(index);if(previous)URL.revokeObjectURL(previous);
   standingBackgroundUrls.set(index,nextUrl);
-  const button=document.querySelector(`[data-standing-background-index="${index}"]`);if(button instanceof HTMLButtonElement)button.disabled=false;
+  const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);
+  if(swatch instanceof HTMLElement)swatch.style.backgroundImage=`url("${nextUrl}")`;
+  const button=document.querySelector(`[data-standing-background-index="${index}"]`);
+  if(button instanceof HTMLButtonElement)button.disabled=false;
   renderStandingBackgroundChoice();
   updateLiveBackgroundOptions();
 }
@@ -731,8 +734,8 @@ async function loadDeferredStandingBackgrounds(signal,generation){
   if(backgroundPreviewReady){
     if(standingPreviewDecoded){
       setState("composition","立ち絵・背景準備完了","ready");
-      window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT,lazyFullResolution:true}}));
-      setFeedback("登録背景4種と単色6種を使用できます。背景2〜4は選択時に読み込みます。","ready");
+      window.dispatchEvent(new CustomEvent("orikuro:standing-assets-ready",{detail:{backgroundCount:STANDING_IMAGE_COUNT,lazyFullResolution:false}}));
+      setFeedback("登録背景4種と単色6種を使用できます。登録背景4種はすべて読み込み済みです。","ready");
     }else{
       setState("composition","背景準備完了 / 立ち絵表示確認中","working");
     }
@@ -763,12 +766,21 @@ function beginStandingPreparation(){
     await backendPromise;
     if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
 
-    const initialBackgroundPromise=loadInitialStandingBackground(controller.signal,generation);
-    await initialBackgroundPromise;
+    // Backend has confirmed all four temporary copies. Fetch all four previews now,
+    // so every registered background is visible and selectable in STEP2.
+    await Promise.all(Array.from({length:STANDING_IMAGE_COUNT},(_,index)=>
+      standingBackgroundUrls.has(index)
+        ?Promise.resolve()
+        :fetchStandingBackground(index,controller.signal,generation)
+    ));
     if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
 
-    if(standingPreviewReady&&standingBackgroundUrls.has(0)){
-      setState("composition","初期表示準備完了 / 他背景を準備中","ready");
+    if(!standingChoiceValid(backgroundChoice))backgroundChoice="standing-image-1";
+    renderStandingBackgroundChoice();
+    updateWizard();
+
+    if(standingPreviewReady&&standingBackgroundUrls.size===STANDING_IMAGE_COUNT){
+      setState("composition","立ち絵・背景4種を表示準備済み","ready");
       updateWizard();
     }
 
@@ -899,9 +911,9 @@ async function applyStandingBackgroundChoice(choiceId){
   if(index>=0&&standingPreviewReady){
     const activated=await activateStandingBackground(index);
     if(!activated)return;
-    releaseUnusedStandingBackgroundUrls(index);
   }else if(index<0){
-    releaseUnusedStandingBackgroundUrls(-1);
+    // Keep the four registered background previews in memory during setup so
+    // switching back to them remains immediate and their STEP2 thumbnails stay visible.
   }
   window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{detail:{choiceId,index}}));
 }
