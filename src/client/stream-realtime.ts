@@ -1138,8 +1138,8 @@ function createEncoder(config: VideoEncoderConfig): void {
 function currentStandingFrameState(): StandingFrameState {
   const state=(window as StandingFrameWindow).__orikuroStandingFrameState;
   return {
-    x:Number.isFinite(state?.x)?Math.max(-0.08,Math.min(0.08,Number(state?.x))):0,
-    y:Number.isFinite(state?.y)?Math.max(-0.08,Math.min(0.08,Number(state?.y))):0,
+    x:Number.isFinite(state?.x)?Number(state?.x):0,
+    y:Number.isFinite(state?.y)?Number(state?.y):0,
     z:Number.isFinite(state?.z)?Math.max(-0.08,Math.min(0.08,Number(state?.z))):0,
     yaw:Number.isFinite(state?.yaw)?Math.max(-18,Math.min(18,Number(state?.yaw))):0,
     pitch:Number.isFinite(state?.pitch)?Math.max(-14,Math.min(14,Number(state?.pitch))):0,
