@@ -34,7 +34,9 @@ async function ensureSession(){
   initPromise=(async()=>{
     try{
       const forceStandardWasm=webkitRuntime()||!self.navigator?.gpu;
+      self.postMessage({type:'init-progress',stage:'ort-loading'});
       if(typeof self.ort==='undefined')importScripts(forceStandardWasm?ORT_WASM_SCRIPT:ORT_WEBGPU_SCRIPT);
+      self.postMessage({type:'init-progress',stage:'ort-ready'});
       if(typeof self.ort==='undefined')throw new Error('ORT_LOAD_FAILED');
       ort.env.wasm.wasmPaths=ORT_DIST;
       ort.env.wasm.numThreads=1;
@@ -53,10 +55,12 @@ async function ensureSession(){
         }
       }
       if(!session){
+        self.postMessage({type:'init-progress',stage:'model-loading'});
         session=await ort.InferenceSession.create(YUNET_MODEL,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
         backend='wasm';
       }
       inputName=session.inputNames?.[0]||'input';
+      self.postMessage({type:'init-progress',stage:'model-ready'});
       self.postMessage({type:'ready',backend});
       return session;
     }catch(error){
