@@ -1,6 +1,6 @@
 import{adaptYuNetDetectionToFaceRegionSample,createLostFaceRegionSample}from'./standing-face-region.js?v=20260928-shape1';
 
-const WORKER_URL='./standing-face-worker.js?v=20260927-face-lock1';
+const WORKER_URL='./standing-face-worker.js?v=20260928-init2';
 const TARGET_INTERVAL_MS=1000/30;
 const INFERENCE_SIDES=[192,256,320];
 const FACE_ACQUIRE_SCORE=.72;
@@ -112,9 +112,18 @@ export class StandingFaceTracker{
 
   #waitForProviderReady(worker){
     return new Promise((resolve,reject)=>{
-      const timeout=window.setTimeout(()=>{cleanup();reject(new Error('FACE_PROVIDER_INIT_TIMEOUT'));},15000);
+      const timeoutMs=webkitConservativeRuntime()?60000:30000;
+      let stage='worker-start';
+      const timeout=window.setTimeout(()=>{
+        cleanup();
+        reject(new Error('FACE_PROVIDER_INIT_TIMEOUT_'+stage.toUpperCase().replace(/[^A-Z0-9]+/g,'_')));
+      },timeoutMs);
       const onMessage=event=>{
         const data=event.data&&typeof event.data==='object'?event.data:null;
+        if(data?.type==='init-progress'&&typeof data.stage==='string'){
+          stage=data.stage;
+          return;
+        }
         if(data?.type==='ready'){
           this.backend=typeof data.backend==='string'?data.backend:'wasm';
           cleanup();resolve();
