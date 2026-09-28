@@ -457,6 +457,34 @@ function medianStanding(values){
   const sorted=[...values].sort((a,b)=>a-b);
   return sorted[Math.floor(sorted.length/2)]||0;
 }
+function standingMotionBounds(){
+  const image=Array.from(document.querySelectorAll("[data-standing-preview-image]")).find(item=>
+    item instanceof HTMLImageElement&&standingAssetViewActive(item)&&item.hasAttribute("src")&&item.naturalWidth>0&&item.naturalHeight>0
+  );
+  if(!(image instanceof HTMLImageElement))return null;
+  const layer=image.closest(".broadcast-scene-character");
+  const frame=image.closest(".broadcast-background-preview,.broadcast-final-preview,.broadcast-live-preview");
+  if(!(layer instanceof HTMLElement)||!(frame instanceof HTMLElement))return null;
+  const frameRect=frame.getBoundingClientRect(),layerRect=layer.getBoundingClientRect();
+  if(frameRect.width<=0||frameRect.height<=0||layerRect.width<=0||layerRect.height<=0)return null;
+  const scale=Math.min(layerRect.width/image.naturalWidth,layerRect.height/image.naturalHeight);
+  if(!Number.isFinite(scale)||scale<=0)return null;
+  const contentWidth=image.naturalWidth*scale,contentHeight=image.naturalHeight*scale;
+  const centerX=(layerRect.left-frameRect.left)+(layerRect.width-contentWidth)/2+contentWidth/2;
+  const centerY=(layerRect.top-frameRect.top)+(layerRect.height-contentHeight)+contentHeight/2;
+  const unit=frameRect.height;
+  const minX=-centerX/unit,maxX=(frameRect.width-centerX)/unit;
+  const minY=-centerY/unit,maxY=(frameRect.height-centerY)/unit;
+  if(![minX,maxX,minY,maxY].every(Number.isFinite)||minX>maxX||minY>maxY)return null;
+  return {minX,maxX,minY,maxY,unit};
+}
+function standingMotionWithinFrame(x,y,bounds=standingMotionBounds()){
+  if(!bounds)return {x,y};
+  return {
+    x:clampStandingMotion(x,bounds.minX,bounds.maxX),
+    y:clampStandingMotion(y,bounds.minY,bounds.maxY)
+  };
+}
 function buildStandingShape(sample){
   if(!Array.isArray(sample?.shape)||sample.shape.length!==5)return null;
   const points=sample.shape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
@@ -503,7 +531,10 @@ function applyStandingPreviewState(state){
   window.__orikuroStandingFrameState=state;
   document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{
     if(!(img instanceof HTMLImageElement)||!img.hasAttribute("src")||!standingAssetViewActive(img))return;
-    img.style.transform=`translate3d(${(state.x*100).toFixed(3)}%,${(state.y*100).toFixed(3)}%,0)`;
+    const frame=img.closest(".broadcast-background-preview,.broadcast-final-preview,.broadcast-live-preview");
+    const unit=frame instanceof HTMLElement?frame.clientHeight:0;
+    if(unit<=0)return;
+    img.style.transform=`translate3d(${(state.x*unit).toFixed(2)}px,${(state.y*unit).toFixed(2)}px,0)`;
   });
 }
 function acceptStandingFaceRegion(sample){
@@ -531,12 +562,18 @@ function acceptStandingFaceRegion(sample){
   const flow=standingShapeFlow(previous.shape,current.shape);
   const moveX=standingShapeAxis(flow.x);
   const moveY=standingShapeAxis(flow.y);
+  const bounds=standingMotionBounds();
+  if(!bounds){
+    standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
+    return;
+  }
   const nextTargetX=standingMotionTarget.x+moveX*STANDING_SHAPE_GAIN_X;
   const nextTargetY=standingMotionTarget.y+moveY*STANDING_SHAPE_GAIN_Y;
   if(!Number.isFinite(nextTargetX)||!Number.isFinite(nextTargetY))return;
+  const bounded=standingMotionWithinFrame(nextTargetX,nextTargetY,bounds);
   standingMotionTarget={
-    x:nextTargetX,
-    y:nextTargetY,
+    x:bounded.x,
+    y:bounded.y,
     confidence:current.confidence
   };
   startStandingMotion();
@@ -546,11 +583,14 @@ function startStandingMotion(){
   const tick=()=>{
     standingMotionRaf=0;
     if(selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
+    const boundedTarget=standingMotionWithinFrame(standingMotionTarget.x,standingMotionTarget.y);
+    standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
     const nextX=standingTrackedState.x+(standingMotionTarget.x-standingTrackedState.x)*STANDING_SHAPE_BLEND;
     const nextY=standingTrackedState.y+(standingMotionTarget.y-standingTrackedState.y)*STANDING_SHAPE_BLEND;
-    standingTrackedState={x:nextX,y:nextY};
+    const boundedState=standingMotionWithinFrame(nextX,nextY);
+    standingTrackedState={x:boundedState.x,y:boundedState.y};
     applyStandingPreviewState({
-      x:nextX,y:nextY,z:0,yaw:0,pitch:0,roll:0,
+      x:standingTrackedState.x,y:standingTrackedState.y,z:0,yaw:0,pitch:0,roll:0,
       confidence:standingMotionTarget.confidence,lod:0,faceLocalWarp:0
     });
     const settled=Math.abs(standingMotionTarget.x-nextX)<.0002&&Math.abs(standingMotionTarget.y-nextY)<.0002;
@@ -1708,6 +1748,13 @@ liveSubtitleForm?.addEventListener("submit",event=>{
 
 window.addEventListener("resize",()=>{
   document.querySelectorAll("[data-live-note]").forEach(note=>requestAnimationFrame(()=>clampLiveNote(note)));
+  if(selectedMode==="standing"&&standingPreviewReady){
+    const boundedTarget=standingMotionWithinFrame(standingMotionTarget.x,standingMotionTarget.y);
+    const boundedState=standingMotionWithinFrame(standingTrackedState.x,standingTrackedState.y);
+    standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
+    standingTrackedState=boundedState;
+    startStandingMotion();
+  }
 });
 navigator.mediaDevices?.addEventListener?.("devicechange",()=>{
   if(micDevicesKnown)void refreshAudioInputs(false);
