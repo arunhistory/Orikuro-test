@@ -35,18 +35,18 @@ const TEST_METRICS_BASE=Object.freeze({
   superchatPoints:800,
 });
 const TEST_LISTENERS=Object.freeze([
-  {name:"テストリスナー 01",fanLevel:7,state:"応援中",background:true,firstTime:false},
-  {name:"テストリスナー 02",fanLevel:6,state:"視聴中",background:true,firstTime:false},
-  {name:"テストリスナー 03",fanLevel:null,state:"初見",background:false,firstTime:true},
-  {name:"テストリスナー 04",fanLevel:4,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 05",fanLevel:3,state:"応援中",background:false,firstTime:false},
-  {name:"テストリスナー 06",fanLevel:2,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 07",fanLevel:null,state:"初見",background:false,firstTime:true},
-  {name:"テストリスナー 08",fanLevel:null,state:"視聴中",background:true,firstTime:false},
-  {name:"テストリスナー 09",fanLevel:6,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 10",fanLevel:5,state:"応援中",background:false,firstTime:false},
-  {name:"テストリスナー 11",fanLevel:null,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 12",fanLevel:2,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー1",fanLevel:7,state:"応援中",background:true,firstTime:false},
+  {name:"リスナー2",fanLevel:6,state:"視聴中",background:true,firstTime:false},
+  {name:"リスナー3",fanLevel:null,state:"初見",background:false,firstTime:true},
+  {name:"リスナー4",fanLevel:4,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー5",fanLevel:3,state:"応援中",background:false,firstTime:false},
+  {name:"リスナー6",fanLevel:2,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー7",fanLevel:null,state:"初見",background:false,firstTime:true},
+  {name:"リスナー8",fanLevel:null,state:"視聴中",background:true,firstTime:false},
+  {name:"リスナー9",fanLevel:6,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー10",fanLevel:5,state:"応援中",background:false,firstTime:false},
+  {name:"リスナー11",fanLevel:null,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー12",fanLevel:2,state:"視聴中",background:false,firstTime:false},
 ]);
 
 // Prototype borders only. Production values remain deliberately undecided.
