@@ -317,6 +317,7 @@ let standingTrackingStart=null;
 let standingNeutralReference=null;
 let standingNeutralSamples=[];
 let standingCalibrationFirstTimestampNS=0;
+let standingPreliveComposition=null;
 let startedAt=0;
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
@@ -616,6 +617,60 @@ function standingShapeFromFront(current){
     x:translationX+deformationX+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
     y:translationY+deformationY
   };
+}
+function captureStandingPreliveComposition(){
+  const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
+  const image=frame?.querySelector("[data-standing-preview-image]");
+  const layer=image?.closest(".broadcast-scene-character");
+  if(!(frame instanceof HTMLElement)||!(image instanceof HTMLImageElement)||!(layer instanceof HTMLElement)||image.naturalWidth<1||image.naturalHeight<1)return null;
+  const frameRect=frame.getBoundingClientRect(),layerRect=layer.getBoundingClientRect();
+  if(frameRect.width<=0||frameRect.height<=0||layerRect.width<=0||layerRect.height<=0)return null;
+  const scale=Math.min(layerRect.width/image.naturalWidth,layerRect.height/image.naturalHeight);
+  if(!Number.isFinite(scale)||scale<=0)return null;
+  const width=image.naturalWidth*scale,height=image.naturalHeight*scale;
+  const left=(layerRect.left-frameRect.left)+(layerRect.width-width)/2;
+  const top=(layerRect.top-frameRect.top)+(layerRect.height-height);
+  const value={
+    centerX:(left+width/2)/frameRect.width,
+    bottom:(top+height)/frameRect.height,
+    height:height/frameRect.height,
+    aspect:image.naturalWidth/image.naturalHeight
+  };
+  if(!Object.values(value).every(Number.isFinite)||value.height<=0||value.aspect<=0)return null;
+  standingPreliveComposition=value;
+  return value;
+}
+function clearStandingLiveComposition(){
+  const layer=document.querySelector("[data-live-character-layer]");
+  const image=layer?.querySelector("[data-standing-preview-image]");
+  if(layer instanceof HTMLElement)layer.style.removeProperty("inset");
+  if(image instanceof HTMLImageElement){
+    for(const property of ["inset","left","top","right","bottom","width","height","object-fit"])image.style.removeProperty(property);
+  }
+}
+function applyStandingLiveComposition(){
+  if(selectedMode!=="standing"||!standingPreliveComposition)return;
+  const frame=document.querySelector("[data-live-screen] .broadcast-live-preview");
+  const layer=document.querySelector("[data-live-character-layer]");
+  const image=layer?.querySelector("[data-standing-preview-image]");
+  if(!(frame instanceof HTMLElement)||!(layer instanceof HTMLElement)||!(image instanceof HTMLImageElement)||image.naturalWidth<1||image.naturalHeight<1)return;
+  const frameRect=frame.getBoundingClientRect();
+  if(frameRect.width<=0||frameRect.height<=0)return;
+  const composition=standingPreliveComposition;
+  const height=composition.height*frameRect.height;
+  const width=height*composition.aspect;
+  const left=composition.centerX*frameRect.width-width/2;
+  const top=composition.bottom*frameRect.height-height;
+  if(![height,width,left,top].every(Number.isFinite)||height<=0||width<=0)return;
+  layer.style.inset="0";
+  image.style.inset="auto";
+  image.style.left=left.toFixed(2)+"px";
+  image.style.top=top.toFixed(2)+"px";
+  image.style.right="auto";
+  image.style.bottom="auto";
+  image.style.width=width.toFixed(2)+"px";
+  image.style.height=height.toFixed(2)+"px";
+  image.style.objectFit="fill";
 }
 function applyStandingPreviewState(state){
   window.__orikuroStandingFrameState=state;
@@ -1425,7 +1480,12 @@ async function switchPreparedAudioInput(deviceId){
 async function applyMode(mode){
   if(!supportedModes.has(mode))return;
   const previousMode=selectedMode;
-  if(previousMode==="standing"&&mode!=="standing"){cancelStandingPreparation(true);releaseStandingTracking();}
+  if(previousMode==="standing"&&mode!=="standing"){
+    cancelStandingPreparation(true);
+    releaseStandingTracking();
+    standingPreliveComposition=null;
+    clearStandingLiveComposition();
+  }
   selectedMode=mode;document.documentElement.dataset.streamMode=mode;
   document.querySelectorAll("[data-stream-mode]").forEach(button=>{const active=button.dataset.streamMode===mode;button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",active?"true":"false");});
   if(mode==="standing"){
@@ -1854,6 +1914,7 @@ window.addEventListener("resize",()=>{
     const boundedState=standingMotionWithinFrame(standingTrackedState.x,standingTrackedState.y);
     standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
     standingTrackedState=boundedState;
+    if(document.documentElement.dataset.broadcastPhase==="live")applyStandingLiveComposition();
     startStandingMotion();
   }
 });
@@ -1985,6 +2046,7 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
   syncVisibleStandingAssets();
+  applyStandingLiveComposition();
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
   const liveMicPanel=document.querySelector("[data-live-mic-panel]");
   if(liveMicPanel)liveMicPanel.hidden=true;
@@ -2027,6 +2089,7 @@ window.addEventListener("orikuro:stream-start-failed",event=>{
   const liveMicPanel=document.querySelector("[data-live-mic-panel]");
   if(liveMicPanel)liveMicPanel.hidden=true;
   document.querySelector("[data-live-screen]")?.setAttribute("hidden","");
+  clearStandingLiveComposition();
   document.querySelector("[data-broadcast-wizard]")?.removeAttribute("hidden");
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
   const micToggle=document.querySelector("[data-mic-test-toggle]");
@@ -2079,6 +2142,7 @@ startButton?.addEventListener("click",()=>{
         const avatar=final?.querySelector("[data-standing-preview-image]");
         if(!(avatar instanceof HTMLImageElement)||!avatar.src)throw new Error("STANDING_PREVIEW_MISSING");
         await avatar.decode();
+        if(!captureStandingPreliveComposition())throw new Error("STANDING_PRELIVE_LAYOUT_MISSING");
         if(standingImageIndex(requestedChoice)>=0){
           const background=final?.querySelector("[data-background-preview-image]");
           if(!(background instanceof HTMLImageElement)||!background.src)throw new Error("BACKGROUND_PREVIEW_MISSING");
