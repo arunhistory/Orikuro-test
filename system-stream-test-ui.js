@@ -314,6 +314,9 @@ let standingMotionTarget={x:0,y:0,confidence:0};
 let standingFaceTracker=null;
 let standingTrackingReady=false;
 let standingTrackingStart=null;
+let standingNeutralReference=null;
+let standingNeutralSamples=[];
+let standingCalibrationFirstTimestampNS=0;
 let startedAt=0;
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
@@ -449,15 +452,11 @@ const STANDING_SHAPE_GAIN_X=4;
 const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
-// Fixed "straight ahead" face geometry. It is the permanent zero reference;
-// detection loss or reacquisition never replaces it.
-const STANDING_FRONTAL_SHAPE=Object.freeze([
-  Object.freeze({x:-.8658,y:-.8465}),
-  Object.freeze({x:.8658,y:-.8465}),
-  Object.freeze({x:0,y:.0192}),
-  Object.freeze({x:-.5772,y:.8369}),
-  Object.freeze({x:.5772,y:.8369}),
-]);
+const STANDING_CALIBRATION_DURATION_NS=2_000_000_000;
+const STANDING_CALIBRATION_MIN_SAMPLES=90;
+const STANDING_CALIBRATION_MAX_SAMPLES=300;
+const STANDING_CALIBRATION_MIN_SAMPLE_CONFIDENCE=.65;
+const STANDING_CALIBRATION_MIN_AVERAGE_CONFIDENCE=.80;
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
 function standingShapeAxis(value){
   const magnitude=Math.abs(value);
@@ -467,6 +466,84 @@ function standingShapeAxis(value){
 function medianStanding(values){
   const sorted=[...values].sort((a,b)=>a-b);
   return sorted[Math.floor(sorted.length/2)]||0;
+}
+function resetStandingNeutralCalibration(){
+  standingNeutralReference=null;
+  standingNeutralSamples=[];
+  standingCalibrationFirstTimestampNS=0;
+  standingTrackingReady=false;
+}
+function standingNeutralFromSamples(samples){
+  if(!Array.isArray(samples)||samples.length<STANDING_CALIBRATION_MIN_SAMPLES)return null;
+  const normalized=Array.from({length:5},(_,index)=>({
+    x:medianStanding(samples.map(sample=>sample.normalized[index].x)),
+    y:medianStanding(samples.map(sample=>sample.normalized[index].y))
+  }));
+  const center={
+    x:medianStanding(samples.map(sample=>sample.center.x)),
+    y:medianStanding(samples.map(sample=>sample.center.y))
+  };
+  const radius=medianStanding(samples.map(sample=>sample.radius));
+  if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||!Number.isFinite(radius)||radius<=0)return null;
+  if(normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
+  return {center,radius,normalized};
+}
+function updateStandingNeutralCalibration(shape,confidence,timestampNS){
+  if(!Number.isFinite(confidence)||confidence<STANDING_CALIBRATION_MIN_SAMPLE_CONFIDENCE){
+    standingNeutralSamples=[];
+    standingCalibrationFirstTimestampNS=0;
+    standingTrackingReady=false;
+    setCameraTrackingStatus("画面の中央を自然に見てください。顔追従の基準位置を取得しています…","working",true);
+    return false;
+  }
+  if(standingCalibrationFirstTimestampNS===0)standingCalibrationFirstTimestampNS=timestampNS;
+  standingNeutralSamples.push({
+    timestampNS,
+    confidence,
+    center:{x:shape.center.x,y:shape.center.y},
+    radius:shape.radius,
+    normalized:shape.normalized.map(point=>({x:point.x,y:point.y}))
+  });
+  if(standingNeutralSamples.length>STANDING_CALIBRATION_MAX_SAMPLES){
+    standingNeutralSamples.shift();
+    standingCalibrationFirstTimestampNS=standingNeutralSamples[0]?.timestampNS||timestampNS;
+  }
+  const durationNS=Math.max(0,timestampNS-standingCalibrationFirstTimestampNS);
+  const averageConfidence=standingNeutralSamples.reduce((sum,sample)=>sum+sample.confidence,0)/standingNeutralSamples.length;
+  const enoughDuration=durationNS>=STANDING_CALIBRATION_DURATION_NS;
+  const enoughSamples=standingNeutralSamples.length>=STANDING_CALIBRATION_MIN_SAMPLES;
+  const enoughConfidence=averageConfidence>=STANDING_CALIBRATION_MIN_AVERAGE_CONFIDENCE;
+  if(!enoughDuration||!enoughSamples||!enoughConfidence){
+    if(standingNeutralSamples.length===1||standingNeutralSamples.length%5===0){
+      const sampleProgress=Math.min(100,Math.round(standingNeutralSamples.length/STANDING_CALIBRATION_MIN_SAMPLES*100));
+      const timeProgress=Math.min(100,Math.round(durationNS/STANDING_CALIBRATION_DURATION_NS*100));
+      const progress=Math.min(sampleProgress,timeProgress);
+      const suffix=enoughDuration&&enoughSamples&&!enoughConfidence
+        ?" / Confidence "+(averageConfidence*100).toFixed(0)+"%"
+        :"";
+      setCameraTrackingStatus("画面正面を基準化中 "+progress+"%"+suffix,"working",true);
+    }
+    return false;
+  }
+  const reference=standingNeutralFromSamples(standingNeutralSamples);
+  if(!reference)return false;
+  standingNeutralReference=reference;
+  standingNeutralSamples=[];
+  standingCalibrationFirstTimestampNS=0;
+  standingTrackingReady=true;
+  standingTrackedState={x:0,y:0};
+  standingMotionTarget={x:0,y:0,confidence};
+  applyStandingPreviewState({
+    x:0,y:0,z:0,yaw:0,pitch:0,roll:0,
+    confidence,lod:0,faceLocalWarp:0
+  });
+  const backend=standingFaceTracker?.backend==="webgpu"?"WebGPU":"WASM";
+  setCameraTrackingStatus("顔追従準備完了（画面正面基準 / YuNet / "+backend+"）","ready",true);
+  if(currentStep===4){
+    setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
+  }
+  updateWizard();
+  return true;
 }
 function standingMotionBounds(){
   const image=Array.from(document.querySelectorAll("[data-standing-preview-image]")).find(item=>
@@ -522,21 +599,22 @@ function standingShapeRotation(reference,current){
   return Math.atan2(cross,dot);
 }
 function standingShapeFromFront(current){
-  const reference={
-    radius:current.radius,
-    normalized:STANDING_FRONTAL_SHAPE
-  };
+  const reference=standingNeutralReference;
+  if(!reference)return null;
+  const translationX=current.center.x-reference.center.x;
+  const translationY=current.center.y-reference.center.y;
   const residualX=[],residualY=[];
   for(let index=0;index<reference.normalized.length;index++){
     residualX.push(current.normalized[index].x-reference.normalized[index].x);
     residualY.push(current.normalized[index].y-reference.normalized[index].y);
   }
-  const deformationX=medianStanding(residualX)*current.radius;
-  const deformationY=medianStanding(residualY)*current.radius;
+  const scale=(reference.radius+current.radius)*.5;
+  const deformationX=medianStanding(residualX)*scale;
+  const deformationY=medianStanding(residualY)*scale;
   const rotation=standingShapeRotation(reference,current);
   return {
-    x:deformationX+rotation*current.radius*STANDING_SHAPE_ROTATION_GAIN,
-    y:deformationY
+    x:translationX+deformationX+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
+    y:translationY+deformationY
   };
 }
 function applyStandingPreviewState(state){
@@ -557,9 +635,17 @@ function acceptStandingFaceRegion(sample){
   if(previous&&(frameId<=previous.frameId||timestampNS<=previous.timestampNS))return;
 
   if(sample.present!==true){
-    // The existing YuNet worker keeps running. Character motion alone freezes
-    // at the exact last displayed state until a face is seen again.
     standingShapePrevious={frameId,timestampNS,shape:null,confidence:0};
+    if(!standingNeutralReference){
+      standingNeutralSamples=[];
+      standingCalibrationFirstTimestampNS=0;
+      standingTrackingReady=false;
+      setCameraTrackingStatus("顔を見失いました。画面の中央を自然に見て基準位置を取り直します…","working",true);
+      updateWizard();
+      return;
+    }
+    // After calibration, loss/reacquisition never changes the neutral reference.
+    // Character motion freezes at the exact last displayed state until the face returns.
     if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
     standingMotionRaf=0;
     standingMotionTarget={x:standingTrackedState.x,y:standingTrackedState.y,confidence:0};
@@ -571,7 +657,13 @@ function acceptStandingFaceRegion(sample){
   const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
   standingShapePrevious=current;
 
+  if(!standingNeutralReference){
+    updateStandingNeutralCalibration(currentShape,current.confidence,timestampNS);
+    return;
+  }
+
   const direction=standingShapeFromFront(currentShape);
+  if(!direction)return;
   const moveX=standingShapeAxis(direction.x);
   const moveY=standingShapeAxis(direction.y);
   const bounds=standingMotionBounds();
@@ -1034,7 +1126,7 @@ function goStep(step){
   if(step<1||step>4)return;
   currentStep=step;
   if(step===4&&selectedMode==="standing"&&!standingTrackingReady){
-    setFeedback("顔追従をバックグラウンド準備中です。準備完了まで配信開始できません。","working");
+    setFeedback("顔追従と画面正面の基準位置をバックグラウンド準備中です。準備完了まで配信開始できません。","working");
     void ensureStandingTracking();
   }
   updateWizard();
@@ -1068,25 +1160,25 @@ function setCameraTrackingStatus(text,state="waiting",visible=selectedMode==="st
 
 function releaseStandingTracking(){
   standingTrackingStart=null;
-  standingTrackingReady=false;
+  resetStandingNeutralCalibration();
   standingFaceTracker?.stop?.();
   standingFaceTracker=null;
   setCameraTrackingStatus("立ち絵を選択するとカメラの使用許可を確認します。","waiting",false);
 }
 
 async function ensureStandingTracking(){
-  if(selectedMode!=="standing"||standingTrackingReady)return;
+  if(selectedMode!=="standing"||standingTrackingReady||standingFaceTracker?.running)return;
   if(standingTrackingStart)return await standingTrackingStart;
   if(!standingFaceTracker)standingFaceTracker=new StandingFaceTracker();
   const tracker=standingFaceTracker;
+  resetStandingNeutralCalibration();
   setCameraTrackingStatus("カメラの使用許可と顔追従を準備しています…","working",true);
   standingTrackingStart=tracker.start().then(()=>{
     if(selectedMode!=="standing"||standingFaceTracker!==tracker){tracker.stop();return;}
-    standingTrackingReady=true;
     const backend=tracker.backend==="webgpu"?"WebGPU":"WASM";
-    setCameraTrackingStatus(`顔追従準備完了（YuNet / ${backend}）`,"ready",true);
+    setCameraTrackingStatus("顔追従起動済み（YuNet / "+backend+"）。画面の中央を自然に見たまま基準位置を取得します…","working",true);
     if(currentStep===4){
-      setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
+      setFeedback("画面の中央を自然に見たまま、顔追従の基準位置取得を完了してください。","working");
     }
     updateWizard();
   }).catch(error=>{
@@ -1814,7 +1906,7 @@ window.addEventListener("orikuro:face-region-sample",event=>{
 });
 window.addEventListener("orikuro:standing-tracking-failed",event=>{
   if(selectedMode!=="standing")return;
-  standingTrackingReady=false;
+  resetStandingNeutralCalibration();
   const code=event?.detail?.code||"STANDING_TRACKING_FAILED";
   setCameraTrackingStatus(`顔追従を継続できません: ${code}`,"error",true);
   updateWizard();
