@@ -599,20 +599,18 @@ function standingShapeRotation(reference,current){
   }
   return Math.atan2(cross,dot);
 }
-function standingShapeFromFront(current){
-  const reference=standingNeutralReference;
-  if(!reference)return null;
-  const translationX=current.center.x-reference.center.x;
-  const translationY=current.center.y-reference.center.y;
+function standingShapeFlow(previous,current){
+  const translationX=current.center.x-previous.center.x;
+  const translationY=current.center.y-previous.center.y;
   const residualX=[],residualY=[];
-  for(let index=0;index<reference.normalized.length;index++){
-    residualX.push(current.normalized[index].x-reference.normalized[index].x);
-    residualY.push(current.normalized[index].y-reference.normalized[index].y);
+  for(let index=0;index<previous.normalized.length;index++){
+    residualX.push(current.normalized[index].x-previous.normalized[index].x);
+    residualY.push(current.normalized[index].y-previous.normalized[index].y);
   }
-  const scale=(reference.radius+current.radius)*.5;
+  const scale=(previous.radius+current.radius)*.5;
   const deformationX=medianStanding(residualX)*scale;
   const deformationY=medianStanding(residualY)*scale;
-  const rotation=standingShapeRotation(reference,current);
+  const rotation=standingShapeRotation(previous,current);
   return {
     x:translationX+deformationX+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
     y:translationY+deformationY
@@ -717,18 +715,24 @@ function acceptStandingFaceRegion(sample){
     return;
   }
 
-  const direction=standingShapeFromFront(currentShape);
-  if(!direction)return;
-  const moveX=standingShapeAxis(direction.x);
-  const moveY=standingShapeAxis(direction.y);
+  // Reacquisition must not compare a live face against the synthetic lost marker.
+  // Keep the last displayed position; the next valid frame resumes delta tracking.
+  if(!previous?.shape){
+    standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
+    return;
+  }
+
+  const flow=standingShapeFlow(previous.shape,currentShape);
+  const moveX=standingShapeAxis(flow.x);
+  const moveY=standingShapeAxis(flow.y);
   const bounds=standingMotionBounds();
   if(!bounds){
     standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
     return;
   }
 
-  const targetX=moveX*STANDING_SHAPE_GAIN_X;
-  const targetY=moveY*STANDING_SHAPE_GAIN_Y;
+  const targetX=standingMotionTarget.x+moveX*STANDING_SHAPE_GAIN_X;
+  const targetY=standingMotionTarget.y+moveY*STANDING_SHAPE_GAIN_Y;
   if(!Number.isFinite(targetX)||!Number.isFinite(targetY))return;
   const bounded=standingMotionWithinFrame(targetX,targetY,bounds);
   standingMotionTarget={x:bounded.x,y:bounded.y,confidence:current.confidence};
