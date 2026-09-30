@@ -604,21 +604,29 @@ function standingShapeRotation(reference,current){
 function standingShapeFromFront(current){
   const reference=standingNeutralReference;
   if(!reference)return null;
-  const translationX=current.center.x-reference.center.x;
-  const translationY=current.center.y-reference.center.y;
+
+  // Root translation: even while the face stays front-facing, moving the whole
+  // face left/right/up/down moves the standing character in the same direction.
+  const translation={
+    x:current.center.x-reference.center.x,
+    y:current.center.y-reference.center.y
+  };
+
+  // Facing/tilt: compare the five landmarks inside the detected face contour,
+  // independently from root translation so both can be recognized at once.
   const residualX=[],residualY=[];
   for(let index=0;index<reference.normalized.length;index++){
     residualX.push(current.normalized[index].x-reference.normalized[index].x);
     residualY.push(current.normalized[index].y-reference.normalized[index].y);
   }
   const scale=(reference.radius+current.radius)*.5;
-  const deformationX=medianStanding(residualX)*scale;
-  const deformationY=medianStanding(residualY)*scale;
   const rotation=standingShapeRotation(reference,current);
-  return {
-    x:translationX+deformationX+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
-    y:translationY+deformationY
+  const facing={
+    x:medianStanding(residualX)*scale+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
+    y:medianStanding(residualY)*scale
   };
+
+  return {translation,facing};
 }
 function captureStandingPreliveComposition(){
   const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
@@ -721,8 +729,16 @@ function acceptStandingFaceRegion(sample){
 
   const direction=standingShapeFromFront(currentShape);
   if(!direction)return;
-  const moveX=standingShapeAxis(direction.x);
-  const moveY=standingShapeAxis(direction.y);
+
+  // Translation and facing/tilt are independent inputs. Apply the same
+  // dead-zone rule to each, then combine them into one XY character target.
+  const translateX=standingShapeAxis(direction.translation.x);
+  const translateY=standingShapeAxis(direction.translation.y);
+  const facingX=standingShapeAxis(direction.facing.x);
+  const facingY=standingShapeAxis(direction.facing.y);
+  const moveX=translateX+facingX;
+  const moveY=translateY+facingY;
+
   const bounds=standingMotionBounds();
   if(!bounds){
     standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
