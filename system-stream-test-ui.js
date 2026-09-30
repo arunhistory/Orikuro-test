@@ -547,9 +547,12 @@ function updateStandingNeutralCalibration(shape,confidence,timestampNS){
   return true;
 }
 function standingMotionBounds(){
-  const image=Array.from(document.querySelectorAll("[data-standing-preview-image]")).find(item=>
-    item instanceof HTMLImageElement&&standingAssetViewActive(item)&&item.hasAttribute("src")&&item.naturalWidth>0&&item.naturalHeight>0
-  );
+  const images=Array.from(document.querySelectorAll("[data-standing-preview-image]"));
+  const usable=item=>item instanceof HTMLImageElement&&item.hasAttribute("src")&&item.naturalWidth>0&&item.naturalHeight>0;
+  const live=document.documentElement.dataset.broadcastPhase==="live";
+  const image=live
+    ? images.find(item=>usable(item)&&item.closest("[data-live-screen]")&&!item.closest("[data-live-screen]").hidden)
+    : images.find(item=>usable(item)&&standingAssetViewActive(item));
   if(!(image instanceof HTMLImageElement))return null;
   const layer=image.closest(".broadcast-scene-character");
   const frame=image.closest(".broadcast-background-preview,.broadcast-final-preview,.broadcast-live-preview");
