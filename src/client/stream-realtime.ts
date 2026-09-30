@@ -990,12 +990,72 @@ function buildVideoPacket(kind: number, payload: Uint8Array, keyframe: boolean, 
   return buffer;
 }
 
-function annexBHasStartCode(bytes: Uint8Array): boolean {
-  for (let i = 0; i + 3 < bytes.length; i++) {
-    if (bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 1) return true;
-    if (i + 4 <= bytes.length && bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 0 && bytes[i + 3] === 1) return true;
+function annexBUnits(bytes: Uint8Array): Uint8Array[] {
+  const starts: Array<{offset:number;prefix:number}> = [];
+  for (let i = 0; i + 2 < bytes.length;) {
+    let prefix = 0;
+    if (i + 3 < bytes.length && bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 0 && bytes[i + 3] === 1) prefix = 4;
+    else if (bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 1) prefix = 3;
+    if (prefix) {
+      starts.push({offset:i,prefix});
+      i += prefix;
+    } else {
+      i++;
+    }
   }
-  return false;
+  const units: Uint8Array[] = [];
+  for (let i = 0; i < starts.length; i++) {
+    const begin = starts[i].offset + starts[i].prefix;
+    const end = i + 1 < starts.length ? starts[i + 1].offset : bytes.length;
+    if (begin < end) units.push(bytes.slice(begin, end));
+  }
+  return units;
+}
+
+function annexBHasStartCode(bytes: Uint8Array): boolean {
+  return annexBUnits(bytes).length > 0;
+}
+
+function joinAnnexB(units: Uint8Array[]): Uint8Array {
+  const total = units.reduce((sum, unit) => sum + 4 + unit.byteLength, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const unit of units) {
+    out.set([0, 0, 0, 1], pos);
+    pos += 4;
+    out.set(unit, pos);
+    pos += unit.byteLength;
+  }
+  return out;
+}
+
+function h264NalType(unit: Uint8Array): number {
+  return unit.byteLength ? unit[0] & 31 : 0;
+}
+
+function rememberH264ParameterSets(payload: Uint8Array): void {
+  const units = annexBUnits(payload);
+  const sps = units.filter((unit) => h264NalType(unit) === 7);
+  const pps = units.filter((unit) => h264NalType(unit) === 8);
+  if (sps.length && pps.length) h264ParameterSets = joinAnnexB([...sps, ...pps]);
+}
+
+function normalizeH264Keyframe(payload: Uint8Array): Uint8Array | null {
+  const units = annexBUnits(payload);
+  if (!units.length) return null;
+  rememberH264ParameterSets(payload);
+  const cached = h264ParameterSets ? annexBUnits(h264ParameterSets) : [];
+  const inBandSps = units.filter((unit) => h264NalType(unit) === 7);
+  const inBandPps = units.filter((unit) => h264NalType(unit) === 8);
+  const sps = inBandSps.length ? inBandSps : cached.filter((unit) => h264NalType(unit) === 7);
+  const pps = inBandPps.length ? inBandPps : cached.filter((unit) => h264NalType(unit) === 8);
+  const aud = units.filter((unit) => h264NalType(unit) === 9);
+  const rest = units.filter((unit) => {
+    const type = h264NalType(unit);
+    return type !== 7 && type !== 8 && type !== 9;
+  });
+  if (!sps.length || !pps.length || !rest.some((unit) => h264NalType(unit) === 5)) return null;
+  return joinAnnexB([...aud, ...sps, ...pps, ...rest]);
 }
 
 function parseAvcC(description: AllowSharedBufferSource): Uint8Array | null {
@@ -1038,11 +1098,8 @@ function parseAvcC(description: AllowSharedBufferSource): Uint8Array | null {
 }
 
 function prependParameterSets(payload: Uint8Array): Uint8Array {
-  if (!h264ParameterSets) return payload;
-  const out = new Uint8Array(h264ParameterSets.byteLength + payload.byteLength);
-  out.set(h264ParameterSets, 0);
-  out.set(payload, h264ParameterSets.byteLength);
-  return out;
+  const normalized = normalizeH264Keyframe(payload);
+  return normalized ?? payload;
 }
 
 async function supportedVideoConfig(): Promise<VideoEncoderConfig> {
@@ -1168,8 +1225,17 @@ function createEncoder(config: VideoEncoderConfig): void {
         void stopStreaming(true);
         return;
       }
-      const keyframe = chunk.type === 'key';
-      const wirePayload = keyframe ? prependParameterSets(payload) : payload;
+      rememberH264ParameterSets(payload);
+      const units = annexBUnits(payload);
+      const hasIdr = units.some((unit) => h264NalType(unit) === 5);
+      const keyframe = chunk.type === 'key' || hasIdr;
+      const wirePayload = keyframe ? normalizeH264Keyframe(payload) : payload;
+      if (!wirePayload) {
+        // A single malformed/incomplete keyframe must not tear down the whole
+        // stream. Drop it and wait for the next independently decodable IDR.
+        setText('[data-stream-state="output"]', 'H.264同期待ち');
+        return;
+      }
       socket.send(buildVideoPacket(MEDIA_KIND_VIDEO, wirePayload, keyframe, chunk.timestamp));
     },
     error: () => {
