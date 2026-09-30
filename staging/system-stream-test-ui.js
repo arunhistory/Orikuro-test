@@ -35,18 +35,18 @@ const TEST_METRICS_BASE=Object.freeze({
   superchatPoints:800,
 });
 const TEST_LISTENERS=Object.freeze([
-  {name:"テストリスナー 01",fanLevel:7,state:"応援中",background:true,firstTime:false},
-  {name:"テストリスナー 02",fanLevel:6,state:"視聴中",background:true,firstTime:false},
-  {name:"テストリスナー 03",fanLevel:null,state:"初見",background:false,firstTime:true},
-  {name:"テストリスナー 04",fanLevel:4,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 05",fanLevel:3,state:"応援中",background:false,firstTime:false},
-  {name:"テストリスナー 06",fanLevel:2,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 07",fanLevel:null,state:"初見",background:false,firstTime:true},
-  {name:"テストリスナー 08",fanLevel:null,state:"視聴中",background:true,firstTime:false},
-  {name:"テストリスナー 09",fanLevel:6,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 10",fanLevel:5,state:"応援中",background:false,firstTime:false},
-  {name:"テストリスナー 11",fanLevel:null,state:"視聴中",background:false,firstTime:false},
-  {name:"テストリスナー 12",fanLevel:2,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー1",fanLevel:7,state:"応援中",background:true,firstTime:false},
+  {name:"リスナー2",fanLevel:6,state:"視聴中",background:true,firstTime:false},
+  {name:"リスナー3",fanLevel:null,state:"初見",background:false,firstTime:true},
+  {name:"リスナー4",fanLevel:4,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー5",fanLevel:3,state:"応援中",background:false,firstTime:false},
+  {name:"リスナー6",fanLevel:2,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー7",fanLevel:null,state:"初見",background:false,firstTime:true},
+  {name:"リスナー8",fanLevel:null,state:"視聴中",background:true,firstTime:false},
+  {name:"リスナー9",fanLevel:6,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー10",fanLevel:5,state:"応援中",background:false,firstTime:false},
+  {name:"リスナー11",fanLevel:null,state:"視聴中",background:false,firstTime:false},
+  {name:"リスナー12",fanLevel:2,state:"視聴中",background:false,firstTime:false},
 ]);
 
 // Prototype borders only. Production values remain deliberately undecided.
@@ -314,6 +314,10 @@ let standingMotionTarget={x:0,y:0,confidence:0};
 let standingFaceTracker=null;
 let standingTrackingReady=false;
 let standingTrackingStart=null;
+let standingNeutralReference=null;
+let standingNeutralSamples=[];
+let standingCalibrationFirstTimestampNS=0;
+let standingPreliveComposition=null;
 let startedAt=0;
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
@@ -445,19 +449,15 @@ function syncVisibleStandingAssets(){
   renderStandingBackgroundChoice();
 }
 const STANDING_SHAPE_DEAD_ZONE=.0015;
-const STANDING_SHAPE_GAIN_X=4;
-const STANDING_SHAPE_GAIN_Y=4;
+const STANDING_SHAPE_GAIN_X=20;
+const STANDING_SHAPE_GAIN_Y=20;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
-// Fixed "straight ahead" face geometry. It is the permanent zero reference;
-// detection loss or reacquisition never replaces it.
-const STANDING_FRONTAL_SHAPE=Object.freeze([
-  Object.freeze({x:-.8658,y:-.8465}),
-  Object.freeze({x:.8658,y:-.8465}),
-  Object.freeze({x:0,y:.0192}),
-  Object.freeze({x:-.5772,y:.8369}),
-  Object.freeze({x:.5772,y:.8369}),
-]);
+const STANDING_CALIBRATION_DURATION_NS=2_000_000_000;
+const STANDING_CALIBRATION_MIN_SAMPLES=90;
+const STANDING_CALIBRATION_MAX_SAMPLES=300;
+const STANDING_CALIBRATION_MIN_SAMPLE_CONFIDENCE=.65;
+const STANDING_CALIBRATION_MIN_AVERAGE_CONFIDENCE=.80;
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
 function standingShapeAxis(value){
   const magnitude=Math.abs(value);
@@ -468,10 +468,91 @@ function medianStanding(values){
   const sorted=[...values].sort((a,b)=>a-b);
   return sorted[Math.floor(sorted.length/2)]||0;
 }
+function resetStandingNeutralCalibration(){
+  standingNeutralReference=null;
+  standingNeutralSamples=[];
+  standingCalibrationFirstTimestampNS=0;
+  standingTrackingReady=false;
+}
+function standingNeutralFromSamples(samples){
+  if(!Array.isArray(samples)||samples.length<STANDING_CALIBRATION_MIN_SAMPLES)return null;
+  const normalized=Array.from({length:5},(_,index)=>({
+    x:medianStanding(samples.map(sample=>sample.normalized[index].x)),
+    y:medianStanding(samples.map(sample=>sample.normalized[index].y))
+  }));
+  const center={
+    x:medianStanding(samples.map(sample=>sample.center.x)),
+    y:medianStanding(samples.map(sample=>sample.center.y))
+  };
+  const radius=medianStanding(samples.map(sample=>sample.radius));
+  if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||!Number.isFinite(radius)||radius<=0)return null;
+  if(normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
+  return {center,radius,normalized};
+}
+function updateStandingNeutralCalibration(shape,confidence,timestampNS){
+  if(!Number.isFinite(confidence)||confidence<STANDING_CALIBRATION_MIN_SAMPLE_CONFIDENCE){
+    standingNeutralSamples=[];
+    standingCalibrationFirstTimestampNS=0;
+    standingTrackingReady=false;
+    setCameraTrackingStatus("画面の中央を自然に見てください。顔追従の基準位置を取得しています…","working",true);
+    return false;
+  }
+  if(standingCalibrationFirstTimestampNS===0)standingCalibrationFirstTimestampNS=timestampNS;
+  standingNeutralSamples.push({
+    timestampNS,
+    confidence,
+    center:{x:shape.center.x,y:shape.center.y},
+    radius:shape.radius,
+    normalized:shape.normalized.map(point=>({x:point.x,y:point.y}))
+  });
+  if(standingNeutralSamples.length>STANDING_CALIBRATION_MAX_SAMPLES){
+    standingNeutralSamples.shift();
+    standingCalibrationFirstTimestampNS=standingNeutralSamples[0]?.timestampNS||timestampNS;
+  }
+  const durationNS=Math.max(0,timestampNS-standingCalibrationFirstTimestampNS);
+  const averageConfidence=standingNeutralSamples.reduce((sum,sample)=>sum+sample.confidence,0)/standingNeutralSamples.length;
+  const enoughDuration=durationNS>=STANDING_CALIBRATION_DURATION_NS;
+  const enoughSamples=standingNeutralSamples.length>=STANDING_CALIBRATION_MIN_SAMPLES;
+  const enoughConfidence=averageConfidence>=STANDING_CALIBRATION_MIN_AVERAGE_CONFIDENCE;
+  if(!enoughDuration||!enoughSamples||!enoughConfidence){
+    if(standingNeutralSamples.length===1||standingNeutralSamples.length%5===0){
+      const sampleProgress=Math.min(100,Math.round(standingNeutralSamples.length/STANDING_CALIBRATION_MIN_SAMPLES*100));
+      const timeProgress=Math.min(100,Math.round(durationNS/STANDING_CALIBRATION_DURATION_NS*100));
+      const progress=Math.min(sampleProgress,timeProgress);
+      const suffix=enoughDuration&&enoughSamples&&!enoughConfidence
+        ?" / Confidence "+(averageConfidence*100).toFixed(0)+"%"
+        :"";
+      setCameraTrackingStatus("画面正面を基準化中 "+progress+"%"+suffix,"working",true);
+    }
+    return false;
+  }
+  const reference=standingNeutralFromSamples(standingNeutralSamples);
+  if(!reference)return false;
+  standingNeutralReference=reference;
+  standingNeutralSamples=[];
+  standingCalibrationFirstTimestampNS=0;
+  standingTrackingReady=true;
+  standingTrackedState={x:0,y:0};
+  standingMotionTarget={x:0,y:0,confidence};
+  applyStandingPreviewState({
+    x:0,y:0,z:0,yaw:0,pitch:0,roll:0,
+    confidence,lod:0,faceLocalWarp:0
+  });
+  const backend=standingFaceTracker?.backend==="webgpu"?"WebGPU":"WASM";
+  setCameraTrackingStatus("顔追従準備完了（画面正面基準 / YuNet / "+backend+"）","ready",true);
+  if(currentStep===4){
+    setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
+  }
+  updateWizard();
+  return true;
+}
 function standingMotionBounds(){
-  const image=Array.from(document.querySelectorAll("[data-standing-preview-image]")).find(item=>
-    item instanceof HTMLImageElement&&standingAssetViewActive(item)&&item.hasAttribute("src")&&item.naturalWidth>0&&item.naturalHeight>0
-  );
+  const images=Array.from(document.querySelectorAll("[data-standing-preview-image]"));
+  const usable=item=>item instanceof HTMLImageElement&&item.hasAttribute("src")&&item.naturalWidth>0&&item.naturalHeight>0;
+  const live=document.documentElement.dataset.broadcastPhase==="live";
+  const image=live
+    ? images.find(item=>usable(item)&&item.closest("[data-live-screen]")&&!item.closest("[data-live-screen]").hidden)
+    : images.find(item=>usable(item)&&standingAssetViewActive(item));
   if(!(image instanceof HTMLImageElement))return null;
   const layer=image.closest(".broadcast-scene-character");
   const frame=image.closest(".broadcast-background-preview,.broadcast-final-preview,.broadcast-live-preview");
@@ -499,18 +580,17 @@ function standingMotionWithinFrame(x,y,bounds=standingMotionBounds()){
 function buildStandingShape(sample){
   if(!Array.isArray(sample?.shape)||sample.shape.length!==5)return null;
   const points=sample.shape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
+  const contourCenter={x:Number(sample?.centerX),y:Number(sample?.centerY)};
+  const contourSize=Number(sample?.size);
   if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1))return null;
-  const center={
-    x:points.reduce((sum,point)=>sum+point.x,0)/points.length,
-    y:points.reduce((sum,point)=>sum+point.y,0)/points.length
-  };
-  const radius=Math.sqrt(points.reduce((sum,point)=>{
-    const dx=point.x-center.x,dy=point.y-center.y;
-    return sum+dx*dx+dy*dy;
-  },0)/points.length);
-  if(!Number.isFinite(radius)||radius<.0001)return null;
-  const normalized=points.map(point=>({x:(point.x-center.x)/radius,y:(point.y-center.y)/radius}));
-  return {points,center,radius,normalized};
+  if(!Number.isFinite(contourCenter.x)||!Number.isFinite(contourCenter.y)||contourCenter.x<0||contourCenter.x>1||contourCenter.y<0||contourCenter.y>1)return null;
+  if(!Number.isFinite(contourSize)||contourSize<.0001||contourSize>1)return null;
+  const normalized=points.map(point=>({
+    x:(point.x-contourCenter.x)/contourSize,
+    y:(point.y-contourCenter.y)/contourSize
+  }));
+  if(normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
+  return {points,center:contourCenter,radius:contourSize,normalized};
 }
 function standingShapeRotation(reference,current){
   let dot=0,cross=0;
@@ -522,22 +602,85 @@ function standingShapeRotation(reference,current){
   return Math.atan2(cross,dot);
 }
 function standingShapeFromFront(current){
-  const reference={
-    radius:current.radius,
-    normalized:STANDING_FRONTAL_SHAPE
+  const reference=standingNeutralReference;
+  if(!reference)return null;
+
+  // Root translation: even while the face stays front-facing, moving the whole
+  // face left/right/up/down moves the standing character in the same direction.
+  const translation={
+    x:current.center.x-reference.center.x,
+    y:current.center.y-reference.center.y
   };
+
+  // Facing/tilt: compare the five landmarks inside the detected face contour,
+  // independently from root translation so both can be recognized at once.
   const residualX=[],residualY=[];
   for(let index=0;index<reference.normalized.length;index++){
     residualX.push(current.normalized[index].x-reference.normalized[index].x);
     residualY.push(current.normalized[index].y-reference.normalized[index].y);
   }
-  const deformationX=medianStanding(residualX)*current.radius;
-  const deformationY=medianStanding(residualY)*current.radius;
+  const scale=(reference.radius+current.radius)*.5;
   const rotation=standingShapeRotation(reference,current);
-  return {
-    x:deformationX+rotation*current.radius*STANDING_SHAPE_ROTATION_GAIN,
-    y:deformationY
+  const facing={
+    x:medianStanding(residualX)*scale+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
+    y:medianStanding(residualY)*scale
   };
+
+  return {translation,facing};
+}
+function captureStandingPreliveComposition(){
+  const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
+  const image=frame?.querySelector("[data-standing-preview-image]");
+  const layer=image?.closest(".broadcast-scene-character");
+  if(!(frame instanceof HTMLElement)||!(image instanceof HTMLImageElement)||!(layer instanceof HTMLElement)||image.naturalWidth<1||image.naturalHeight<1)return null;
+  const frameRect=frame.getBoundingClientRect(),layerRect=layer.getBoundingClientRect();
+  if(frameRect.width<=0||frameRect.height<=0||layerRect.width<=0||layerRect.height<=0)return null;
+  const scale=Math.min(layerRect.width/image.naturalWidth,layerRect.height/image.naturalHeight);
+  if(!Number.isFinite(scale)||scale<=0)return null;
+  const width=image.naturalWidth*scale,height=image.naturalHeight*scale;
+  const left=(layerRect.left-frameRect.left)+(layerRect.width-width)/2;
+  const top=(layerRect.top-frameRect.top)+(layerRect.height-height);
+  const value={
+    centerX:(left+width/2)/frameRect.width,
+    bottom:(top+height)/frameRect.height,
+    height:height/frameRect.height,
+    aspect:image.naturalWidth/image.naturalHeight
+  };
+  if(!Object.values(value).every(Number.isFinite)||value.height<=0||value.aspect<=0)return null;
+  standingPreliveComposition=value;
+  return value;
+}
+function clearStandingLiveComposition(){
+  const layer=document.querySelector("[data-live-character-layer]");
+  const image=layer?.querySelector("[data-standing-preview-image]");
+  if(layer instanceof HTMLElement)layer.style.removeProperty("inset");
+  if(image instanceof HTMLImageElement){
+    for(const property of ["inset","left","top","right","bottom","width","height","object-fit"])image.style.removeProperty(property);
+  }
+}
+function applyStandingLiveComposition(){
+  if(selectedMode!=="standing"||!standingPreliveComposition)return;
+  const frame=document.querySelector("[data-live-screen] .broadcast-live-preview");
+  const layer=document.querySelector("[data-live-character-layer]");
+  const image=layer?.querySelector("[data-standing-preview-image]");
+  if(!(frame instanceof HTMLElement)||!(layer instanceof HTMLElement)||!(image instanceof HTMLImageElement)||image.naturalWidth<1||image.naturalHeight<1)return;
+  const frameRect=frame.getBoundingClientRect();
+  if(frameRect.width<=0||frameRect.height<=0)return;
+  const composition=standingPreliveComposition;
+  const height=composition.height*frameRect.height;
+  const width=height*composition.aspect;
+  const left=composition.centerX*frameRect.width-width/2;
+  const top=composition.bottom*frameRect.height-height;
+  if(![height,width,left,top].every(Number.isFinite)||height<=0||width<=0)return;
+  layer.style.inset="0";
+  image.style.inset="auto";
+  image.style.left=left.toFixed(2)+"px";
+  image.style.top=top.toFixed(2)+"px";
+  image.style.right="auto";
+  image.style.bottom="auto";
+  image.style.width=width.toFixed(2)+"px";
+  image.style.height=height.toFixed(2)+"px";
+  image.style.objectFit="fill";
 }
 function applyStandingPreviewState(state){
   window.__orikuroStandingFrameState=state;
@@ -557,9 +700,17 @@ function acceptStandingFaceRegion(sample){
   if(previous&&(frameId<=previous.frameId||timestampNS<=previous.timestampNS))return;
 
   if(sample.present!==true){
-    // The existing YuNet worker keeps running. Character motion alone freezes
-    // at the exact last displayed state until a face is seen again.
     standingShapePrevious={frameId,timestampNS,shape:null,confidence:0};
+    if(!standingNeutralReference){
+      standingNeutralSamples=[];
+      standingCalibrationFirstTimestampNS=0;
+      standingTrackingReady=false;
+      setCameraTrackingStatus("顔を見失いました。画面の中央を自然に見て基準位置を取り直します…","working",true);
+      updateWizard();
+      return;
+    }
+    // After calibration, loss/reacquisition never changes the neutral reference.
+    // Character motion freezes at the exact last displayed state until the face returns.
     if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
     standingMotionRaf=0;
     standingMotionTarget={x:standingTrackedState.x,y:standingTrackedState.y,confidence:0};
@@ -571,9 +722,23 @@ function acceptStandingFaceRegion(sample){
   const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
   standingShapePrevious=current;
 
+  if(!standingNeutralReference){
+    updateStandingNeutralCalibration(currentShape,current.confidence,timestampNS);
+    return;
+  }
+
   const direction=standingShapeFromFront(currentShape);
-  const moveX=standingShapeAxis(direction.x);
-  const moveY=standingShapeAxis(direction.y);
+  if(!direction)return;
+
+  // Translation and facing/tilt are independent inputs. Apply the same
+  // dead-zone rule to each, then combine them into one XY character target.
+  const translateX=standingShapeAxis(direction.translation.x);
+  const translateY=standingShapeAxis(direction.translation.y);
+  const facingX=standingShapeAxis(direction.facing.x);
+  const facingY=standingShapeAxis(direction.facing.y);
+  const moveX=translateX+facingX;
+  const moveY=translateY+facingY;
+
   const bounds=standingMotionBounds();
   if(!bounds){
     standingMotionTarget={...standingMotionTarget,confidence:current.confidence};
@@ -1034,7 +1199,7 @@ function goStep(step){
   if(step<1||step>4)return;
   currentStep=step;
   if(step===4&&selectedMode==="standing"&&!standingTrackingReady){
-    setFeedback("顔追従をバックグラウンド準備中です。準備完了まで配信開始できません。","working");
+    setFeedback("顔追従と画面正面の基準位置をバックグラウンド準備中です。準備完了まで配信開始できません。","working");
     void ensureStandingTracking();
   }
   updateWizard();
@@ -1068,25 +1233,25 @@ function setCameraTrackingStatus(text,state="waiting",visible=selectedMode==="st
 
 function releaseStandingTracking(){
   standingTrackingStart=null;
-  standingTrackingReady=false;
+  resetStandingNeutralCalibration();
   standingFaceTracker?.stop?.();
   standingFaceTracker=null;
   setCameraTrackingStatus("立ち絵を選択するとカメラの使用許可を確認します。","waiting",false);
 }
 
 async function ensureStandingTracking(){
-  if(selectedMode!=="standing"||standingTrackingReady)return;
+  if(selectedMode!=="standing"||standingTrackingReady||standingFaceTracker?.running)return;
   if(standingTrackingStart)return await standingTrackingStart;
   if(!standingFaceTracker)standingFaceTracker=new StandingFaceTracker();
   const tracker=standingFaceTracker;
+  resetStandingNeutralCalibration();
   setCameraTrackingStatus("カメラの使用許可と顔追従を準備しています…","working",true);
   standingTrackingStart=tracker.start().then(()=>{
     if(selectedMode!=="standing"||standingFaceTracker!==tracker){tracker.stop();return;}
-    standingTrackingReady=true;
     const backend=tracker.backend==="webgpu"?"WebGPU":"WASM";
-    setCameraTrackingStatus(`顔追従準備完了（YuNet / ${backend}）`,"ready",true);
+    setCameraTrackingStatus("顔追従起動済み（YuNet / "+backend+"）。画面の中央を自然に見たまま基準位置を取得します…","working",true);
     if(currentStep===4){
-      setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
+      setFeedback("画面の中央を自然に見たまま、顔追従の基準位置取得を完了してください。","working");
     }
     updateWizard();
   }).catch(error=>{
@@ -1333,7 +1498,12 @@ async function switchPreparedAudioInput(deviceId){
 async function applyMode(mode){
   if(!supportedModes.has(mode))return;
   const previousMode=selectedMode;
-  if(previousMode==="standing"&&mode!=="standing"){cancelStandingPreparation(true);releaseStandingTracking();}
+  if(previousMode==="standing"&&mode!=="standing"){
+    cancelStandingPreparation(true);
+    releaseStandingTracking();
+    standingPreliveComposition=null;
+    clearStandingLiveComposition();
+  }
   selectedMode=mode;document.documentElement.dataset.streamMode=mode;
   document.querySelectorAll("[data-stream-mode]").forEach(button=>{const active=button.dataset.streamMode===mode;button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",active?"true":"false");});
   if(mode==="standing"){
@@ -1762,6 +1932,7 @@ window.addEventListener("resize",()=>{
     const boundedState=standingMotionWithinFrame(standingTrackedState.x,standingTrackedState.y);
     standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
     standingTrackedState=boundedState;
+    if(document.documentElement.dataset.broadcastPhase==="live")applyStandingLiveComposition();
     startStandingMotion();
   }
 });
@@ -1814,7 +1985,7 @@ window.addEventListener("orikuro:face-region-sample",event=>{
 });
 window.addEventListener("orikuro:standing-tracking-failed",event=>{
   if(selectedMode!=="standing")return;
-  standingTrackingReady=false;
+  resetStandingNeutralCalibration();
   const code=event?.detail?.code||"STANDING_TRACKING_FAILED";
   setCameraTrackingStatus(`顔追従を継続できません: ${code}`,"error",true);
   updateWizard();
@@ -1893,6 +2064,7 @@ window.addEventListener("orikuro:stream-live",()=>{
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
   syncVisibleStandingAssets();
+  applyStandingLiveComposition();
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
   const liveMicPanel=document.querySelector("[data-live-mic-panel]");
   if(liveMicPanel)liveMicPanel.hidden=true;
@@ -1935,6 +2107,7 @@ window.addEventListener("orikuro:stream-start-failed",event=>{
   const liveMicPanel=document.querySelector("[data-live-mic-panel]");
   if(liveMicPanel)liveMicPanel.hidden=true;
   document.querySelector("[data-live-screen]")?.setAttribute("hidden","");
+  clearStandingLiveComposition();
   document.querySelector("[data-broadcast-wizard]")?.removeAttribute("hidden");
   document.querySelectorAll("[data-mic-test]").forEach(el=>el.hidden=true);
   const micToggle=document.querySelector("[data-mic-test-toggle]");
@@ -1987,6 +2160,7 @@ startButton?.addEventListener("click",()=>{
         const avatar=final?.querySelector("[data-standing-preview-image]");
         if(!(avatar instanceof HTMLImageElement)||!avatar.src)throw new Error("STANDING_PREVIEW_MISSING");
         await avatar.decode();
+        if(!captureStandingPreliveComposition())throw new Error("STANDING_PRELIVE_LAYOUT_MISSING");
         if(standingImageIndex(requestedChoice)>=0){
           const background=final?.querySelector("[data-background-preview-image]");
           if(!(background instanceof HTMLImageElement)||!background.src)throw new Error("BACKGROUND_PREVIEW_MISSING");
