@@ -43,9 +43,11 @@ export function adaptYuNetDetectionToFaceRegionSample(detection,frame){
   if(values.some(value=>!Number.isFinite(value)))throw new Error('FACE_REGION_DETECTION_NON_FINITE');
   if(w<=0||h<=0)throw new Error('FACE_REGION_DETECTION_SIZE_INVALID');
 
+  const width=clamp(w/contentWidth,Number.EPSILON,1);
+  const height=clamp(h/contentHeight,Number.EPSILON,1);
   const centerX=clamp((x+w*0.5)/contentWidth,0,1);
   const centerY=clamp((y+h*0.5)/contentHeight,0,1);
-  const size=clamp(Math.sqrt(Math.max(0,(w/contentWidth)*(h/contentHeight))),Number.EPSILON,1);
+  const size=clamp(Math.sqrt(Math.max(0,width*height)),Number.EPSILON,1);
   const angleRad=Math.atan2(leftEyeY-rightEyeY,leftEyeX-rightEyeX);
   const point=(px,py)=>Object.freeze({
     x:clamp(px/contentWidth,0,1),
@@ -79,6 +81,8 @@ export function adaptYuNetDetectionToFaceRegionSample(detection,frame){
     present:true,
     centerX,
     centerY,
+    width,
+    height,
     size,
     angleRad:clamp(angleRad,-Math.PI,Math.PI),
     confidence:clamp(confidence,0,1),
