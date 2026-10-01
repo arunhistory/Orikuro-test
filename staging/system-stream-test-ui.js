@@ -449,8 +449,8 @@ function syncVisibleStandingAssets(){
   renderStandingBackgroundChoice();
 }
 const STANDING_SHAPE_DEAD_ZONE=.0015;
-const STANDING_SHAPE_GAIN_X=8;
-const STANDING_SHAPE_GAIN_Y=8;
+const STANDING_SHAPE_GAIN_X=4;
+const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
 const STANDING_CALIBRATION_DURATION_NS=2_000_000_000;
@@ -586,24 +586,20 @@ function buildStandingShape(sample){
   if(!Number.isFinite(contourCenter.x)||!Number.isFinite(contourCenter.y)||contourCenter.x<0||contourCenter.x>1||contourCenter.y<0||contourCenter.y>1)return null;
   if(!Number.isFinite(contourSize)||contourSize<.0001||contourSize>1)return null;
 
-  // YuNet adapter already exposes the same five landmarks in face-contour-local
-  // coordinates. Center them on the contour so frontal neutral remains the
-  // exact zero anchor even when the detected bbox width/height fluctuates.
-  let normalized=null;
-  if(Array.isArray(sample?.localShape)&&sample.localShape.length===5){
-    const local=sample.localShape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
-    if(local.every(point=>Number.isFinite(point.x)&&Number.isFinite(point.y))){
-      normalized=local.map(point=>({x:point.x-.5,y:point.y-.5}));
-    }
-  }
-  if(!normalized){
-    normalized=points.map(point=>({
-      x:(point.x-contourCenter.x)/contourSize,
-      y:(point.y-contourCenter.y)/contourSize
-    }));
-  }
-  if(normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
-  return {points,center:contourCenter,radius:contourSize,normalized};
+  // Position is anchored by all five landmarks, not by the detector bbox
+  // center. The bbox/contour still supplies face scale. This prevents a
+  // harmless bbox top/height fluctuation from being interpreted as upward
+  // body motion while the user is still facing the screen.
+  const center={
+    x:points.reduce((sum,point)=>sum+point.x,0)/points.length,
+    y:points.reduce((sum,point)=>sum+point.y,0)/points.length
+  };
+  const normalized=points.map(point=>({
+    x:(point.x-center.x)/contourSize,
+    y:(point.y-center.y)/contourSize
+  }));
+  if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
+  return {points,center,contourCenter,radius:contourSize,normalized};
 }
 function standingShapeRotation(reference,current){
   let dot=0,cross=0;
