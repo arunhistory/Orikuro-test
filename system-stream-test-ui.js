@@ -315,7 +315,7 @@ let standingFaceTracker=null;
 let standingTrackingReady=false;
 let standingTrackingStart=null;
 let standingCanonicalAnchor=null;
-let standingCanonicalIdentity=null;
+let standingCanonicalPoseBias={yaw:0,pitch:0,roll:0};
 let standingCanonicalSamples=[];
 let standingCanonicalNoise={rootX:.003,rootY:.003,facingX:.003,facingY:.003};
 let standingPreliveComposition=null;
@@ -453,18 +453,27 @@ const STANDING_SHAPE_GAIN_X=4;
 const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
+
+// Fixed front-facing definition in YuNet face-box coordinates.
+// This is a system definition, not a shape learned from the first user frames.
+const STANDING_CANONICAL_FRONT=Object.freeze([
+  Object.freeze({x:.32,y:.38}),
+  Object.freeze({x:.68,y:.38}),
+  Object.freeze({x:.50,y:.56}),
+  Object.freeze({x:.38,y:.73}),
+  Object.freeze({x:.62,y:.73}),
+]);
+const STANDING_CANONICAL_NOSE_RATIO=(.56-.38)/(.73-.38);
 const STANDING_CANONICAL_MIN_CONFIDENCE=.70;
 const STANDING_CANONICAL_REQUIRED_SAMPLES=12;
 const STANDING_CANONICAL_MAX_SAMPLES=36;
-const STANDING_CANONICAL_EYE_TILT_LIMIT=.22;
-const STANDING_CANONICAL_MOUTH_TILT_LIMIT=.28;
-const STANDING_CANONICAL_EYE_CENTER_LIMIT=.35;
-const STANDING_CANONICAL_MOUTH_CENTER_LIMIT=.45;
-const STANDING_CANONICAL_STABLE_ROOT_RATIO=.08;
+const STANDING_CANONICAL_ROLL_LIMIT=.18;
+const STANDING_CANONICAL_YAW_LIMIT=.22;
+const STANDING_CANONICAL_PITCH_LIMIT=.18;
+const STANDING_CANONICAL_STABLE_ROOT_RATIO=.06;
 const STANDING_CANONICAL_STABLE_SIZE_RATIO=.10;
 const STANDING_CANONICAL_NOISE_FLOOR=.003;
 const STANDING_CANONICAL_NOISE_MULTIPLIER=3;
-const STANDING_CANONICAL_ADAPT_RATE=.02;
 
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
 function standingShapeAxis(value,deadZone=STANDING_CANONICAL_NOISE_FLOOR){
@@ -490,7 +499,7 @@ function standingLineTilt(a,b){
 }
 function resetStandingCanonicalTracking(){
   standingCanonicalAnchor=null;
-  standingCanonicalIdentity=null;
+  standingCanonicalPoseBias={yaw:0,pitch:0,roll:0};
   standingCanonicalSamples=[];
   standingCanonicalNoise={rootX:STANDING_CANONICAL_NOISE_FLOOR,rootY:STANDING_CANONICAL_NOISE_FLOOR,facingX:STANDING_CANONICAL_NOISE_FLOOR,facingY:STANDING_CANONICAL_NOISE_FLOOR};
   standingTrackingReady=false;
@@ -501,26 +510,28 @@ function cloneStandingShape(shape){
     contourCenter:{x:shape.contourCenter.x,y:shape.contourCenter.y},
     radius:shape.radius,
     points:shape.points.map(point=>({x:point.x,y:point.y})),
-    normalized:shape.normalized.map(point=>({x:point.x,y:point.y}))
+    local:shape.local.map(point=>({x:point.x,y:point.y}))
   };
 }
-function canonicalFrontMetrics(shape){
-  const [rightEye,leftEye,nose,rightMouth,leftMouth]=shape.points;
+function fixedCanonicalPose(shape){
+  const [rightEye,leftEye,nose,rightMouth,leftMouth]=shape.local;
   const eyeMid={x:(rightEye.x+leftEye.x)*.5,y:(rightEye.y+leftEye.y)*.5};
   const mouthMid={x:(rightMouth.x+leftMouth.x)*.5,y:(rightMouth.y+leftMouth.y)*.5};
   const eyeSpan=Math.max(Number.EPSILON,Math.abs(leftEye.x-rightEye.x));
   const mouthSpan=Math.max(Number.EPSILON,Math.abs(leftMouth.x-rightMouth.x));
-  const eyeTilt=Math.abs(standingLineTilt(rightEye,leftEye));
-  const mouthTilt=Math.abs(standingLineTilt(rightMouth,leftMouth));
-  const eyeCenterError=Math.abs(nose.x-eyeMid.x)/eyeSpan;
-  const mouthCenterError=Math.abs(nose.x-mouthMid.x)/mouthSpan;
-  const verticalOrder=eyeMid.y<nose.y&&nose.y<mouthMid.y;
-  const front=verticalOrder
-    &&eyeTilt<=STANDING_CANONICAL_EYE_TILT_LIMIT
-    &&mouthTilt<=STANDING_CANONICAL_MOUTH_TILT_LIMIT
-    &&eyeCenterError<=STANDING_CANONICAL_EYE_CENTER_LIMIT
-    &&mouthCenterError<=STANDING_CANONICAL_MOUTH_CENTER_LIMIT;
-  return {front,eyeTilt,mouthTilt,eyeCenterError,mouthCenterError};
+  const verticalSpan=mouthMid.y-eyeMid.y;
+  if(!Number.isFinite(verticalSpan)||verticalSpan<=Number.EPSILON)return {front:false,yaw:0,pitch:0,roll:0};
+
+  const roll=standingLineTilt(rightEye,leftEye);
+  const yawEye=(nose.x-eyeMid.x)/eyeSpan;
+  const yawMouth=(nose.x-mouthMid.x)/mouthSpan;
+  const yaw=medianStanding([yawEye,yawMouth]);
+  const pitch=(nose.y-eyeMid.y)/verticalSpan-STANDING_CANONICAL_NOSE_RATIO;
+
+  const front=Math.abs(roll)<=STANDING_CANONICAL_ROLL_LIMIT
+    &&Math.abs(yaw)<=STANDING_CANONICAL_YAW_LIMIT
+    &&Math.abs(pitch)<=STANDING_CANONICAL_PITCH_LIMIT;
+  return {front,yaw,pitch,roll};
 }
 function canonicalCandidateStable(previous,current){
   if(!previous)return true;
@@ -529,69 +540,50 @@ function canonicalCandidateStable(previous,current){
   const sizeDelta=Math.abs(current.radius-previous.radius)/Math.max(Number.EPSILON,previous.radius);
   return rootDistance<=rootLimit&&sizeDelta<=STANDING_CANONICAL_STABLE_SIZE_RATIO;
 }
-function standingShapeRotation(reference,current){
-  let dot=0,cross=0;
-  for(let index=0;index<reference.normalized.length;index++){
-    const a=reference.normalized[index],b=current.normalized[index];
-    dot+=a.x*b.x+a.y*b.y;
-    cross+=a.x*b.y-a.y*b.x;
-  }
-  return Math.atan2(cross,dot);
-}
-function standingFacingFromIdentity(current,reference=standingCanonicalIdentity){
-  if(!reference)return {x:0,y:0};
-  const residualX=[],residualY=[];
-  for(let index=0;index<reference.normalized.length;index++){
-    residualX.push(current.normalized[index].x-reference.normalized[index].x);
-    residualY.push(current.normalized[index].y-reference.normalized[index].y);
-  }
-  const scale=standingCanonicalAnchor?.radius||current.radius;
-  const rotation=standingShapeRotation(reference,current);
+function fixedCanonicalFacing(pose,radius=standingCanonicalAnchor?.radius||0){
+  const yaw=pose.yaw-standingCanonicalPoseBias.yaw;
+  const pitch=pose.pitch-standingCanonicalPoseBias.pitch;
+  const roll=pose.roll-standingCanonicalPoseBias.roll;
   return {
-    x:medianStanding(residualX)*scale+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
-    y:medianStanding(residualY)*scale
+    x:(yaw+roll*STANDING_SHAPE_ROTATION_GAIN)*radius,
+    y:pitch*radius
   };
-}
-function representativeCanonicalShape(samples){
-  const centerX=medianStanding(samples.map(sample=>sample.center.x));
-  const centerY=medianStanding(samples.map(sample=>sample.center.y));
-  const radius=medianStanding(samples.map(sample=>sample.radius));
-  const normalized=Array.from({length:5},(_,index)=>({
-    x:medianStanding(samples.map(sample=>sample.normalized[index].x)),
-    y:medianStanding(samples.map(sample=>sample.normalized[index].y))
-  }));
-  let best=samples[0],bestScore=Infinity;
-  for(const sample of samples){
-    let score=Math.abs(sample.center.x-centerX)+Math.abs(sample.center.y-centerY)+Math.abs(sample.radius-radius);
-    for(let index=0;index<normalized.length;index++){
-      score+=Math.abs(sample.normalized[index].x-normalized[index].x)+Math.abs(sample.normalized[index].y-normalized[index].y);
-    }
-    if(score<bestScore){bestScore=score;best=sample;}
-  }
-  return {best,center:{x:centerX,y:centerY},radius};
 }
 function finalizeCanonicalTracking(confidence){
   if(standingCanonicalSamples.length<STANDING_CANONICAL_REQUIRED_SAMPLES)return false;
-  const {best,center,radius}=representativeCanonicalShape(standingCanonicalSamples);
-  standingCanonicalAnchor={center,radius};
-  standingCanonicalIdentity={normalized:best.normalized.map(point=>({x:point.x,y:point.y}))};
 
-  const rootX=standingCanonicalSamples.map(sample=>sample.center.x-center.x);
-  const rootY=standingCanonicalSamples.map(sample=>sample.center.y-center.y);
-  const facing=standingCanonicalSamples.map(sample=>standingFacingFromIdentity(sample,standingCanonicalIdentity));
+  const center={
+    x:medianStanding(standingCanonicalSamples.map(sample=>sample.shape.center.x)),
+    y:medianStanding(standingCanonicalSamples.map(sample=>sample.shape.center.y))
+  };
+  const radius=medianStanding(standingCanonicalSamples.map(sample=>sample.shape.radius));
+  standingCanonicalAnchor={center,radius};
+
+  // Personal facial proportions only contribute a small zero-bias after the
+  // fixed Canonical Front has already accepted these frames as front-facing.
+  standingCanonicalPoseBias={
+    yaw:medianStanding(standingCanonicalSamples.map(sample=>sample.pose.yaw)),
+    pitch:medianStanding(standingCanonicalSamples.map(sample=>sample.pose.pitch)),
+    roll:medianStanding(standingCanonicalSamples.map(sample=>sample.pose.roll))
+  };
+
+  const rootX=standingCanonicalSamples.map(sample=>sample.shape.center.x-center.x);
+  const rootY=standingCanonicalSamples.map(sample=>sample.shape.center.y-center.y);
+  const facing=standingCanonicalSamples.map(sample=>fixedCanonicalFacing(sample.pose,radius));
   standingCanonicalNoise={
     rootX:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootX,0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
     rootY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootY,0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
     facingX:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(facing.map(value=>value.x),0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
     facingY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(facing.map(value=>value.y),0)*STANDING_CANONICAL_NOISE_MULTIPLIER)
   };
+
   standingCanonicalSamples=[];
   standingTrackingReady=true;
   standingTrackedState={x:0,y:0};
   standingMotionTarget={x:0,y:0,confidence};
   applyStandingPreviewState({x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence,lod:0,faceLocalWarp:0});
   const backend=standingFaceTracker?.backend==="webgpu"?"WebGPU":"WASM";
-  setCameraTrackingStatus("顔追従準備完了（Canonical Front / YuNet / "+backend+"）","ready",true);
+  setCameraTrackingStatus("顔追従準備完了（固定Canonical Front / YuNet / "+backend+"）","ready",true);
   if(currentStep===4)setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
   updateWizard();
   return true;
@@ -603,37 +595,25 @@ function updateStandingCanonicalAcquisition(shape,confidence){
     setCameraTrackingStatus("顔を自動認識中です…","working",true);
     return false;
   }
-  const metrics=canonicalFrontMetrics(shape);
-  if(!metrics.front){
+
+  const pose=fixedCanonicalPose(shape);
+  if(!pose.front){
     standingCanonicalSamples=[];
     standingTrackingReady=false;
-    setCameraTrackingStatus("顔の正面状態を自動認識中です…","working",true);
+    setCameraTrackingStatus("固定Canonical Frontで正面状態を判定中です…","working",true);
     return false;
   }
-  const previous=standingCanonicalSamples.at(-1)||null;
+
+  const previous=standingCanonicalSamples.at(-1)?.shape||null;
   if(!canonicalCandidateStable(previous,shape))standingCanonicalSamples=[];
-  standingCanonicalSamples.push(cloneStandingShape(shape));
+  standingCanonicalSamples.push({shape:cloneStandingShape(shape),pose});
   if(standingCanonicalSamples.length>STANDING_CANONICAL_MAX_SAMPLES)standingCanonicalSamples.shift();
 
   if(standingCanonicalSamples.length<STANDING_CANONICAL_REQUIRED_SAMPLES){
-    setCameraTrackingStatus("正面状態を自動確定中 "+standingCanonicalSamples.length+"/"+STANDING_CANONICAL_REQUIRED_SAMPLES,"working",true);
+    setCameraTrackingStatus("Root原点とノイズを自動確定中 "+standingCanonicalSamples.length+"/"+STANDING_CANONICAL_REQUIRED_SAMPLES,"working",true);
     return false;
   }
   return finalizeCanonicalTracking(confidence);
-}
-function updateStandingCanonicalDrift(shape,metrics,translation,facing){
-  if(!standingCanonicalAnchor||!standingCanonicalIdentity||!metrics.front)return;
-  if(Math.abs(translation.x)>standingCanonicalNoise.rootX||Math.abs(translation.y)>standingCanonicalNoise.rootY)return;
-  if(Math.abs(facing.x)>standingCanonicalNoise.facingX||Math.abs(facing.y)>standingCanonicalNoise.facingY)return;
-
-  const alpha=STANDING_CANONICAL_ADAPT_RATE;
-  standingCanonicalAnchor.center.x+=(shape.center.x-standingCanonicalAnchor.center.x)*alpha;
-  standingCanonicalAnchor.center.y+=(shape.center.y-standingCanonicalAnchor.center.y)*alpha;
-  standingCanonicalAnchor.radius+=(shape.radius-standingCanonicalAnchor.radius)*alpha;
-  for(let index=0;index<standingCanonicalIdentity.normalized.length;index++){
-    standingCanonicalIdentity.normalized[index].x+=(shape.normalized[index].x-standingCanonicalIdentity.normalized[index].x)*alpha;
-    standingCanonicalIdentity.normalized[index].y+=(shape.normalized[index].y-standingCanonicalIdentity.normalized[index].y)*alpha;
-  }
 }
 function standingMotionBounds(){
   const images=Array.from(document.querySelectorAll("[data-standing-preview-image]"));
@@ -668,67 +648,42 @@ function standingMotionWithinFrame(x,y,bounds=standingMotionBounds()){
 }
 function buildStandingShape(sample){
   if(!Array.isArray(sample?.shape)||sample.shape.length!==5)return null;
+  if(!Array.isArray(sample?.localShape)||sample.localShape.length!==STANDING_CANONICAL_FRONT.length)return null;
+
   const points=sample.shape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
+  const local=sample.localShape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
   const contourCenter={x:Number(sample?.centerX),y:Number(sample?.centerY)};
   const contourSize=Number(sample?.size);
+
   if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1))return null;
+  if(local.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<-.25||point.x>1.25||point.y<-.25||point.y>1.25))return null;
   if(!Number.isFinite(contourCenter.x)||!Number.isFinite(contourCenter.y)||contourCenter.x<0||contourCenter.x>1||contourCenter.y<0||contourCenter.y>1)return null;
   if(!Number.isFinite(contourSize)||contourSize<.0001||contourSize>1)return null;
 
-  const [rightEye,leftEye,nose,rightMouth,leftMouth]=points;
+  const [rightEye,leftEye,,rightMouth,leftMouth]=points;
   const eyeMid={x:(rightEye.x+leftEye.x)*.5,y:(rightEye.y+leftEye.y)*.5};
   const mouthMid={x:(rightMouth.x+leftMouth.x)*.5,y:(rightMouth.y+leftMouth.y)*.5};
-  const landmarkCenter={
-    x:(eyeMid.x+nose.x+mouthMid.x)/3,
-    y:(eyeMid.y+nose.y+mouthMid.y)/3
-  };
+  const featureCenter={x:(eyeMid.x+mouthMid.x)*.5,y:(eyeMid.y+mouthMid.y)*.5};
 
-  // Root position uses both the face contour and all five landmarks.
-  // Five robust center candidates make a single bbox or landmark wobble an
-  // outlier instead of allowing it to pull the avatar vertically.
+  // Root deliberately excludes the nose: the nose is the strongest 2D cue for
+  // yaw/pitch and must not be counted again as whole-head XY translation.
+  // Contour center and stable eye/mouth center are fused symmetrically.
   const center={
-    x:medianStanding([contourCenter.x,eyeMid.x,nose.x,mouthMid.x,landmarkCenter.x]),
-    y:medianStanding([contourCenter.y,eyeMid.y,nose.y,mouthMid.y,landmarkCenter.y])
+    x:(contourCenter.x+featureCenter.x)*.5,
+    y:(contourCenter.y+featureCenter.y)*.5
   };
-  const normalized=points.map(point=>({
-    x:(point.x-center.x)/contourSize,
-    y:(point.y-center.y)/contourSize
-  }));
-  if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
-  return {points,center,contourCenter,radius:contourSize,normalized};
-}
-function standingCanonicalFittedShape(current){
-  if(!standingCanonicalIdentity)return current;
-  const rotation=standingShapeRotation(standingCanonicalIdentity,current);
-  const cos=Math.cos(rotation),sin=Math.sin(rotation);
-  const rootX=[current.contourCenter.x,current.center.x];
-  const rootY=[current.contourCenter.y,current.center.y];
 
-  for(let index=0;index<standingCanonicalIdentity.normalized.length;index++){
-    const reference=standingCanonicalIdentity.normalized[index];
-    const offsetX=(reference.x*cos-reference.y*sin)*current.radius;
-    const offsetY=(reference.x*sin+reference.y*cos)*current.radius;
-    rootX.push(current.points[index].x-offsetX);
-    rootY.push(current.points[index].y-offsetY);
-  }
-
-  const center={x:medianStanding(rootX),y:medianStanding(rootY)};
-  const normalized=current.points.map(point=>({
-    x:(point.x-center.x)/current.radius,
-    y:(point.y-center.y)/current.radius
-  }));
-  if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return current;
-  return {...current,center,normalized};
+  return {points,local,center,contourCenter,radius:contourSize};
 }
 function standingShapeFromFront(current){
-  if(!standingCanonicalAnchor||!standingCanonicalIdentity)return null;
-  const fitted=standingCanonicalFittedShape(current);
+  if(!standingCanonicalAnchor)return null;
+  const pose=fixedCanonicalPose(current);
   const translation={
-    x:fitted.center.x-standingCanonicalAnchor.center.x,
-    y:fitted.center.y-standingCanonicalAnchor.center.y
+    x:current.center.x-standingCanonicalAnchor.center.x,
+    y:current.center.y-standingCanonicalAnchor.center.y
   };
-  const facing=standingFacingFromIdentity(fitted);
-  return {translation,facing,metrics:canonicalFrontMetrics(current),fitted};
+  const facing=fixedCanonicalFacing(pose,standingCanonicalAnchor.radius);
+  return {translation,facing,pose};
 }
 function captureStandingPreliveComposition(){
   const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
@@ -810,8 +765,8 @@ function acceptStandingFaceRegion(sample){
       updateWizard();
       return;
     }
-    // Once Canonical Front has established the session Root, loss/reacquisition
-    // never replaces it. Character motion freezes until the same face returns.
+    // The fixed Canonical definition and session Root remain unchanged across
+    // loss/reacquisition. Character motion freezes until the face returns.
     if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
     standingMotionRaf=0;
     standingMotionTarget={x:standingTrackedState.x,y:standingTrackedState.y,confidence:0};
@@ -823,7 +778,7 @@ function acceptStandingFaceRegion(sample){
   const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
   standingShapePrevious=current;
 
-  if(!standingCanonicalAnchor||!standingCanonicalIdentity){
+  if(!standingCanonicalAnchor){
     updateStandingCanonicalAcquisition(currentShape,current.confidence);
     return;
   }
@@ -840,7 +795,6 @@ function acceptStandingFaceRegion(sample){
   const moveX=translateX+facingX;
   const moveY=translateY+facingY;
   const neutralLocked=translateX===0&&translateY===0&&facingX===0&&facingY===0;
-  updateStandingCanonicalDrift(direction.fitted||currentShape,direction.metrics,direction.translation,direction.facing);
 
   const bounds=standingMotionBounds();
   if(!bounds){
@@ -1302,7 +1256,7 @@ function goStep(step){
   if(step<1||step>4)return;
   currentStep=step;
   if(step===4&&selectedMode==="standing"&&!standingTrackingReady){
-    setFeedback("顔追従のCanonical Frontをバックグラウンドで自動確定中です。準備完了まで配信開始できません。","working");
+    setFeedback("固定Canonical Frontで顔姿勢を確認し、Root原点を自動確定中です。準備完了まで配信開始できません。","working");
     void ensureStandingTracking();
   }
   updateWizard();
@@ -1352,7 +1306,7 @@ async function ensureStandingTracking(){
   standingTrackingStart=tracker.start().then(()=>{
     if(selectedMode!=="standing"||standingFaceTracker!==tracker){tracker.stop();return;}
     const backend=tracker.backend==="webgpu"?"WebGPU":"WASM";
-    setCameraTrackingStatus("顔追従起動済み（YuNet / "+backend+"）。Canonical Frontから正面状態を自動認識します…","working",true);
+    setCameraTrackingStatus("顔追従起動済み（YuNet / "+backend+"）。固定Canonical Frontで正面・Pitch・Yaw・Rollを自動判定します…","working",true);
     if(currentStep===4){
       setFeedback("正面状態を自動認識しています。特別なキャリブレーション操作は不要です。","working");
     }
