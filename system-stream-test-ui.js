@@ -697,14 +697,38 @@ function buildStandingShape(sample){
   if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
   return {points,center,contourCenter,radius:contourSize,normalized};
 }
+function standingCanonicalFittedShape(current){
+  if(!standingCanonicalIdentity)return current;
+  const rotation=standingShapeRotation(standingCanonicalIdentity,current);
+  const cos=Math.cos(rotation),sin=Math.sin(rotation);
+  const rootX=[current.contourCenter.x,current.center.x];
+  const rootY=[current.contourCenter.y,current.center.y];
+
+  for(let index=0;index<standingCanonicalIdentity.normalized.length;index++){
+    const reference=standingCanonicalIdentity.normalized[index];
+    const offsetX=(reference.x*cos-reference.y*sin)*current.radius;
+    const offsetY=(reference.x*sin+reference.y*cos)*current.radius;
+    rootX.push(current.points[index].x-offsetX);
+    rootY.push(current.points[index].y-offsetY);
+  }
+
+  const center={x:medianStanding(rootX),y:medianStanding(rootY)};
+  const normalized=current.points.map(point=>({
+    x:(point.x-center.x)/current.radius,
+    y:(point.y-center.y)/current.radius
+  }));
+  if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return current;
+  return {...current,center,normalized};
+}
 function standingShapeFromFront(current){
   if(!standingCanonicalAnchor||!standingCanonicalIdentity)return null;
+  const fitted=standingCanonicalFittedShape(current);
   const translation={
-    x:current.center.x-standingCanonicalAnchor.center.x,
-    y:current.center.y-standingCanonicalAnchor.center.y
+    x:fitted.center.x-standingCanonicalAnchor.center.x,
+    y:fitted.center.y-standingCanonicalAnchor.center.y
   };
-  const facing=standingFacingFromIdentity(current);
-  return {translation,facing,metrics:canonicalFrontMetrics(current)};
+  const facing=standingFacingFromIdentity(fitted);
+  return {translation,facing,metrics:canonicalFrontMetrics(current),fitted};
 }
 function captureStandingPreliveComposition(){
   const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
@@ -816,7 +840,7 @@ function acceptStandingFaceRegion(sample){
   const moveX=translateX+facingX;
   const moveY=translateY+facingY;
   const neutralLocked=translateX===0&&translateY===0&&facingX===0&&facingY===0;
-  updateStandingCanonicalDrift(currentShape,direction.metrics,direction.translation,direction.facing);
+  updateStandingCanonicalDrift(direction.fitted||currentShape,direction.metrics,direction.translation,direction.facing);
 
   const bounds=standingMotionBounds();
   if(!bounds){
