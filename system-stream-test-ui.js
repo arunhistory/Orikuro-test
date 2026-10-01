@@ -314,9 +314,10 @@ let standingMotionTarget={x:0,y:0,confidence:0};
 let standingFaceTracker=null;
 let standingTrackingReady=false;
 let standingTrackingStart=null;
-let standingNeutralReference=null;
-let standingNeutralSamples=[];
-let standingCalibrationFirstTimestampNS=0;
+let standingCanonicalAnchor=null;
+let standingCanonicalIdentity=null;
+let standingCanonicalSamples=[];
+let standingCanonicalNoise={rootX:.003,rootY:.003,facingX:.003,facingY:.003};
 let standingPreliveComposition=null;
 let startedAt=0;
 let timer=0;
@@ -448,103 +449,191 @@ function syncVisibleStandingAssets(){
   if(available&&currentState&&typeof currentState==="object")applyStandingPreviewState(currentState);
   renderStandingBackgroundChoice();
 }
-const STANDING_SHAPE_DEAD_ZONE=.0015;
 const STANDING_SHAPE_GAIN_X=4;
 const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
-const STANDING_CALIBRATION_DURATION_NS=2_000_000_000;
-const STANDING_CALIBRATION_MIN_SAMPLES=90;
-const STANDING_CALIBRATION_MAX_SAMPLES=300;
-const STANDING_CALIBRATION_MIN_SAMPLE_CONFIDENCE=.65;
-const STANDING_CALIBRATION_MIN_AVERAGE_CONFIDENCE=.80;
+const STANDING_CANONICAL_MIN_CONFIDENCE=.70;
+const STANDING_CANONICAL_REQUIRED_SAMPLES=12;
+const STANDING_CANONICAL_MAX_SAMPLES=36;
+const STANDING_CANONICAL_EYE_TILT_LIMIT=.22;
+const STANDING_CANONICAL_MOUTH_TILT_LIMIT=.28;
+const STANDING_CANONICAL_EYE_CENTER_LIMIT=.35;
+const STANDING_CANONICAL_MOUTH_CENTER_LIMIT=.45;
+const STANDING_CANONICAL_STABLE_ROOT_RATIO=.08;
+const STANDING_CANONICAL_STABLE_SIZE_RATIO=.10;
+const STANDING_CANONICAL_NOISE_FLOOR=.003;
+const STANDING_CANONICAL_NOISE_MULTIPLIER=3;
+const STANDING_CANONICAL_ADAPT_RATE=.02;
+
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
-function standingShapeAxis(value){
+function standingShapeAxis(value,deadZone=STANDING_CANONICAL_NOISE_FLOOR){
+  const zone=Math.max(0,Number(deadZone)||0);
   const magnitude=Math.abs(value);
-  if(magnitude<=STANDING_SHAPE_DEAD_ZONE)return 0;
-  return Math.sign(value)*(magnitude-STANDING_SHAPE_DEAD_ZONE);
+  if(magnitude<=zone)return 0;
+  return Math.sign(value)*(magnitude-zone);
 }
 function medianStanding(values){
-  const sorted=[...values].sort((a,b)=>a-b);
-  return sorted[Math.floor(sorted.length/2)]||0;
+  const sorted=[...values].filter(Number.isFinite).sort((a,b)=>a-b);
+  if(!sorted.length)return 0;
+  const middle=Math.floor(sorted.length/2);
+  return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])*.5;
 }
-function resetStandingNeutralCalibration(){
-  standingNeutralReference=null;
-  standingNeutralSamples=[];
-  standingCalibrationFirstTimestampNS=0;
+function standingMad(values,center=medianStanding(values)){
+  return medianStanding(values.map(value=>Math.abs(value-center)));
+}
+function standingLineTilt(a,b){
+  let angle=Math.atan2(b.y-a.y,b.x-a.x);
+  while(angle>Math.PI*.5)angle-=Math.PI;
+  while(angle<-Math.PI*.5)angle+=Math.PI;
+  return angle;
+}
+function resetStandingCanonicalTracking(){
+  standingCanonicalAnchor=null;
+  standingCanonicalIdentity=null;
+  standingCanonicalSamples=[];
+  standingCanonicalNoise={rootX:STANDING_CANONICAL_NOISE_FLOOR,rootY:STANDING_CANONICAL_NOISE_FLOOR,facingX:STANDING_CANONICAL_NOISE_FLOOR,facingY:STANDING_CANONICAL_NOISE_FLOOR};
   standingTrackingReady=false;
 }
-function standingNeutralFromSamples(samples){
-  if(!Array.isArray(samples)||samples.length<STANDING_CALIBRATION_MIN_SAMPLES)return null;
+function cloneStandingShape(shape){
+  return {
+    center:{x:shape.center.x,y:shape.center.y},
+    contourCenter:{x:shape.contourCenter.x,y:shape.contourCenter.y},
+    radius:shape.radius,
+    points:shape.points.map(point=>({x:point.x,y:point.y})),
+    normalized:shape.normalized.map(point=>({x:point.x,y:point.y}))
+  };
+}
+function canonicalFrontMetrics(shape){
+  const [rightEye,leftEye,nose,rightMouth,leftMouth]=shape.points;
+  const eyeMid={x:(rightEye.x+leftEye.x)*.5,y:(rightEye.y+leftEye.y)*.5};
+  const mouthMid={x:(rightMouth.x+leftMouth.x)*.5,y:(rightMouth.y+leftMouth.y)*.5};
+  const eyeSpan=Math.max(Number.EPSILON,Math.abs(leftEye.x-rightEye.x));
+  const mouthSpan=Math.max(Number.EPSILON,Math.abs(leftMouth.x-rightMouth.x));
+  const eyeTilt=Math.abs(standingLineTilt(rightEye,leftEye));
+  const mouthTilt=Math.abs(standingLineTilt(rightMouth,leftMouth));
+  const eyeCenterError=Math.abs(nose.x-eyeMid.x)/eyeSpan;
+  const mouthCenterError=Math.abs(nose.x-mouthMid.x)/mouthSpan;
+  const verticalOrder=eyeMid.y<nose.y&&nose.y<mouthMid.y;
+  const front=verticalOrder
+    &&eyeTilt<=STANDING_CANONICAL_EYE_TILT_LIMIT
+    &&mouthTilt<=STANDING_CANONICAL_MOUTH_TILT_LIMIT
+    &&eyeCenterError<=STANDING_CANONICAL_EYE_CENTER_LIMIT
+    &&mouthCenterError<=STANDING_CANONICAL_MOUTH_CENTER_LIMIT;
+  return {front,eyeTilt,mouthTilt,eyeCenterError,mouthCenterError};
+}
+function canonicalCandidateStable(previous,current){
+  if(!previous)return true;
+  const rootDistance=Math.hypot(current.center.x-previous.center.x,current.center.y-previous.center.y);
+  const rootLimit=Math.max(STANDING_CANONICAL_NOISE_FLOOR*2,previous.radius*STANDING_CANONICAL_STABLE_ROOT_RATIO);
+  const sizeDelta=Math.abs(current.radius-previous.radius)/Math.max(Number.EPSILON,previous.radius);
+  return rootDistance<=rootLimit&&sizeDelta<=STANDING_CANONICAL_STABLE_SIZE_RATIO;
+}
+function standingShapeRotation(reference,current){
+  let dot=0,cross=0;
+  for(let index=0;index<reference.normalized.length;index++){
+    const a=reference.normalized[index],b=current.normalized[index];
+    dot+=a.x*b.x+a.y*b.y;
+    cross+=a.x*b.y-a.y*b.x;
+  }
+  return Math.atan2(cross,dot);
+}
+function standingFacingFromIdentity(current,reference=standingCanonicalIdentity){
+  if(!reference)return {x:0,y:0};
+  const residualX=[],residualY=[];
+  for(let index=0;index<reference.normalized.length;index++){
+    residualX.push(current.normalized[index].x-reference.normalized[index].x);
+    residualY.push(current.normalized[index].y-reference.normalized[index].y);
+  }
+  const scale=standingCanonicalAnchor?.radius||current.radius;
+  const rotation=standingShapeRotation(reference,current);
+  return {
+    x:medianStanding(residualX)*scale+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
+    y:medianStanding(residualY)*scale
+  };
+}
+function representativeCanonicalShape(samples){
+  const centerX=medianStanding(samples.map(sample=>sample.center.x));
+  const centerY=medianStanding(samples.map(sample=>sample.center.y));
+  const radius=medianStanding(samples.map(sample=>sample.radius));
   const normalized=Array.from({length:5},(_,index)=>({
     x:medianStanding(samples.map(sample=>sample.normalized[index].x)),
     y:medianStanding(samples.map(sample=>sample.normalized[index].y))
   }));
-  const center={
-    x:medianStanding(samples.map(sample=>sample.center.x)),
-    y:medianStanding(samples.map(sample=>sample.center.y))
-  };
-  const radius=medianStanding(samples.map(sample=>sample.radius));
-  if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||!Number.isFinite(radius)||radius<=0)return null;
-  if(normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
-  return {center,radius,normalized};
-}
-function updateStandingNeutralCalibration(shape,confidence,timestampNS){
-  if(!Number.isFinite(confidence)||confidence<STANDING_CALIBRATION_MIN_SAMPLE_CONFIDENCE){
-    standingNeutralSamples=[];
-    standingCalibrationFirstTimestampNS=0;
-    standingTrackingReady=false;
-    setCameraTrackingStatus("画面の中央を自然に見てください。顔追従の基準位置を取得しています…","working",true);
-    return false;
-  }
-  if(standingCalibrationFirstTimestampNS===0)standingCalibrationFirstTimestampNS=timestampNS;
-  standingNeutralSamples.push({
-    timestampNS,
-    confidence,
-    center:{x:shape.center.x,y:shape.center.y},
-    radius:shape.radius,
-    normalized:shape.normalized.map(point=>({x:point.x,y:point.y}))
-  });
-  if(standingNeutralSamples.length>STANDING_CALIBRATION_MAX_SAMPLES){
-    standingNeutralSamples.shift();
-    standingCalibrationFirstTimestampNS=standingNeutralSamples[0]?.timestampNS||timestampNS;
-  }
-  const durationNS=Math.max(0,timestampNS-standingCalibrationFirstTimestampNS);
-  const averageConfidence=standingNeutralSamples.reduce((sum,sample)=>sum+sample.confidence,0)/standingNeutralSamples.length;
-  const enoughDuration=durationNS>=STANDING_CALIBRATION_DURATION_NS;
-  const enoughSamples=standingNeutralSamples.length>=STANDING_CALIBRATION_MIN_SAMPLES;
-  const enoughConfidence=averageConfidence>=STANDING_CALIBRATION_MIN_AVERAGE_CONFIDENCE;
-  if(!enoughDuration||!enoughSamples||!enoughConfidence){
-    if(standingNeutralSamples.length===1||standingNeutralSamples.length%5===0){
-      const sampleProgress=Math.min(100,Math.round(standingNeutralSamples.length/STANDING_CALIBRATION_MIN_SAMPLES*100));
-      const timeProgress=Math.min(100,Math.round(durationNS/STANDING_CALIBRATION_DURATION_NS*100));
-      const progress=Math.min(sampleProgress,timeProgress);
-      const suffix=enoughDuration&&enoughSamples&&!enoughConfidence
-        ?" / Confidence "+(averageConfidence*100).toFixed(0)+"%"
-        :"";
-      setCameraTrackingStatus("画面正面を基準化中 "+progress+"%"+suffix,"working",true);
+  let best=samples[0],bestScore=Infinity;
+  for(const sample of samples){
+    let score=Math.abs(sample.center.x-centerX)+Math.abs(sample.center.y-centerY)+Math.abs(sample.radius-radius);
+    for(let index=0;index<normalized.length;index++){
+      score+=Math.abs(sample.normalized[index].x-normalized[index].x)+Math.abs(sample.normalized[index].y-normalized[index].y);
     }
-    return false;
+    if(score<bestScore){bestScore=score;best=sample;}
   }
-  const reference=standingNeutralFromSamples(standingNeutralSamples);
-  if(!reference)return false;
-  standingNeutralReference=reference;
-  standingNeutralSamples=[];
-  standingCalibrationFirstTimestampNS=0;
+  return {best,center:{x:centerX,y:centerY},radius};
+}
+function finalizeCanonicalTracking(confidence){
+  if(standingCanonicalSamples.length<STANDING_CANONICAL_REQUIRED_SAMPLES)return false;
+  const {best,center,radius}=representativeCanonicalShape(standingCanonicalSamples);
+  standingCanonicalAnchor={center,radius};
+  standingCanonicalIdentity={normalized:best.normalized.map(point=>({x:point.x,y:point.y}))};
+
+  const rootX=standingCanonicalSamples.map(sample=>sample.center.x-center.x);
+  const rootY=standingCanonicalSamples.map(sample=>sample.center.y-center.y);
+  const facing=standingCanonicalSamples.map(sample=>standingFacingFromIdentity(sample,standingCanonicalIdentity));
+  standingCanonicalNoise={
+    rootX:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootX,0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
+    rootY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootY,0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
+    facingX:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(facing.map(value=>value.x),0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
+    facingY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(facing.map(value=>value.y),0)*STANDING_CANONICAL_NOISE_MULTIPLIER)
+  };
+  standingCanonicalSamples=[];
   standingTrackingReady=true;
   standingTrackedState={x:0,y:0};
   standingMotionTarget={x:0,y:0,confidence};
-  applyStandingPreviewState({
-    x:0,y:0,z:0,yaw:0,pitch:0,roll:0,
-    confidence,lod:0,faceLocalWarp:0
-  });
+  applyStandingPreviewState({x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence,lod:0,faceLocalWarp:0});
   const backend=standingFaceTracker?.backend==="webgpu"?"WebGPU":"WASM";
-  setCameraTrackingStatus("顔追従準備完了（画面正面基準 / YuNet / "+backend+"）","ready",true);
-  if(currentStep===4){
-    setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
-  }
+  setCameraTrackingStatus("顔追従準備完了（Canonical Front / YuNet / "+backend+"）","ready",true);
+  if(currentStep===4)setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
   updateWizard();
   return true;
+}
+function updateStandingCanonicalAcquisition(shape,confidence){
+  if(!Number.isFinite(confidence)||confidence<STANDING_CANONICAL_MIN_CONFIDENCE){
+    standingCanonicalSamples=[];
+    standingTrackingReady=false;
+    setCameraTrackingStatus("顔を自動認識中です…","working",true);
+    return false;
+  }
+  const metrics=canonicalFrontMetrics(shape);
+  if(!metrics.front){
+    standingCanonicalSamples=[];
+    standingTrackingReady=false;
+    setCameraTrackingStatus("顔の正面状態を自動認識中です…","working",true);
+    return false;
+  }
+  const previous=standingCanonicalSamples.at(-1)||null;
+  if(!canonicalCandidateStable(previous,shape))standingCanonicalSamples=[];
+  standingCanonicalSamples.push(cloneStandingShape(shape));
+  if(standingCanonicalSamples.length>STANDING_CANONICAL_MAX_SAMPLES)standingCanonicalSamples.shift();
+
+  if(standingCanonicalSamples.length<STANDING_CANONICAL_REQUIRED_SAMPLES){
+    setCameraTrackingStatus("正面状態を自動確定中 "+standingCanonicalSamples.length+"/"+STANDING_CANONICAL_REQUIRED_SAMPLES,"working",true);
+    return false;
+  }
+  return finalizeCanonicalTracking(confidence);
+}
+function updateStandingCanonicalDrift(shape,metrics,translation,facing){
+  if(!standingCanonicalAnchor||!standingCanonicalIdentity||!metrics.front)return;
+  if(Math.abs(translation.x)>standingCanonicalNoise.rootX||Math.abs(translation.y)>standingCanonicalNoise.rootY)return;
+  if(Math.abs(facing.x)>standingCanonicalNoise.facingX||Math.abs(facing.y)>standingCanonicalNoise.facingY)return;
+
+  const alpha=STANDING_CANONICAL_ADAPT_RATE;
+  standingCanonicalAnchor.center.x+=(shape.center.x-standingCanonicalAnchor.center.x)*alpha;
+  standingCanonicalAnchor.center.y+=(shape.center.y-standingCanonicalAnchor.center.y)*alpha;
+  standingCanonicalAnchor.radius+=(shape.radius-standingCanonicalAnchor.radius)*alpha;
+  for(let index=0;index<standingCanonicalIdentity.normalized.length;index++){
+    standingCanonicalIdentity.normalized[index].x+=(shape.normalized[index].x-standingCanonicalIdentity.normalized[index].x)*alpha;
+    standingCanonicalIdentity.normalized[index].y+=(shape.normalized[index].y-standingCanonicalIdentity.normalized[index].y)*alpha;
+  }
 }
 function standingMotionBounds(){
   const images=Array.from(document.querySelectorAll("[data-standing-preview-image]"));
@@ -586,13 +675,16 @@ function buildStandingShape(sample){
   if(!Number.isFinite(contourCenter.x)||!Number.isFinite(contourCenter.y)||contourCenter.x<0||contourCenter.x>1||contourCenter.y<0||contourCenter.y>1)return null;
   if(!Number.isFinite(contourSize)||contourSize<.0001||contourSize>1)return null;
 
-  // Position is anchored by all five landmarks, not by the detector bbox
-  // center. The bbox/contour still supplies face scale. This prevents a
-  // harmless bbox top/height fluctuation from being interpreted as upward
-  // body motion while the user is still facing the screen.
+  const [rightEye,leftEye,nose,rightMouth,leftMouth]=points;
+  const eyeMid={x:(rightEye.x+leftEye.x)*.5,y:(rightEye.y+leftEye.y)*.5};
+  const mouthMid={x:(rightMouth.x+leftMouth.x)*.5,y:(rightMouth.y+leftMouth.y)*.5};
+
+  // Root position uses both the face contour and the five landmarks.
+  // Median-of-centers rejects a single landmark/bbox wobble without replacing
+  // the system-defined Canonical Front with an arbitrary first-frame neutral.
   const center={
-    x:points.reduce((sum,point)=>sum+point.x,0)/points.length,
-    y:points.reduce((sum,point)=>sum+point.y,0)/points.length
+    x:medianStanding([contourCenter.x,eyeMid.x,nose.x,mouthMid.x]),
+    y:medianStanding([contourCenter.y,eyeMid.y,nose.y,mouthMid.y])
   };
   const normalized=points.map(point=>({
     x:(point.x-center.x)/contourSize,
@@ -601,41 +693,14 @@ function buildStandingShape(sample){
   if(!Number.isFinite(center.x)||!Number.isFinite(center.y)||normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
   return {points,center,contourCenter,radius:contourSize,normalized};
 }
-function standingShapeRotation(reference,current){
-  let dot=0,cross=0;
-  for(let index=0;index<reference.normalized.length;index++){
-    const a=reference.normalized[index],b=current.normalized[index];
-    dot+=a.x*b.x+a.y*b.y;
-    cross+=a.x*b.y-a.y*b.x;
-  }
-  return Math.atan2(cross,dot);
-}
 function standingShapeFromFront(current){
-  const reference=standingNeutralReference;
-  if(!reference)return null;
-
-  // Root translation: even while the face stays front-facing, moving the whole
-  // face left/right/up/down moves the standing character in the same direction.
+  if(!standingCanonicalAnchor||!standingCanonicalIdentity)return null;
   const translation={
-    x:current.center.x-reference.center.x,
-    y:current.center.y-reference.center.y
+    x:current.center.x-standingCanonicalAnchor.center.x,
+    y:current.center.y-standingCanonicalAnchor.center.y
   };
-
-  // Facing/tilt: compare the five landmarks inside the detected face contour,
-  // independently from root translation so both can be recognized at once.
-  const residualX=[],residualY=[];
-  for(let index=0;index<reference.normalized.length;index++){
-    residualX.push(current.normalized[index].x-reference.normalized[index].x);
-    residualY.push(current.normalized[index].y-reference.normalized[index].y);
-  }
-  const scale=reference.radius;
-  const rotation=standingShapeRotation(reference,current);
-  const facing={
-    x:medianStanding(residualX)*scale+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
-    y:medianStanding(residualY)*scale
-  };
-
-  return {translation,facing};
+  const facing=standingFacingFromIdentity(current);
+  return {translation,facing,metrics:canonicalFrontMetrics(current)};
 }
 function captureStandingPreliveComposition(){
   const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
@@ -710,16 +775,15 @@ function acceptStandingFaceRegion(sample){
 
   if(sample.present!==true){
     standingShapePrevious={frameId,timestampNS,shape:null,confidence:0};
-    if(!standingNeutralReference){
-      standingNeutralSamples=[];
-      standingCalibrationFirstTimestampNS=0;
+    if(!standingCanonicalAnchor){
+      standingCanonicalSamples=[];
       standingTrackingReady=false;
-      setCameraTrackingStatus("顔を見失いました。画面の中央を自然に見て基準位置を取り直します…","working",true);
+      setCameraTrackingStatus("顔を見失いました。再検出しています…","working",true);
       updateWizard();
       return;
     }
-    // After calibration, loss/reacquisition never changes the neutral reference.
-    // Character motion freezes at the exact last displayed state until the face returns.
+    // Once Canonical Front has established the session Root, loss/reacquisition
+    // never replaces it. Character motion freezes until the same face returns.
     if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
     standingMotionRaf=0;
     standingMotionTarget={x:standingTrackedState.x,y:standingTrackedState.y,confidence:0};
@@ -731,23 +795,24 @@ function acceptStandingFaceRegion(sample){
   const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
   standingShapePrevious=current;
 
-  if(!standingNeutralReference){
-    updateStandingNeutralCalibration(currentShape,current.confidence,timestampNS);
+  if(!standingCanonicalAnchor||!standingCanonicalIdentity){
+    updateStandingCanonicalAcquisition(currentShape,current.confidence);
     return;
   }
 
   const direction=standingShapeFromFront(currentShape);
   if(!direction)return;
 
-  // Translation and facing/tilt are independent inputs. Apply the same
-  // dead-zone rule to each, then combine them into one XY character target.
-  const translateX=standingShapeAxis(direction.translation.x);
-  const translateY=standingShapeAxis(direction.translation.y);
-  const facingX=standingShapeAxis(direction.facing.x);
-  const facingY=standingShapeAxis(direction.facing.y);
+  // Root translation and facial pose use independent, measured noise floors.
+  // Only motion beyond the observed device/face jitter reaches the character.
+  const translateX=standingShapeAxis(direction.translation.x,standingCanonicalNoise.rootX);
+  const translateY=standingShapeAxis(direction.translation.y,standingCanonicalNoise.rootY);
+  const facingX=standingShapeAxis(direction.facing.x,standingCanonicalNoise.facingX);
+  const facingY=standingShapeAxis(direction.facing.y,standingCanonicalNoise.facingY);
   const moveX=translateX+facingX;
   const moveY=translateY+facingY;
   const neutralLocked=translateX===0&&translateY===0&&facingX===0&&facingY===0;
+  updateStandingCanonicalDrift(currentShape,direction.metrics,direction.translation,direction.facing);
 
   const bounds=standingMotionBounds();
   if(!bounds){
@@ -1209,7 +1274,7 @@ function goStep(step){
   if(step<1||step>4)return;
   currentStep=step;
   if(step===4&&selectedMode==="standing"&&!standingTrackingReady){
-    setFeedback("顔追従と画面正面の基準位置をバックグラウンド準備中です。準備完了まで配信開始できません。","working");
+    setFeedback("顔追従のCanonical Frontをバックグラウンドで自動確定中です。準備完了まで配信開始できません。","working");
     void ensureStandingTracking();
   }
   updateWizard();
@@ -1243,7 +1308,7 @@ function setCameraTrackingStatus(text,state="waiting",visible=selectedMode==="st
 
 function releaseStandingTracking(){
   standingTrackingStart=null;
-  resetStandingNeutralCalibration();
+  resetStandingCanonicalTracking();
   standingFaceTracker?.stop?.();
   standingFaceTracker=null;
   setCameraTrackingStatus("立ち絵を選択するとカメラの使用許可を確認します。","waiting",false);
@@ -1254,14 +1319,14 @@ async function ensureStandingTracking(){
   if(standingTrackingStart)return await standingTrackingStart;
   if(!standingFaceTracker)standingFaceTracker=new StandingFaceTracker();
   const tracker=standingFaceTracker;
-  resetStandingNeutralCalibration();
+  resetStandingCanonicalTracking();
   setCameraTrackingStatus("カメラの使用許可と顔追従を準備しています…","working",true);
   standingTrackingStart=tracker.start().then(()=>{
     if(selectedMode!=="standing"||standingFaceTracker!==tracker){tracker.stop();return;}
     const backend=tracker.backend==="webgpu"?"WebGPU":"WASM";
-    setCameraTrackingStatus("顔追従起動済み（YuNet / "+backend+"）。画面の中央を自然に見たまま基準位置を取得します…","working",true);
+    setCameraTrackingStatus("顔追従起動済み（YuNet / "+backend+"）。Canonical Frontから正面状態を自動認識します…","working",true);
     if(currentStep===4){
-      setFeedback("画面の中央を自然に見たまま、顔追従の基準位置取得を完了してください。","working");
+      setFeedback("正面状態を自動認識しています。特別なキャリブレーション操作は不要です。","working");
     }
     updateWizard();
   }).catch(error=>{
@@ -1995,7 +2060,7 @@ window.addEventListener("orikuro:face-region-sample",event=>{
 });
 window.addEventListener("orikuro:standing-tracking-failed",event=>{
   if(selectedMode!=="standing")return;
-  resetStandingNeutralCalibration();
+  resetStandingCanonicalTracking();
   const code=event?.detail?.code||"STANDING_TRACKING_FAILED";
   setCameraTrackingStatus(`顔追従を継続できません: ${code}`,"error",true);
   updateWizard();
