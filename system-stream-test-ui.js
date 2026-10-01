@@ -315,9 +315,8 @@ let standingFaceTracker=null;
 let standingTrackingReady=false;
 let standingTrackingStart=null;
 let standingCanonicalAnchor=null;
-let standingCanonicalPoseBias={yaw:0,pitch:0,roll:0};
 let standingCanonicalSamples=[];
-let standingCanonicalNoise={rootX:.003,rootY:.003,facingX:.003,facingY:.003};
+let standingCanonicalNoise={rootX:.003,rootY:.003};
 let standingPreliveComposition=null;
 let startedAt=0;
 let timer=0;
@@ -452,7 +451,6 @@ function syncVisibleStandingAssets(){
 const STANDING_SHAPE_GAIN_X=4;
 const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
-const STANDING_SHAPE_ROTATION_GAIN=.35;
 
 // Fixed front-facing definition in YuNet face-box coordinates.
 // This is a system definition, not a shape learned from the first user frames.
@@ -499,9 +497,8 @@ function standingLineTilt(a,b){
 }
 function resetStandingCanonicalTracking(){
   standingCanonicalAnchor=null;
-  standingCanonicalPoseBias={yaw:0,pitch:0,roll:0};
   standingCanonicalSamples=[];
-  standingCanonicalNoise={rootX:STANDING_CANONICAL_NOISE_FLOOR,rootY:STANDING_CANONICAL_NOISE_FLOOR,facingX:STANDING_CANONICAL_NOISE_FLOOR,facingY:STANDING_CANONICAL_NOISE_FLOOR};
+  standingCanonicalNoise={rootX:STANDING_CANONICAL_NOISE_FLOOR,rootY:STANDING_CANONICAL_NOISE_FLOOR};
   standingTrackingReady=false;
 }
 function cloneStandingShape(shape){
@@ -540,15 +537,6 @@ function canonicalCandidateStable(previous,current){
   const sizeDelta=Math.abs(current.radius-previous.radius)/Math.max(Number.EPSILON,previous.radius);
   return rootDistance<=rootLimit&&sizeDelta<=STANDING_CANONICAL_STABLE_SIZE_RATIO;
 }
-function fixedCanonicalFacing(pose,radius=standingCanonicalAnchor?.radius||0){
-  const yaw=pose.yaw-standingCanonicalPoseBias.yaw;
-  const pitch=pose.pitch-standingCanonicalPoseBias.pitch;
-  const roll=pose.roll-standingCanonicalPoseBias.roll;
-  return {
-    x:(yaw+roll*STANDING_SHAPE_ROTATION_GAIN)*radius,
-    y:pitch*radius
-  };
-}
 function finalizeCanonicalTracking(confidence){
   if(standingCanonicalSamples.length<STANDING_CANONICAL_REQUIRED_SAMPLES)return false;
 
@@ -559,22 +547,14 @@ function finalizeCanonicalTracking(confidence){
   const radius=medianStanding(standingCanonicalSamples.map(sample=>sample.shape.radius));
   standingCanonicalAnchor={center,radius};
 
-  // Personal facial proportions only contribute a small zero-bias after the
-  // fixed Canonical Front has already accepted these frames as front-facing.
-  standingCanonicalPoseBias={
-    yaw:medianStanding(standingCanonicalSamples.map(sample=>sample.pose.yaw)),
-    pitch:medianStanding(standingCanonicalSamples.map(sample=>sample.pose.pitch)),
-    roll:medianStanding(standingCanonicalSamples.map(sample=>sample.pose.roll))
-  };
-
+  // Only the session Root origin and measured device/root jitter are learned.
+  // Face pose remains relative to the fixed Canonical Front and is never
+  // re-zeroed from the user's first frames.
   const rootX=standingCanonicalSamples.map(sample=>sample.shape.center.x-center.x);
   const rootY=standingCanonicalSamples.map(sample=>sample.shape.center.y-center.y);
-  const facing=standingCanonicalSamples.map(sample=>fixedCanonicalFacing(sample.pose,radius));
   standingCanonicalNoise={
     rootX:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootX,0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
-    rootY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootY,0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
-    facingX:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(facing.map(value=>value.x),0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
-    facingY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(facing.map(value=>value.y),0)*STANDING_CANONICAL_NOISE_MULTIPLIER)
+    rootY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootY,0)*STANDING_CANONICAL_NOISE_MULTIPLIER)
   };
 
   standingCanonicalSamples=[];
@@ -684,8 +664,7 @@ function standingShapeFromFront(current){
     x:current.center.x-standingCanonicalAnchor.center.x,
     y:current.center.y-standingCanonicalAnchor.center.y
   };
-  const facing=fixedCanonicalFacing(pose,standingCanonicalAnchor.radius);
-  return {translation,facing,pose};
+  return {translation,pose};
 }
 function captureStandingPreliveComposition(){
   const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
@@ -788,15 +767,14 @@ function acceptStandingFaceRegion(sample){
   const direction=standingShapeFromFront(currentShape);
   if(!direction)return;
 
-  // Root translation and facial pose use independent, measured noise floors.
-  // Only motion beyond the observed device/face jitter reaches the character.
+  // Root XY and face pose are separate signals. In particular, Pitch must
+  // never be converted into Root Y; doing so makes a front-facing phone/face
+  // appear as a large vertical character translation.
   const translateX=standingShapeAxis(direction.translation.x,standingCanonicalNoise.rootX);
   const translateY=standingShapeAxis(direction.translation.y,standingCanonicalNoise.rootY);
-  const facingX=standingShapeAxis(direction.facing.x,standingCanonicalNoise.facingX);
-  const facingY=standingShapeAxis(direction.facing.y,standingCanonicalNoise.facingY);
-  const moveX=translateX+facingX;
-  const moveY=translateY+facingY;
-  const neutralLocked=translateX===0&&translateY===0&&facingX===0&&facingY===0;
+  const moveX=translateX;
+  const moveY=translateY;
+  const neutralLocked=translateX===0&&translateY===0;
 
   const bounds=standingMotionBounds();
   if(!bounds){
