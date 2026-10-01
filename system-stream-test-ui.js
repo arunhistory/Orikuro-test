@@ -653,27 +653,29 @@ function buildStandingShape(sample){
   const points=sample.shape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
   const local=sample.localShape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
   const contourCenter={x:Number(sample?.centerX),y:Number(sample?.centerY)};
+  const contourWidth=Number(sample?.width);
+  const contourHeight=Number(sample?.height);
   const contourSize=Number(sample?.size);
 
   if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1))return null;
   if(local.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<-.25||point.x>1.25||point.y<-.25||point.y>1.25))return null;
   if(!Number.isFinite(contourCenter.x)||!Number.isFinite(contourCenter.y)||contourCenter.x<0||contourCenter.x>1||contourCenter.y<0||contourCenter.y>1)return null;
+  if(!Number.isFinite(contourWidth)||!Number.isFinite(contourHeight)||contourWidth<=0||contourHeight<=0||contourWidth>1||contourHeight>1)return null;
   if(!Number.isFinite(contourSize)||contourSize<.0001||contourSize>1)return null;
 
-  const [rightEye,leftEye,,rightMouth,leftMouth]=points;
-  const eyeMid={x:(rightEye.x+leftEye.x)*.5,y:(rightEye.y+leftEye.y)*.5};
-  const mouthMid={x:(rightMouth.x+leftMouth.x)*.5,y:(rightMouth.y+leftMouth.y)*.5};
-  const featureCenter={x:(eyeMid.x+mouthMid.x)*.5,y:(eyeMid.y+mouthMid.y)*.5};
+  // Solve the session Root from the fixed Canonical Front projected into the
+  // detected face box. Eyes and mouth corners participate; the nose does not,
+  // because its 2D displacement is the primary yaw/pitch signal.
+  const rootX=[contourCenter.x];
+  const rootY=[contourCenter.y];
+  for(const index of [0,1,3,4]){
+    const canonical=STANDING_CANONICAL_FRONT[index];
+    rootX.push(points[index].x-(canonical.x-.5)*contourWidth);
+    rootY.push(points[index].y-(canonical.y-.5)*contourHeight);
+  }
+  const center={x:medianStanding(rootX),y:medianStanding(rootY)};
 
-  // Root deliberately excludes the nose: the nose is the strongest 2D cue for
-  // yaw/pitch and must not be counted again as whole-head XY translation.
-  // Contour center and stable eye/mouth center are fused symmetrically.
-  const center={
-    x:(contourCenter.x+featureCenter.x)*.5,
-    y:(contourCenter.y+featureCenter.y)*.5
-  };
-
-  return {points,local,center,contourCenter,radius:contourSize};
+  return {points,local,center,contourCenter,contourWidth,contourHeight,radius:contourSize};
 }
 function standingShapeFromFront(current){
   if(!standingCanonicalAnchor)return null;
