@@ -678,13 +678,17 @@ function buildStandingShape(sample){
   const [rightEye,leftEye,nose,rightMouth,leftMouth]=points;
   const eyeMid={x:(rightEye.x+leftEye.x)*.5,y:(rightEye.y+leftEye.y)*.5};
   const mouthMid={x:(rightMouth.x+leftMouth.x)*.5,y:(rightMouth.y+leftMouth.y)*.5};
+  const landmarkCenter={
+    x:(eyeMid.x+nose.x+mouthMid.x)/3,
+    y:(eyeMid.y+nose.y+mouthMid.y)/3
+  };
 
-  // Root position uses both the face contour and the five landmarks.
-  // Median-of-centers rejects a single landmark/bbox wobble without replacing
-  // the system-defined Canonical Front with an arbitrary first-frame neutral.
+  // Root position uses both the face contour and all five landmarks.
+  // Five robust center candidates make a single bbox or landmark wobble an
+  // outlier instead of allowing it to pull the avatar vertically.
   const center={
-    x:medianStanding([contourCenter.x,eyeMid.x,nose.x,mouthMid.x]),
-    y:medianStanding([contourCenter.y,eyeMid.y,nose.y,mouthMid.y])
+    x:medianStanding([contourCenter.x,eyeMid.x,nose.x,mouthMid.x,landmarkCenter.x]),
+    y:medianStanding([contourCenter.y,eyeMid.y,nose.y,mouthMid.y,landmarkCenter.y])
   };
   const normalized=points.map(point=>({
     x:(point.x-center.x)/contourSize,
