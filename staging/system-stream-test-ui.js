@@ -449,8 +449,8 @@ function syncVisibleStandingAssets(){
   renderStandingBackgroundChoice();
 }
 const STANDING_SHAPE_DEAD_ZONE=.0015;
-const STANDING_SHAPE_GAIN_X=20;
-const STANDING_SHAPE_GAIN_Y=20;
+const STANDING_SHAPE_GAIN_X=8;
+const STANDING_SHAPE_GAIN_Y=8;
 const STANDING_SHAPE_BLEND=.30;
 const STANDING_SHAPE_ROTATION_GAIN=.35;
 const STANDING_CALIBRATION_DURATION_NS=2_000_000_000;
@@ -585,10 +585,23 @@ function buildStandingShape(sample){
   if(points.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1))return null;
   if(!Number.isFinite(contourCenter.x)||!Number.isFinite(contourCenter.y)||contourCenter.x<0||contourCenter.x>1||contourCenter.y<0||contourCenter.y>1)return null;
   if(!Number.isFinite(contourSize)||contourSize<.0001||contourSize>1)return null;
-  const normalized=points.map(point=>({
-    x:(point.x-contourCenter.x)/contourSize,
-    y:(point.y-contourCenter.y)/contourSize
-  }));
+
+  // YuNet adapter already exposes the same five landmarks in face-contour-local
+  // coordinates. Center them on the contour so frontal neutral remains the
+  // exact zero anchor even when the detected bbox width/height fluctuates.
+  let normalized=null;
+  if(Array.isArray(sample?.localShape)&&sample.localShape.length===5){
+    const local=sample.localShape.map(point=>({x:Number(point?.x),y:Number(point?.y)}));
+    if(local.every(point=>Number.isFinite(point.x)&&Number.isFinite(point.y))){
+      normalized=local.map(point=>({x:point.x-.5,y:point.y-.5}));
+    }
+  }
+  if(!normalized){
+    normalized=points.map(point=>({
+      x:(point.x-contourCenter.x)/contourSize,
+      y:(point.y-contourCenter.y)/contourSize
+    }));
+  }
   if(normalized.some(point=>!Number.isFinite(point.x)||!Number.isFinite(point.y)))return null;
   return {points,center:contourCenter,radius:contourSize,normalized};
 }
@@ -619,7 +632,7 @@ function standingShapeFromFront(current){
     residualX.push(current.normalized[index].x-reference.normalized[index].x);
     residualY.push(current.normalized[index].y-reference.normalized[index].y);
   }
-  const scale=(reference.radius+current.radius)*.5;
+  const scale=reference.radius;
   const rotation=standingShapeRotation(reference,current);
   const facing={
     x:medianStanding(residualX)*scale+rotation*scale*STANDING_SHAPE_ROTATION_GAIN,
@@ -738,6 +751,7 @@ function acceptStandingFaceRegion(sample){
   const facingY=standingShapeAxis(direction.facing.y);
   const moveX=translateX+facingX;
   const moveY=translateY+facingY;
+  const neutralLocked=translateX===0&&translateY===0&&facingX===0&&facingY===0;
 
   const bounds=standingMotionBounds();
   if(!bounds){
@@ -745,8 +759,8 @@ function acceptStandingFaceRegion(sample){
     return;
   }
 
-  const targetX=moveX*STANDING_SHAPE_GAIN_X;
-  const targetY=moveY*STANDING_SHAPE_GAIN_Y;
+  const targetX=neutralLocked?0:moveX*STANDING_SHAPE_GAIN_X;
+  const targetY=neutralLocked?0:moveY*STANDING_SHAPE_GAIN_Y;
   if(!Number.isFinite(targetX)||!Number.isFinite(targetY))return;
   const bounded=standingMotionWithinFrame(targetX,targetY,bounds);
   standingMotionTarget={x:bounded.x,y:bounded.y,confidence:current.confidence};
