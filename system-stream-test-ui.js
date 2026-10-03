@@ -1,6 +1,6 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
-import{StandingFaceTracker}from"./standing-face-tracker.js?v=20261001-fixedcanonical1";
+import{StandingFaceTracker}from"./standing-face-tracker.js?v=20261003-fixedruntime1";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
@@ -312,11 +312,8 @@ let standingShapePrevious=null;
 let standingTrackedState={x:0,y:0};
 let standingMotionTarget={x:0,y:0,confidence:0};
 let standingFaceTracker=null;
-let standingTrackingReady=false;
+let standingCameraReady=false;
 let standingTrackingStart=null;
-let standingCanonicalAnchor=null;
-let standingCanonicalSamples=[];
-let standingCanonicalNoise={rootX:.003,rootY:.003};
 let standingPreliveComposition=null;
 let startedAt=0;
 let timer=0;
@@ -453,7 +450,8 @@ const STANDING_SHAPE_GAIN_Y=4;
 const STANDING_SHAPE_BLEND=.30;
 
 // Fixed front-facing definition in YuNet face-box coordinates.
-// This is a system definition, not a shape learned from the first user frames.
+// The face geometry and screen Root are immutable system references.
+// Runtime frames are measured against them; no user/session Neutral is learned.
 const STANDING_CANONICAL_FRONT=Object.freeze([
   Object.freeze({x:.32,y:.38}),
   Object.freeze({x:.68,y:.38}),
@@ -461,20 +459,12 @@ const STANDING_CANONICAL_FRONT=Object.freeze([
   Object.freeze({x:.38,y:.73}),
   Object.freeze({x:.62,y:.73}),
 ]);
+const STANDING_CANONICAL_ROOT=Object.freeze({x:.5,y:.5});
 const STANDING_CANONICAL_NOSE_RATIO=(.56-.38)/(.73-.38);
-const STANDING_CANONICAL_MIN_CONFIDENCE=.70;
-const STANDING_CANONICAL_REQUIRED_SAMPLES=12;
-const STANDING_CANONICAL_MAX_SAMPLES=36;
-const STANDING_CANONICAL_ROLL_LIMIT=.18;
-const STANDING_CANONICAL_YAW_LIMIT=.22;
-const STANDING_CANONICAL_PITCH_LIMIT=.18;
-const STANDING_CANONICAL_STABLE_ROOT_RATIO=.06;
-const STANDING_CANONICAL_STABLE_SIZE_RATIO=.10;
-const STANDING_CANONICAL_NOISE_FLOOR=.003;
-const STANDING_CANONICAL_NOISE_MULTIPLIER=3;
+const STANDING_FIXED_DEAD_ZONE=.003;
 
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
-function standingShapeAxis(value,deadZone=STANDING_CANONICAL_NOISE_FLOOR){
+function standingShapeAxis(value,deadZone=STANDING_FIXED_DEAD_ZONE){
   const zone=Math.max(0,Number(deadZone)||0);
   const magnitude=Math.abs(value);
   if(magnitude<=zone)return 0;
@@ -486,29 +476,11 @@ function medianStanding(values){
   const middle=Math.floor(sorted.length/2);
   return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])*.5;
 }
-function standingMad(values,center=medianStanding(values)){
-  return medianStanding(values.map(value=>Math.abs(value-center)));
-}
 function standingLineTilt(a,b){
   let angle=Math.atan2(b.y-a.y,b.x-a.x);
   while(angle>Math.PI*.5)angle-=Math.PI;
   while(angle<-Math.PI*.5)angle+=Math.PI;
   return angle;
-}
-function resetStandingCanonicalTracking(){
-  standingCanonicalAnchor=null;
-  standingCanonicalSamples=[];
-  standingCanonicalNoise={rootX:STANDING_CANONICAL_NOISE_FLOOR,rootY:STANDING_CANONICAL_NOISE_FLOOR};
-  standingTrackingReady=false;
-}
-function cloneStandingShape(shape){
-  return {
-    center:{x:shape.center.x,y:shape.center.y},
-    contourCenter:{x:shape.contourCenter.x,y:shape.contourCenter.y},
-    radius:shape.radius,
-    points:shape.points.map(point=>({x:point.x,y:point.y})),
-    local:shape.local.map(point=>({x:point.x,y:point.y}))
-  };
 }
 function fixedCanonicalPose(shape){
   const [rightEye,leftEye,nose,rightMouth,leftMouth]=shape.local;
@@ -517,83 +489,14 @@ function fixedCanonicalPose(shape){
   const eyeSpan=Math.max(Number.EPSILON,Math.abs(leftEye.x-rightEye.x));
   const mouthSpan=Math.max(Number.EPSILON,Math.abs(leftMouth.x-rightMouth.x));
   const verticalSpan=mouthMid.y-eyeMid.y;
-  if(!Number.isFinite(verticalSpan)||verticalSpan<=Number.EPSILON)return {front:false,yaw:0,pitch:0,roll:0};
+  if(!Number.isFinite(verticalSpan)||verticalSpan<=Number.EPSILON)return {yaw:0,pitch:0,roll:0};
 
   const roll=standingLineTilt(rightEye,leftEye);
   const yawEye=(nose.x-eyeMid.x)/eyeSpan;
   const yawMouth=(nose.x-mouthMid.x)/mouthSpan;
   const yaw=medianStanding([yawEye,yawMouth]);
   const pitch=(nose.y-eyeMid.y)/verticalSpan-STANDING_CANONICAL_NOSE_RATIO;
-
-  const front=Math.abs(roll)<=STANDING_CANONICAL_ROLL_LIMIT
-    &&Math.abs(yaw)<=STANDING_CANONICAL_YAW_LIMIT
-    &&Math.abs(pitch)<=STANDING_CANONICAL_PITCH_LIMIT;
-  return {front,yaw,pitch,roll};
-}
-function canonicalCandidateStable(previous,current){
-  if(!previous)return true;
-  const rootDistance=Math.hypot(current.center.x-previous.center.x,current.center.y-previous.center.y);
-  const rootLimit=Math.max(STANDING_CANONICAL_NOISE_FLOOR*2,previous.radius*STANDING_CANONICAL_STABLE_ROOT_RATIO);
-  const sizeDelta=Math.abs(current.radius-previous.radius)/Math.max(Number.EPSILON,previous.radius);
-  return rootDistance<=rootLimit&&sizeDelta<=STANDING_CANONICAL_STABLE_SIZE_RATIO;
-}
-function finalizeCanonicalTracking(confidence){
-  if(standingCanonicalSamples.length<STANDING_CANONICAL_REQUIRED_SAMPLES)return false;
-
-  const center={
-    x:medianStanding(standingCanonicalSamples.map(sample=>sample.shape.center.x)),
-    y:medianStanding(standingCanonicalSamples.map(sample=>sample.shape.center.y))
-  };
-  const radius=medianStanding(standingCanonicalSamples.map(sample=>sample.shape.radius));
-  standingCanonicalAnchor={center,radius};
-
-  // Only the session Root origin and measured device/root jitter are learned.
-  // Face pose remains relative to the fixed Canonical Front and is never
-  // re-zeroed from the user's first frames.
-  const rootX=standingCanonicalSamples.map(sample=>sample.shape.center.x-center.x);
-  const rootY=standingCanonicalSamples.map(sample=>sample.shape.center.y-center.y);
-  standingCanonicalNoise={
-    rootX:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootX,0)*STANDING_CANONICAL_NOISE_MULTIPLIER),
-    rootY:Math.max(STANDING_CANONICAL_NOISE_FLOOR,standingMad(rootY,0)*STANDING_CANONICAL_NOISE_MULTIPLIER)
-  };
-
-  standingCanonicalSamples=[];
-  standingTrackingReady=true;
-  standingTrackedState={x:0,y:0};
-  standingMotionTarget={x:0,y:0,confidence};
-  applyStandingPreviewState({x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence,lod:0,faceLocalWarp:0});
-  const backend=standingFaceTracker?.backend==="webgpu"?"WebGPU":"WASM";
-  setCameraTrackingStatus("顔追従準備完了（固定Canonical Front / YuNet / "+backend+"）","ready",true);
-  if(currentStep===4)setFeedback(sessionReady()?"顔追従準備完了。配信を開始できます。":"顔追従準備完了。配信経路の準備を待っています。",sessionReady()?"ready":"working");
-  updateWizard();
-  return true;
-}
-function updateStandingCanonicalAcquisition(shape,confidence){
-  if(!Number.isFinite(confidence)||confidence<STANDING_CANONICAL_MIN_CONFIDENCE){
-    standingCanonicalSamples=[];
-    standingTrackingReady=false;
-    setCameraTrackingStatus("顔を自動認識中です…","working",true);
-    return false;
-  }
-
-  const pose=fixedCanonicalPose(shape);
-  if(!pose.front){
-    standingCanonicalSamples=[];
-    standingTrackingReady=false;
-    setCameraTrackingStatus("固定Canonical Frontで正面状態を判定中です…","working",true);
-    return false;
-  }
-
-  const previous=standingCanonicalSamples.at(-1)?.shape||null;
-  if(!canonicalCandidateStable(previous,shape))standingCanonicalSamples=[];
-  standingCanonicalSamples.push({shape:cloneStandingShape(shape),pose});
-  if(standingCanonicalSamples.length>STANDING_CANONICAL_MAX_SAMPLES)standingCanonicalSamples.shift();
-
-  if(standingCanonicalSamples.length<STANDING_CANONICAL_REQUIRED_SAMPLES){
-    setCameraTrackingStatus("Root原点とノイズを自動確定中 "+standingCanonicalSamples.length+"/"+STANDING_CANONICAL_REQUIRED_SAMPLES,"working",true);
-    return false;
-  }
-  return finalizeCanonicalTracking(confidence);
+  return {yaw,pitch,roll};
 }
 function standingMotionBounds(){
   const images=Array.from(document.querySelectorAll("[data-standing-preview-image]"));
@@ -643,8 +546,8 @@ function buildStandingShape(sample){
   if(!Number.isFinite(contourWidth)||!Number.isFinite(contourHeight)||contourWidth<=0||contourHeight<=0||contourWidth>1||contourHeight>1)return null;
   if(!Number.isFinite(contourSize)||contourSize<.0001||contourSize>1)return null;
 
-  // Solve the session Root from the fixed Canonical Front projected into the
-  // detected face box. Eyes and mouth corners participate; the nose does not,
+  // Solve the current Root from the immutable Canonical Front projected into
+  // the detected face box. Eyes and mouth corners participate; the nose does not,
   // because its 2D displacement is the primary yaw/pitch signal.
   const rootX=[contourCenter.x];
   const rootY=[contourCenter.y];
@@ -658,11 +561,10 @@ function buildStandingShape(sample){
   return {points,local,center,contourCenter,contourWidth,contourHeight,radius:contourSize};
 }
 function standingShapeFromFront(current){
-  if(!standingCanonicalAnchor)return null;
   const pose=fixedCanonicalPose(current);
   const translation={
-    x:current.center.x-standingCanonicalAnchor.center.x,
-    y:current.center.y-standingCanonicalAnchor.center.y
+    x:current.center.x-STANDING_CANONICAL_ROOT.x,
+    y:current.center.y-STANDING_CANONICAL_ROOT.y
   };
   return {translation,pose};
 }
@@ -739,15 +641,8 @@ function acceptStandingFaceRegion(sample){
 
   if(sample.present!==true){
     standingShapePrevious={frameId,timestampNS,shape:null,confidence:0};
-    if(!standingCanonicalAnchor){
-      standingCanonicalSamples=[];
-      standingTrackingReady=false;
-      setCameraTrackingStatus("顔を見失いました。再検出しています…","working",true);
-      updateWizard();
-      return;
-    }
-    // The fixed Canonical definition and session Root remain unchanged across
-    // loss/reacquisition. Character motion freezes until the face returns.
+    // Detection loss is a normal runtime condition. Preparation remains complete;
+    // character motion freezes at the last displayed state until tracking resumes.
     if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
     standingMotionRaf=0;
     standingMotionTarget={x:standingTrackedState.x,y:standingTrackedState.y,confidence:0};
@@ -759,19 +654,14 @@ function acceptStandingFaceRegion(sample){
   const current={frameId,timestampNS,shape:currentShape,confidence:Number.isFinite(confidence)?clampStandingMotion(confidence,0,1):0};
   standingShapePrevious=current;
 
-  if(!standingCanonicalAnchor){
-    updateStandingCanonicalAcquisition(currentShape,current.confidence);
-    return;
-  }
-
   const direction=standingShapeFromFront(currentShape);
   if(!direction)return;
 
   // Root XY and face pose are separate signals. In particular, Pitch must
   // never be converted into Root Y; doing so makes a front-facing phone/face
   // appear as a large vertical character translation.
-  const translateX=standingShapeAxis(direction.translation.x,standingCanonicalNoise.rootX);
-  const translateY=standingShapeAxis(direction.translation.y,standingCanonicalNoise.rootY);
+  const translateX=standingShapeAxis(direction.translation.x);
+  const translateY=standingShapeAxis(direction.translation.y);
   const moveX=translateX;
   const moveY=translateY;
   const neutralLocked=translateX===0&&translateY===0;
@@ -1226,7 +1116,7 @@ function updateWizard(){
   if(start){
     start.hidden=currentStep!==4;
     start.textContent=selectedMode==="standing"?"立ち絵配信スタート":"ラジオ配信スタート";
-    start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported||(selectedMode==="standing"&&!standingTrackingReady);
+    start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported||(selectedMode==="standing"&&!standingCameraReady);
   }
   updateSummary();
   syncVisibleStandingAssets();
@@ -1235,8 +1125,8 @@ function updateWizard(){
 function goStep(step){
   if(step<1||step>4)return;
   currentStep=step;
-  if(step===4&&selectedMode==="standing"&&!standingTrackingReady){
-    setFeedback("固定Canonical Frontで顔姿勢を確認し、Root原点を自動確定中です。準備完了まで配信開始できません。","working");
+  if(step===4&&selectedMode==="standing"&&!standingCameraReady){
+    setFeedback("カメラ接続を確認しています。接続できれば立ち絵配信の準備完了です。","working");
     void ensureStandingTracking();
   }
   updateWizard();
@@ -1270,37 +1160,37 @@ function setCameraTrackingStatus(text,state="waiting",visible=selectedMode==="st
 
 function releaseStandingTracking(){
   standingTrackingStart=null;
-  resetStandingCanonicalTracking();
+  standingCameraReady=false;
   standingFaceTracker?.stop?.();
   standingFaceTracker=null;
   setCameraTrackingStatus("立ち絵を選択するとカメラの使用許可を確認します。","waiting",false);
 }
 
 async function ensureStandingTracking(){
-  if(selectedMode!=="standing"||standingTrackingReady||standingFaceTracker?.running)return;
+  if(selectedMode!=="standing"||standingCameraReady||standingFaceTracker?.running)return;
   if(standingTrackingStart)return await standingTrackingStart;
   if(!standingFaceTracker)standingFaceTracker=new StandingFaceTracker();
   const tracker=standingFaceTracker;
-  resetStandingCanonicalTracking();
-  setCameraTrackingStatus("カメラの使用許可と顔追従を準備しています…","working",true);
+  standingCameraReady=false;
+  setCameraTrackingStatus("カメラの使用許可を確認しています…","working",true);
   standingTrackingStart=tracker.start().then(()=>{
     if(selectedMode!=="standing"||standingFaceTracker!==tracker){tracker.stop();return;}
-    const backend=tracker.backend==="webgpu"?"WebGPU":"WASM";
-    setCameraTrackingStatus("顔追従起動済み（YuNet / "+backend+"）。固定Canonical Frontで正面・Pitch・Yaw・Rollを自動判定します…","working",true);
+    standingCameraReady=true;
+    setCameraTrackingStatus("カメラ接続済み。立ち絵配信の準備完了です。","ready",true);
     if(currentStep===4){
-      setFeedback("正面状態を自動認識しています。特別なキャリブレーション操作は不要です。","working");
+      setFeedback(sessionReady()?"カメラ接続済み。配信を開始できます。":"カメラ接続済み。配信経路の準備を待っています。",sessionReady()?"ready":"working");
     }
     updateWizard();
   }).catch(error=>{
     if(standingFaceTracker===tracker){tracker.stop();standingFaceTracker=null;}
-    standingTrackingReady=false;
+    standingCameraReady=false;
     if(selectedMode==="standing"){
-      const code=error instanceof Error?error.message:"STANDING_TRACKING_START_FAILED";
+      const code=error instanceof Error?error.message:"STANDING_CAMERA_START_FAILED";
       const message=code==="NotAllowedError"||code==="CAMERA_PERMISSION_DENIED"
         ?"カメラの使用が許可されていません。ブラウザのカメラ許可を確認してください。"
         :code==="NotFoundError"||code==="CAMERA_TRACK_MISSING"
           ?"使用できるカメラが見つかりません。"
-          :`顔追従を開始できません: ${code}`;
+          :`カメラを開始できません: ${code}`;
       setCameraTrackingStatus(message,"error",true);
       setFeedback(message,"error");
       updateWizard();
@@ -2020,11 +1910,21 @@ window.addEventListener("orikuro:standing-backend-ready",()=>{
 window.addEventListener("orikuro:face-region-sample",event=>{
   if(selectedMode==="standing")acceptStandingFaceRegion(event?.detail);
 });
+window.addEventListener("orikuro:standing-tracking-ready",event=>{
+  if(selectedMode!=="standing"||!standingCameraReady)return;
+  const backend=event?.detail?.backend==="webgpu"?"WebGPU":"WASM";
+  setCameraTrackingStatus(`カメラ接続済み / 立ち絵追従動作中（YuNet / ${backend}）`,"ready",true);
+});
 window.addEventListener("orikuro:standing-tracking-failed",event=>{
   if(selectedMode!=="standing")return;
-  resetStandingCanonicalTracking();
   const code=event?.detail?.code||"STANDING_TRACKING_FAILED";
-  setCameraTrackingStatus(`顔追従を継続できません: ${code}`,"error",true);
+  if(event?.detail?.camera===true){
+    standingCameraReady=false;
+    setCameraTrackingStatus(`カメラ接続を継続できません: ${code}`,"error",true);
+    setFeedback("カメラ接続が失われました。再接続してください。","error");
+  }else{
+    setCameraTrackingStatus(`カメラ接続済み / 立ち絵追従エラー: ${code}`,"error",true);
+  }
   updateWizard();
 });
 window.addEventListener("orikuro:stream-common-preparing",()=>{
@@ -2185,7 +2085,7 @@ stopButton?.addEventListener("click",()=>{
 
 const startButton=document.querySelector("[data-stream-start]");
 startButton?.addEventListener("click",()=>{
-  if(currentStep!==4||!readyForStep(4)||!sessionReady()||!supportedModes.has(selectedMode)||(selectedMode==="standing"&&!standingTrackingReady))return;
+  if(currentStep!==4||!readyForStep(4)||!sessionReady()||!supportedModes.has(selectedMode)||(selectedMode==="standing"&&!standingCameraReady))return;
   startButton.disabled=true;
   document.documentElement.dataset.broadcastPhase="starting";
   const requestedMode=selectedMode,requestedChoice=backgroundChoice;

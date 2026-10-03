@@ -28,6 +28,7 @@ export class StandingFaceTracker{
     this.canvas=null;
     this.context=null;
     this.running=false;
+    this.trackingActive=false;
     this.busy=false;
     this.failedFrames=0;
     this.frameId=0;
@@ -58,14 +59,13 @@ export class StandingFaceTracker{
     if(!media?.getUserMedia)throw new Error('CAMERA_CAPTURE_UNAVAILABLE');
     this.running=true;
     try{
-      // Ask for the camera first. Heavy ONNX initialization starts only after
-      // the permission path succeeds, avoiding a Safari/WebKit peak while the
-      // browser is also handling media permission and stream setup.
+      // Camera connection is the entire preparation contract. Tracking provider
+      // initialization is runtime work and must never delay preparation readiness.
       this.stream=await media.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}}});
       if(!this.running){this.stream.getTracks().forEach(track=>track.stop());this.stream=null;return;}
       const track=this.stream.getVideoTracks()[0];
       if(!track||track.readyState!=='live')throw new Error('CAMERA_TRACK_MISSING');
-      track.addEventListener('ended',()=>this.#fail('CAMERA_TRACK_ENDED'),{once:true});
+      track.addEventListener('ended',()=>this.#cameraFail('CAMERA_TRACK_ENDED'),{once:true});
 
       const video=document.createElement('video');
       video.muted=true;video.playsInline=true;video.autoplay=true;video.srcObject=this.stream;
@@ -75,20 +75,33 @@ export class StandingFaceTracker{
       await this.#waitForVideoGeometry(video);
       if(!this.running)return;
 
-      this.worker=new Worker(WORKER_URL,{name:'orikuro-yunet-face-provider'});
-      const providerReady=this.#waitForProviderReady(this.worker);
-      this.worker.addEventListener('message',event=>this.#onWorkerMessage(event));
-      this.worker.addEventListener('error',()=>this.#fail('FACE_PROVIDER_WORKER_ERROR'));
-      this.worker.postMessage({type:'init'});
-      await providerReady;
-      if(!this.running)return;
+      window.dispatchEvent(new CustomEvent('orikuro:standing-camera-ready',{detail:{rawCameraUpload:false}}));
+      void this.#startProvider();
+    }catch(error){
+      const code=error instanceof DOMException&&error.name?error.name:error instanceof Error&&error.message?error.message:'STANDING_CAMERA_START_FAILED';
+      this.stop();
+      throw new Error(code);
+    }
+  }
 
+  async #startProvider(){
+    if(!this.running||!this.video||this.worker)return;
+    let worker=null;
+    try{
+      worker=new Worker(WORKER_URL,{name:'orikuro-yunet-face-provider'});
+      this.worker=worker;
+      const providerReady=this.#waitForProviderReady(worker);
+      worker.postMessage({type:'init'});
+      await providerReady;
+      if(!this.running||this.worker!==worker){try{worker.terminate();}catch{}return;}
+      worker.addEventListener('message',event=>this.#onWorkerMessage(event));
+      worker.addEventListener('error',()=>this.#providerFail('FACE_PROVIDER_WORKER_ERROR',worker),{once:true});
+      this.trackingActive=true;
       this.#schedule();
       window.dispatchEvent(new CustomEvent('orikuro:standing-tracking-ready',{detail:{backend:this.backend,provider:'yunet-onnxruntime-web',rawCameraUpload:false,inferenceSide:this.maxInferenceSide}}));
     }catch(error){
-      const code=error instanceof DOMException&&error.name?error.name:error instanceof Error&&error.message?error.message:'STANDING_TRACKING_START_FAILED';
-      this.stop();
-      throw new Error(code);
+      const code=error instanceof Error&&error.message?error.message:'FACE_PROVIDER_INIT_FAILED';
+      this.#providerFail(code,worker);
     }
   }
 
@@ -98,7 +111,7 @@ export class StandingFaceTracker{
     }
     if(this.animationHandle)cancelAnimationFrame(this.animationHandle);
     this.videoFrameHandle=0;this.animationHandle=0;
-    this.running=false;this.busy=false;this.failedFrames=0;
+    this.running=false;this.trackingActive=false;this.busy=false;this.failedFrames=0;
     try{this.worker?.postMessage({type:'dispose'});}catch{}
     try{this.worker?.terminate();}catch{}
     this.worker=null;
@@ -152,24 +165,24 @@ export class StandingFaceTracker{
   }
 
   #schedule(){
-    if(!this.running||!this.video)return;
+    if(!this.running||!this.trackingActive||!this.video)return;
     if(typeof this.video.requestVideoFrameCallback==='function'){
       this.videoFrameHandle=this.video.requestVideoFrameCallback(now=>{
         this.videoFrameHandle=0;
-        try{this.#tick(now);}catch{this.#fail('FACE_CAPTURE_FRAME_FAILED');}
+        try{this.#tick(now);}catch{this.#providerFail('FACE_CAPTURE_FRAME_FAILED');}
         this.#schedule();
       });
     }else{
       this.animationHandle=requestAnimationFrame(now=>{
         this.animationHandle=0;
-        try{this.#tick(now);}catch{this.#fail('FACE_CAPTURE_FRAME_FAILED');}
+        try{this.#tick(now);}catch{this.#providerFail('FACE_CAPTURE_FRAME_FAILED');}
         this.#schedule();
       });
     }
   }
 
   #tick(now){
-    if(!this.running||this.busy||!this.worker||!this.video||this.video.readyState<2)return;
+    if(!this.running||!this.trackingActive||this.busy||!this.worker||!this.video||this.video.readyState<2)return;
     if(now-this.lastSubmitMs<TARGET_INTERVAL_MS)return;
     this.lastSubmitMs=now;
     const sourceW=this.video.videoWidth,sourceH=this.video.videoHeight;
@@ -181,7 +194,7 @@ export class StandingFaceTracker{
     if(!this.canvas||this.canvas.width!==width||this.canvas.height!==height){
       const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
       const context=canvas.getContext('2d',{alpha:false,willReadFrequently:true});
-      if(!context){this.#fail('FACE_PROVIDER_CANVAS_UNAVAILABLE');return;}
+      if(!context){this.#providerFail('FACE_PROVIDER_CANVAS_UNAVAILABLE');return;}
       this.canvas=canvas;this.context=context;
     }
     const ctx=this.context;
@@ -210,13 +223,13 @@ export class StandingFaceTracker{
           :adaptYuNetDetectionToFaceRegionSample(gated.detection,{frameId:data.frameId,timestampNS:data.timestampNS,contentWidth:data.contentWidth,contentHeight:data.contentHeight});
         window.dispatchEvent(new CustomEvent('orikuro:face-region-sample',{detail:sample}));
       }catch(error){
-        this.#fail(error instanceof Error?error.message:'FACE_REGION_ADAPTER_FAILED');
+        this.#providerFail(error instanceof Error?error.message:'FACE_REGION_ADAPTER_FAILED');
       }
     }else if(data.type==='frame-error'){
       this.busy=false;
       this.failedFrames++;
       if(this.failedFrames>=3){
-        this.#fail('FACE_PROVIDER_REPEATED_FRAME_ERROR');
+        this.#providerFail('FACE_PROVIDER_REPEATED_FRAME_ERROR');
         return;
       }
       const frameId=Number(data.frameId),timestampNS=Number(data.timestampNS);
@@ -224,7 +237,7 @@ export class StandingFaceTracker{
         try{window.dispatchEvent(new CustomEvent('orikuro:face-region-sample',{detail:createLostFaceRegionSample(frameId,timestampNS)}));}catch{}
       }
     }else if(data.type==='fatal'){
-      this.#fail(typeof data.code==='string'?data.code:'FACE_PROVIDER_FATAL');
+      this.#providerFail(typeof data.code==='string'?data.code:'FACE_PROVIDER_FATAL');
     }
   }
 
@@ -314,9 +327,23 @@ export class StandingFaceTracker{
     }else this.stableInferenceFrames=0;
   }
 
-  #fail(code){
+  #providerFail(code,worker=this.worker){
+    if(worker&&this.worker&&worker!==this.worker)return;
+    if(this.video&&this.videoFrameHandle&&typeof this.video.cancelVideoFrameCallback==='function'){
+      try{this.video.cancelVideoFrameCallback(this.videoFrameHandle);}catch{}
+    }
+    if(this.animationHandle)cancelAnimationFrame(this.animationHandle);
+    this.videoFrameHandle=0;this.animationHandle=0;
+    this.trackingActive=false;this.busy=false;this.failedFrames=0;
+    try{this.worker?.postMessage({type:'dispose'});}catch{}
+    try{this.worker?.terminate();}catch{}
+    this.worker=null;this.canvas=null;this.context=null;this.backend='unavailable';
+    window.dispatchEvent(new CustomEvent('orikuro:standing-tracking-failed',{detail:{code,camera:false}}));
+  }
+
+  #cameraFail(code){
     if(!this.running)return;
     this.stop();
-    window.dispatchEvent(new CustomEvent('orikuro:standing-tracking-failed',{detail:{code}}));
+    window.dispatchEvent(new CustomEvent('orikuro:standing-tracking-failed',{detail:{code,camera:true}}));
   }
 }
