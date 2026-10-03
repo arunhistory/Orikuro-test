@@ -1,6 +1,6 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
-import{StandingFaceTracker}from"./standing-face-tracker.js?v=20261003-fixedruntime1";
+import{StandingFaceTracker}from"./standing-face-tracker.js?v=20261003-fixedruntime2";
 
 const compatibility=applyStreamingCompatibility(document);
 const root=document.querySelector("[data-stream-supported]");
