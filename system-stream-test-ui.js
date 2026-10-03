@@ -462,6 +462,16 @@ const STANDING_CANONICAL_FRONT=Object.freeze([
 const STANDING_CANONICAL_ROOT=Object.freeze({x:.5,y:.5});
 const STANDING_CANONICAL_NOSE_RATIO=(.56-.38)/(.73-.38);
 const STANDING_FIXED_DEAD_ZONE=.003;
+const STANDING_SCREEN_FRONT_PROFILES=Object.freeze({
+  iphone:Object.freeze({faceHeightGain:.18,safeTopGain:.20,minYOffset:.035,maxYOffset:.14,landscapeYScale:.15,pitchGain:.055}),
+  ipad:Object.freeze({faceHeightGain:.22,safeTopGain:.15,minYOffset:.030,maxYOffset:.16,landscapeYScale:.12,pitchGain:.050}),
+  androidPhone:Object.freeze({faceHeightGain:.17,safeTopGain:.15,minYOffset:.030,maxYOffset:.14,landscapeYScale:.15,pitchGain:.050}),
+  androidTablet:Object.freeze({faceHeightGain:.21,safeTopGain:.12,minYOffset:.025,maxYOffset:.16,landscapeYScale:.12,pitchGain:.045}),
+  mobileGeneric:Object.freeze({faceHeightGain:.18,safeTopGain:.12,minYOffset:.030,maxYOffset:.14,landscapeYScale:.15,pitchGain:.050}),
+  desktop:Object.freeze({faceHeightGain:.30,safeTopGain:0,minYOffset:.020,maxYOffset:.16,landscapeYScale:1,pitchGain:.040}),
+});
+let standingScreenFrontProfileCache=null;
+let standingSafeAreaProbe=null;
 
 function clampStandingMotion(value,min,max){return Math.max(min,Math.min(max,value));}
 function standingShapeAxis(value,deadZone=STANDING_FIXED_DEAD_ZONE){
@@ -481,6 +491,50 @@ function standingLineTilt(a,b){
   while(angle>Math.PI*.5)angle-=Math.PI;
   while(angle<-Math.PI*.5)angle+=Math.PI;
   return angle;
+}
+function standingScreenFrontProfile(){
+  if(standingScreenFrontProfileCache)return standingScreenFrontProfileCache;
+  const ua=navigator.userAgent||"";
+  const platform=navigator.platform||"";
+  const touch=Number(navigator.maxTouchPoints)||0;
+  const ipad=/iPad/i.test(ua)||(platform==="MacIntel"&&touch>1);
+  const iphone=/iPhone|iPod/i.test(ua);
+  const android=/Android/i.test(ua);
+  const androidTablet=android&&!/Mobile/i.test(ua);
+  const mobile=/Mobile/i.test(ua)||touch>1;
+  const id=iphone?"iphone":ipad?"ipad":androidTablet?"androidTablet":android?"androidPhone":mobile?"mobileGeneric":"desktop";
+  standingScreenFrontProfileCache={id,...STANDING_SCREEN_FRONT_PROFILES[id]};
+  return standingScreenFrontProfileCache;
+}
+function standingSafeAreaTopRatio(){
+  if(!document.body||!Number.isFinite(window.innerHeight)||window.innerHeight<=0)return 0;
+  if(!(standingSafeAreaProbe instanceof HTMLElement)){
+    const probe=document.createElement("div");
+    probe.setAttribute("aria-hidden","true");
+    probe.style.cssText="position:fixed;visibility:hidden;pointer-events:none;inset:0 auto auto 0;width:0;height:0;padding-top:env(safe-area-inset-top,0px)";
+    document.body.append(probe);
+    standingSafeAreaProbe=probe;
+  }
+  const px=Number.parseFloat(getComputedStyle(standingSafeAreaProbe).paddingTop)||0;
+  return clampStandingMotion(px/window.innerHeight,0,.15);
+}
+function standingScreenFrontReference(shape){
+  const profile=standingScreenFrontProfile();
+  const faceHeight=clampStandingMotion(Number(shape?.contourHeight)||0,.12,.82);
+  const portrait=typeof matchMedia==="function"?matchMedia("(orientation: portrait)").matches:window.innerHeight>=window.innerWidth;
+  const safeTop=portrait?standingSafeAreaTopRatio():0;
+  const orientationScale=portrait?1:profile.landscapeYScale;
+  const rawYOffset=(faceHeight*profile.faceHeightGain+safeTop*profile.safeTopGain)*orientationScale;
+  const minYOffset=portrait?profile.minYOffset:0;
+  const maxYOffset=portrait?profile.maxYOffset:profile.maxYOffset*profile.landscapeYScale;
+  const yOffset=clampStandingMotion(rawYOffset,minYOffset,maxYOffset);
+  const pitchOffset=faceHeight*profile.pitchGain*orientationScale;
+  return Object.freeze({
+    x:STANDING_CANONICAL_ROOT.x,
+    y:STANDING_CANONICAL_ROOT.y+yOffset,
+    pitch:pitchOffset,
+    profile:profile.id,
+  });
 }
 function fixedCanonicalPose(shape){
   const [rightEye,leftEye,nose,rightMouth,leftMouth]=shape.local;
@@ -561,12 +615,14 @@ function buildStandingShape(sample){
   return {points,local,center,contourCenter,contourWidth,contourHeight,radius:contourSize};
 }
 function standingShapeFromFront(current){
-  const pose=fixedCanonicalPose(current);
+  const screenFront=standingScreenFrontReference(current);
+  const rawPose=fixedCanonicalPose(current);
+  const pose={...rawPose,pitch:rawPose.pitch-screenFront.pitch};
   const translation={
-    x:current.center.x-STANDING_CANONICAL_ROOT.x,
-    y:current.center.y-STANDING_CANONICAL_ROOT.y
+    x:current.center.x-screenFront.x,
+    y:current.center.y-screenFront.y
   };
-  return {translation,pose};
+  return {translation,pose,screenFront};
 }
 function captureStandingPreliveComposition(){
   const frame=document.querySelector('[data-wizard-step="4"] .broadcast-final-preview');
