@@ -309,8 +309,20 @@ let liveBackgroundIndependent=false;
 let liveBackgroundRenderedAck="";
 let standingMotionRaf=0;
 let standingShapePrevious=null;
-let standingTrackedState={x:0,y:0};
-let standingMotionTarget={x:0,y:0,confidence:0};
+let standingTrackedState={x:0,y:0,yaw:0,pitch:0,roll:0};
+let standingMotionTarget={x:0,y:0,yaw:0,pitch:0,roll:0,confidence:0,timestampNS:0};
+let standingMotionDynamics={
+  lastInput:null,
+  velocity:{x:0,y:0,yaw:0,pitch:0,roll:0},
+  acceleration:{x:0,y:0},
+  parts:{
+    head:{yaw:0,pitch:0,roll:0},
+    neck:{yaw:0,pitch:0,roll:0},
+    chest:{yaw:0,pitch:0,roll:0},
+    pelvis:{yaw:0,pitch:0,roll:0}
+  },
+  lastRenderMs:0
+};
 let standingFaceTracker=null;
 let standingCameraReady=false;
 let standingTrackingStart=null;
@@ -406,14 +418,15 @@ function revokeStandingBackgroundUrls(){
   document.querySelectorAll("[data-standing-background-index]").forEach(button=>{if(button instanceof HTMLButtonElement)button.disabled=true;});
 }
 function resetStandingMotionFrame(){
-  window.__orikuroStandingFrameState={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:1,lod:0,faceLocalWarp:0};
+  window.__orikuroStandingFrameState={x:0,y:0,z:0,yaw:0,pitch:0,roll:0,confidence:1,lod:0,faceLocalWarp:0,parts:null};
   document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement)img.style.transform="";});
 }
 function stopStandingMotion(reset=true){
   if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
   standingMotionRaf=0;standingShapePrevious=null;
-  standingTrackedState={x:0,y:0};
-  standingMotionTarget={x:0,y:0,confidence:0};
+  standingTrackedState={x:0,y:0,yaw:0,pitch:0,roll:0};
+  standingMotionTarget={x:0,y:0,yaw:0,pitch:0,roll:0,confidence:0,timestampNS:0};
+  resetStandingMotionDynamics();
   if(reset)resetStandingMotionFrame();
 }
 function standingAssetViewActive(el){
@@ -447,7 +460,29 @@ function syncVisibleStandingAssets(){
 }
 const STANDING_SHAPE_GAIN_X=4;
 const STANDING_SHAPE_GAIN_Y=4;
-const STANDING_SHAPE_BLEND=.30;
+// Equivalent to the previous 0.30/frame smoothing at 60fps, but time based.
+const STANDING_ROOT_TIME_CONSTANT_MS=46.7;
+const STANDING_RETARGET_GAIN=Object.freeze({
+  head:.80,
+  chest:.68,
+  pelvis:.55,
+  neck:(.80+.68)/2,
+});
+const STANDING_FILTER_TIME_MS=Object.freeze({
+  head:32,
+  chest:42,
+  pelvis:48,
+  neck:(32+42)/2,
+});
+const STANDING_POSE_INPUT_NORMALIZER=Object.freeze({yaw:.22,pitch:.18});
+const STANDING_POSE_NORMAL_LIMIT_DEG=Object.freeze({yaw:12,pitch:8,roll:18});
+const STANDING_POSE_HARD_LIMIT_DEG=Object.freeze({yaw:18,pitch:14,roll:30});
+const STANDING_MAX_SPEED_HPS=3;
+const STANDING_MAX_ACCEL_HPS2=24;
+const STANDING_MAX_ANGULAR_SPEED_DPS=360;
+const STANDING_BALANCE_SHIFT_MAX=.025;
+const STANDING_TORSO_COUNTER_MAX_DEG=6;
+const STANDING_PELVIS_COUNTER_MAX_DEG=4;
 
 // Fixed front-facing definition in YuNet face-box coordinates.
 // The face geometry and screen Root are immutable system references.
@@ -491,6 +526,84 @@ function standingLineTilt(a,b){
   while(angle>Math.PI*.5)angle-=Math.PI;
   while(angle<-Math.PI*.5)angle+=Math.PI;
   return angle;
+}
+function standingFollowValue(current,target,dtMs,timeConstantMs){
+  const tau=Math.max(1,Number(timeConstantMs)||1);
+  const dt=clampStandingMotion(Number(dtMs)||0,0,50);
+  const alpha=1-Math.exp(-dt/tau);
+  return current+(target-current)*alpha;
+}
+function standingPoseToDegrees(pose){
+  const yaw=clampStandingMotion(
+    (Number(pose?.yaw)||0)/STANDING_POSE_INPUT_NORMALIZER.yaw*STANDING_POSE_NORMAL_LIMIT_DEG.yaw,
+    -STANDING_POSE_HARD_LIMIT_DEG.yaw,STANDING_POSE_HARD_LIMIT_DEG.yaw
+  );
+  const pitch=clampStandingMotion(
+    (Number(pose?.pitch)||0)/STANDING_POSE_INPUT_NORMALIZER.pitch*STANDING_POSE_NORMAL_LIMIT_DEG.pitch,
+    -STANDING_POSE_HARD_LIMIT_DEG.pitch,STANDING_POSE_HARD_LIMIT_DEG.pitch
+  );
+  const roll=clampStandingMotion(
+    (Number(pose?.roll)||0)*180/Math.PI,
+    -STANDING_POSE_HARD_LIMIT_DEG.roll,STANDING_POSE_HARD_LIMIT_DEG.roll
+  );
+  return {yaw,pitch,roll};
+}
+function resetStandingMotionDynamics(){
+  standingMotionDynamics={
+    lastInput:null,
+    velocity:{x:0,y:0,yaw:0,pitch:0,roll:0},
+    acceleration:{x:0,y:0},
+    parts:{
+      head:{yaw:0,pitch:0,roll:0},
+      neck:{yaw:0,pitch:0,roll:0},
+      chest:{yaw:0,pitch:0,roll:0},
+      pelvis:{yaw:0,pitch:0,roll:0}
+    },
+    lastRenderMs:0
+  };
+}
+function updateStandingMotionDynamics(target,timestampNS){
+  const ts=Number(timestampNS);
+  const previous=standingMotionDynamics.lastInput;
+  if(!previous||!Number.isSafeInteger(ts)||ts<=previous.timestampNS){
+    standingMotionDynamics.lastInput={...target,timestampNS:ts};
+    standingMotionDynamics.velocity={x:0,y:0,yaw:0,pitch:0,roll:0};
+    standingMotionDynamics.acceleration={x:0,y:0};
+    return;
+  }
+  const dt=clampStandingMotion((ts-previous.timestampNS)/1_000_000_000,1/120,.10);
+  const vx=clampStandingMotion((target.x-previous.x)/dt,-STANDING_MAX_SPEED_HPS,STANDING_MAX_SPEED_HPS);
+  const vy=clampStandingMotion((target.y-previous.y)/dt,-STANDING_MAX_SPEED_HPS,STANDING_MAX_SPEED_HPS);
+  const vyaw=clampStandingMotion((target.yaw-previous.yaw)/dt,-STANDING_MAX_ANGULAR_SPEED_DPS,STANDING_MAX_ANGULAR_SPEED_DPS);
+  const vpitch=clampStandingMotion((target.pitch-previous.pitch)/dt,-STANDING_MAX_ANGULAR_SPEED_DPS,STANDING_MAX_ANGULAR_SPEED_DPS);
+  const vroll=clampStandingMotion((target.roll-previous.roll)/dt,-STANDING_MAX_ANGULAR_SPEED_DPS,STANDING_MAX_ANGULAR_SPEED_DPS);
+  const oldVelocity=standingMotionDynamics.velocity;
+  const ax=clampStandingMotion((vx-oldVelocity.x)/dt,-STANDING_MAX_ACCEL_HPS2,STANDING_MAX_ACCEL_HPS2);
+  const ay=clampStandingMotion((vy-oldVelocity.y)/dt,-STANDING_MAX_ACCEL_HPS2,STANDING_MAX_ACCEL_HPS2);
+  standingMotionDynamics.velocity={x:vx,y:vy,yaw:vyaw,pitch:vpitch,roll:vroll};
+  standingMotionDynamics.acceleration={x:ax,y:ay};
+  standingMotionDynamics.lastInput={...target,timestampNS:ts};
+}
+function standingPartTarget(pose,gain,counterRoll=0){
+  return {
+    yaw:pose.yaw*gain,
+    pitch:pose.pitch*gain,
+    roll:clampStandingMotion(pose.roll*gain+counterRoll,-STANDING_POSE_HARD_LIMIT_DEG.roll,STANDING_POSE_HARD_LIMIT_DEG.roll)
+  };
+}
+function followStandingPart(current,target,dtMs,tauMs){
+  return {
+    yaw:standingFollowValue(current.yaw,target.yaw,dtMs,tauMs),
+    pitch:standingFollowValue(current.pitch,target.pitch,dtMs,tauMs),
+    roll:standingFollowValue(current.roll,target.roll,dtMs,tauMs)
+  };
+}
+function standingCompositePose(parts){
+  return {
+    yaw:(parts.head.yaw+parts.neck.yaw+parts.chest.yaw+parts.pelvis.yaw)/4,
+    pitch:(parts.head.pitch+parts.neck.pitch+parts.chest.pitch+parts.pelvis.pitch)/4,
+    roll:(parts.head.roll+parts.neck.roll+parts.chest.roll+parts.pelvis.roll)/4
+  };
 }
 function standingScreenFrontProfile(){
   if(standingScreenFrontProfileCache)return standingScreenFrontProfileCache;
@@ -685,7 +798,10 @@ function applyStandingPreviewState(state){
     const frame=img.closest(".broadcast-background-preview,.broadcast-final-preview,.broadcast-live-preview");
     const unit=frame instanceof HTMLElement?frame.clientHeight:0;
     if(unit<=0)return;
-    img.style.transform=`translate3d(${(state.x*unit).toFixed(2)}px,${(state.y*unit).toFixed(2)}px,0)`;
+    const yaw=clampStandingMotion(Number(state.yaw)||0,-STANDING_POSE_HARD_LIMIT_DEG.yaw,STANDING_POSE_HARD_LIMIT_DEG.yaw);
+    const pitch=clampStandingMotion(Number(state.pitch)||0,-STANDING_POSE_HARD_LIMIT_DEG.pitch,STANDING_POSE_HARD_LIMIT_DEG.pitch);
+    const roll=clampStandingMotion(Number(state.roll)||0,-STANDING_POSE_HARD_LIMIT_DEG.roll,STANDING_POSE_HARD_LIMIT_DEG.roll);
+    img.style.transform=`translate3d(${(state.x*unit).toFixed(2)}px,${(state.y*unit).toFixed(2)}px,0) rotateZ(${roll.toFixed(3)}deg) rotateY(${yaw.toFixed(3)}deg) rotateX(${(-pitch).toFixed(3)}deg)`;
   });
 }
 function acceptStandingFaceRegion(sample){
@@ -701,7 +817,9 @@ function acceptStandingFaceRegion(sample){
     // character motion freezes at the last displayed state until tracking resumes.
     if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
     standingMotionRaf=0;
-    standingMotionTarget={x:standingTrackedState.x,y:standingTrackedState.y,confidence:0};
+    standingMotionTarget={...standingMotionTarget,x:standingTrackedState.x,y:standingTrackedState.y,yaw:standingTrackedState.yaw,pitch:standingTrackedState.pitch,roll:standingTrackedState.roll,confidence:0};
+    standingMotionDynamics.acceleration={x:0,y:0};
+    standingMotionDynamics.velocity={x:0,y:0,yaw:0,pitch:0,roll:0};
     return;
   }
 
@@ -730,31 +848,86 @@ function acceptStandingFaceRegion(sample){
 
   const targetX=neutralLocked?0:moveX*STANDING_SHAPE_GAIN_X;
   const targetY=neutralLocked?0:moveY*STANDING_SHAPE_GAIN_Y;
-  if(!Number.isFinite(targetX)||!Number.isFinite(targetY))return;
+  const poseDeg=standingPoseToDegrees(direction.pose);
+  if(!Number.isFinite(targetX)||!Number.isFinite(targetY)||Object.values(poseDeg).some(value=>!Number.isFinite(value)))return;
   const bounded=standingMotionWithinFrame(targetX,targetY,bounds);
-  standingMotionTarget={x:bounded.x,y:bounded.y,confidence:current.confidence};
+  const target={
+    x:bounded.x,y:bounded.y,
+    yaw:poseDeg.yaw,pitch:poseDeg.pitch,roll:poseDeg.roll,
+    confidence:current.confidence,timestampNS
+  };
+  updateStandingMotionDynamics(target,timestampNS);
+  standingMotionTarget=target;
   startStandingMotion();
 }
 function startStandingMotion(){
   if(standingMotionRaf||selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
-  const tick=()=>{
+  const tick=now=>{
     standingMotionRaf=0;
     if(selectedMode!=="standing"||!standingPreviewReady||document.hidden)return;
+    const last=standingMotionDynamics.lastRenderMs||now-16.6667;
+    const dtMs=clampStandingMotion(now-last,1,50);
+    standingMotionDynamics.lastRenderMs=now;
+
     const boundedTarget=standingMotionWithinFrame(standingMotionTarget.x,standingMotionTarget.y);
     standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
-    const nextX=standingTrackedState.x+(standingMotionTarget.x-standingTrackedState.x)*STANDING_SHAPE_BLEND;
-    const nextY=standingTrackedState.y+(standingMotionTarget.y-standingTrackedState.y)*STANDING_SHAPE_BLEND;
-    const boundedState=standingMotionWithinFrame(nextX,nextY);
-    standingTrackedState={x:boundedState.x,y:boundedState.y};
+
+    const rootX=standingFollowValue(standingTrackedState.x,standingMotionTarget.x,dtMs,STANDING_ROOT_TIME_CONSTANT_MS);
+    const rootY=standingFollowValue(standingTrackedState.y,standingMotionTarget.y,dtMs,STANDING_ROOT_TIME_CONSTANT_MS);
+
+    const accelXNorm=clampStandingMotion(standingMotionDynamics.acceleration.x/STANDING_MAX_ACCEL_HPS2,-1,1);
+    const accelYNorm=clampStandingMotion(standingMotionDynamics.acceleration.y/STANDING_MAX_ACCEL_HPS2,-1,1);
+    const balanceShift={
+      x:-accelXNorm*STANDING_BALANCE_SHIFT_MAX,
+      y:-accelYNorm*STANDING_BALANCE_SHIFT_MAX
+    };
+    const torsoCounter=-accelXNorm*STANDING_TORSO_COUNTER_MAX_DEG;
+    const pelvisCounter=-accelXNorm*STANDING_PELVIS_COUNTER_MAX_DEG;
+
+    const pose={yaw:standingMotionTarget.yaw,pitch:standingMotionTarget.pitch,roll:standingMotionTarget.roll};
+    const targets={
+      head:standingPartTarget(pose,STANDING_RETARGET_GAIN.head),
+      neck:standingPartTarget(pose,STANDING_RETARGET_GAIN.neck),
+      chest:standingPartTarget(pose,STANDING_RETARGET_GAIN.chest,torsoCounter),
+      pelvis:standingPartTarget(pose,STANDING_RETARGET_GAIN.pelvis,pelvisCounter)
+    };
+    const parts=standingMotionDynamics.parts;
+    standingMotionDynamics.parts={
+      head:followStandingPart(parts.head,targets.head,dtMs,STANDING_FILTER_TIME_MS.head),
+      neck:followStandingPart(parts.neck,targets.neck,dtMs,STANDING_FILTER_TIME_MS.neck),
+      chest:followStandingPart(parts.chest,targets.chest,dtMs,STANDING_FILTER_TIME_MS.chest),
+      pelvis:followStandingPart(parts.pelvis,targets.pelvis,dtMs,STANDING_FILTER_TIME_MS.pelvis)
+    };
+
+    const composite=standingCompositePose(standingMotionDynamics.parts);
+    const renderedPosition=standingMotionWithinFrame(rootX+balanceShift.x,rootY+balanceShift.y);
+    standingTrackedState={
+      x:renderedPosition.x,y:renderedPosition.y,
+      yaw:composite.yaw,pitch:composite.pitch,roll:composite.roll
+    };
     applyStandingPreviewState({
-      x:standingTrackedState.x,y:standingTrackedState.y,z:0,yaw:0,pitch:0,roll:0,
-      confidence:standingMotionTarget.confidence,lod:0,faceLocalWarp:0
+      ...standingTrackedState,z:0,
+      confidence:standingMotionTarget.confidence,lod:0,faceLocalWarp:0,
+      velocity:{...standingMotionDynamics.velocity},
+      acceleration:{...standingMotionDynamics.acceleration},
+      parts:{
+        head:{...standingMotionDynamics.parts.head},
+        neck:{...standingMotionDynamics.parts.neck},
+        chest:{...standingMotionDynamics.parts.chest},
+        pelvis:{...standingMotionDynamics.parts.pelvis}
+      }
     });
-    const settled=Math.abs(standingMotionTarget.x-nextX)<.0002&&Math.abs(standingMotionTarget.y-nextY)<.0002;
-    if(!settled)standingMotionRaf=requestAnimationFrame(tick);
+
+    const positionSettled=Math.abs(standingMotionTarget.x-rootX)<.0002&&Math.abs(standingMotionTarget.y-rootY)<.0002;
+    const rotationSettled=Math.abs(standingMotionTarget.yaw-composite.yaw)<.05
+      &&Math.abs(standingMotionTarget.pitch-composite.pitch)<.05
+      &&Math.abs(standingMotionTarget.roll-composite.roll)<.05;
+    const balanceSettled=Math.abs(balanceShift.x)<.0002&&Math.abs(balanceShift.y)<.0002;
+    if(!(positionSettled&&rotationSettled&&balanceSettled))standingMotionRaf=requestAnimationFrame(tick);
   };
   standingMotionRaf=requestAnimationFrame(tick);
 }
+
 function liveBackgroundStatus(message,state="waiting"){
   const el=document.querySelector("[data-live-background-status]");
   if(el){el.textContent=message;el.dataset.state=state;}
@@ -1914,7 +2087,7 @@ window.addEventListener("resize",()=>{
     const boundedTarget=standingMotionWithinFrame(standingMotionTarget.x,standingMotionTarget.y);
     const boundedState=standingMotionWithinFrame(standingTrackedState.x,standingTrackedState.y);
     standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
-    standingTrackedState=boundedState;
+    standingTrackedState={...standingTrackedState,x:boundedState.x,y:boundedState.y};
     if(document.documentElement.dataset.broadcastPhase==="live")applyStandingLiveComposition();
     startStandingMotion();
   }
