@@ -310,6 +310,7 @@ let liveBackgroundRenderedAck="";
 let standingMotionRaf=0;
 let standingShapePrevious=null;
 let standingTrackedState={x:0,y:0,yaw:0,pitch:0,roll:0};
+let standingRootState={x:0,y:0};
 let standingMotionTarget={x:0,y:0,yaw:0,pitch:0,roll:0,confidence:0,timestampNS:0};
 let standingMotionDynamics={
   lastInput:null,
@@ -425,6 +426,7 @@ function stopStandingMotion(reset=true){
   if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
   standingMotionRaf=0;standingShapePrevious=null;
   standingTrackedState={x:0,y:0,yaw:0,pitch:0,roll:0};
+  standingRootState={x:0,y:0};
   standingMotionTarget={x:0,y:0,yaw:0,pitch:0,roll:0,confidence:0,timestampNS:0};
   resetStandingMotionDynamics();
   if(reset)resetStandingMotionFrame();
@@ -817,7 +819,9 @@ function acceptStandingFaceRegion(sample){
     // character motion freezes at the last displayed state until tracking resumes.
     if(standingMotionRaf)cancelAnimationFrame(standingMotionRaf);
     standingMotionRaf=0;
+    standingRootState={x:standingTrackedState.x,y:standingTrackedState.y};
     standingMotionTarget={...standingMotionTarget,x:standingTrackedState.x,y:standingTrackedState.y,yaw:standingTrackedState.yaw,pitch:standingTrackedState.pitch,roll:standingTrackedState.roll,confidence:0};
+    standingMotionDynamics.lastInput=null;
     standingMotionDynamics.acceleration={x:0,y:0};
     standingMotionDynamics.velocity={x:0,y:0,yaw:0,pitch:0,roll:0};
     return;
@@ -872,8 +876,9 @@ function startStandingMotion(){
     const boundedTarget=standingMotionWithinFrame(standingMotionTarget.x,standingMotionTarget.y);
     standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
 
-    const rootX=standingFollowValue(standingTrackedState.x,standingMotionTarget.x,dtMs,STANDING_ROOT_TIME_CONSTANT_MS);
-    const rootY=standingFollowValue(standingTrackedState.y,standingMotionTarget.y,dtMs,STANDING_ROOT_TIME_CONSTANT_MS);
+    const rootX=standingFollowValue(standingRootState.x,standingMotionTarget.x,dtMs,STANDING_ROOT_TIME_CONSTANT_MS);
+    const rootY=standingFollowValue(standingRootState.y,standingMotionTarget.y,dtMs,STANDING_ROOT_TIME_CONSTANT_MS);
+    standingRootState=standingMotionWithinFrame(rootX,rootY);
 
     const accelXNorm=clampStandingMotion(standingMotionDynamics.acceleration.x/STANDING_MAX_ACCEL_HPS2,-1,1);
     const accelYNorm=clampStandingMotion(standingMotionDynamics.acceleration.y/STANDING_MAX_ACCEL_HPS2,-1,1);
@@ -900,7 +905,8 @@ function startStandingMotion(){
     };
 
     const composite=standingCompositePose(standingMotionDynamics.parts);
-    const renderedPosition=standingMotionWithinFrame(rootX+balanceShift.x,rootY+balanceShift.y);
+    const targetComposite=standingCompositePose(targets);
+    const renderedPosition=standingMotionWithinFrame(standingRootState.x+balanceShift.x,standingRootState.y+balanceShift.y);
     standingTrackedState={
       x:renderedPosition.x,y:renderedPosition.y,
       yaw:composite.yaw,pitch:composite.pitch,roll:composite.roll
@@ -918,10 +924,10 @@ function startStandingMotion(){
       }
     });
 
-    const positionSettled=Math.abs(standingMotionTarget.x-rootX)<.0002&&Math.abs(standingMotionTarget.y-rootY)<.0002;
-    const rotationSettled=Math.abs(standingMotionTarget.yaw-composite.yaw)<.05
-      &&Math.abs(standingMotionTarget.pitch-composite.pitch)<.05
-      &&Math.abs(standingMotionTarget.roll-composite.roll)<.05;
+    const positionSettled=Math.abs(standingMotionTarget.x-standingRootState.x)<.0002&&Math.abs(standingMotionTarget.y-standingRootState.y)<.0002;
+    const rotationSettled=Math.abs(targetComposite.yaw-composite.yaw)<.05
+      &&Math.abs(targetComposite.pitch-composite.pitch)<.05
+      &&Math.abs(targetComposite.roll-composite.roll)<.05;
     const balanceSettled=Math.abs(balanceShift.x)<.0002&&Math.abs(balanceShift.y)<.0002;
     if(!(positionSettled&&rotationSettled&&balanceSettled))standingMotionRaf=requestAnimationFrame(tick);
   };
@@ -2086,6 +2092,7 @@ window.addEventListener("resize",()=>{
   if(selectedMode==="standing"&&standingPreviewReady){
     const boundedTarget=standingMotionWithinFrame(standingMotionTarget.x,standingMotionTarget.y);
     const boundedState=standingMotionWithinFrame(standingTrackedState.x,standingTrackedState.y);
+    standingRootState=standingMotionWithinFrame(standingRootState.x,standingRootState.y);
     standingMotionTarget={...standingMotionTarget,x:boundedTarget.x,y:boundedTarget.y};
     standingTrackedState={...standingTrackedState,x:boundedState.x,y:boundedState.y};
     if(document.documentElement.dataset.broadcastPhase==="live")applyStandingLiveComposition();
