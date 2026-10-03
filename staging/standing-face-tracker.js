@@ -328,7 +328,10 @@ export class StandingFaceTracker{
   }
 
   #providerFail(code,worker=this.worker){
-    if(worker&&this.worker&&worker!==this.worker)return;
+    // Provider initialization may finish/reject after the mode was released.
+    // A stale async result must not resurrect errors or mutate a new tracker.
+    if(!this.running)return;
+    if(worker&&this.worker!==worker)return;
     if(this.video&&this.videoFrameHandle&&typeof this.video.cancelVideoFrameCallback==='function'){
       try{this.video.cancelVideoFrameCallback(this.videoFrameHandle);}catch{}
     }
