@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11131d"/>
   <title>視聴テスト | Original Create Project</title>
   <link rel="stylesheet" href="./broadcast-app.css?v=20260920-standing1"/>
-  <link rel="stylesheet" href="./watch-app.css?v=20261005-room1"/>
+  <link rel="stylesheet" href="./watch-app.css?v=20261005-view2"/>
 </head>
 <body class="broadcast-app-page watch-app-page">
   <main class="stream-main">
@@ -34,9 +34,9 @@
                 <canvas class="watch-media-canvas" data-watch-media-canvas width="640" height="360" hidden></canvas>
 
                 <div class="watch-waiting" data-watch-waiting>
-                  <span>視聴ルームへ接続しています。</span>
+                  <span>接続しています…</span>
                 </div>
-                <div class="watch-program-badge" data-watch-program-status>配信待ち</div>
+                <div class="watch-program-badge" data-watch-program-status>接続中</div>
 
                 <div class="broadcast-live-hud">
                   <div class="broadcast-live-owner-row">
@@ -56,7 +56,7 @@
                   <div class="broadcast-live-quickbar">
                     <button type="button" disabled><small>応援</small><strong>0</strong></button>
                     <button type="button" disabled><small>リスナー</small><strong>--</strong></button>
-                    <button type="button" disabled><small>いいね</small><strong>0</strong></button>
+                    <button type="button" disabled><small>いいね</small><strong data-like-count>0</strong></button>
                   </div>
                 </div>
               </div>
@@ -72,17 +72,16 @@
                     <strong>コメント</strong>
                     <span>視聴者機能</span>
                   </div>
-                  <div class="watch-chat-list" aria-live="polite">
-                    <p class="watch-chat-empty">コメント・ギフト・スパチャ・いいねは、接続状態に応じて利用できます。</p>
+                  <div class="watch-chat-list" data-comment-list aria-live="polite">
+                    <p class="watch-chat-empty" data-comment-empty>まだコメントはありません。</p>
                   </div>
                   <form class="watch-comment-box" data-comment-form>
                     <input class="watch-comment-input" data-comment-input type="text" maxlength="200" autocomplete="off" placeholder="コメントを入力" disabled/>
                     <button class="watch-send" data-comment-send type="submit" disabled aria-label="コメントを送信">送</button>
                   </form>
-                  <div class="watch-support-row">
-                    <button class="watch-support-btn" data-gift-button type="button" disabled>ギフト</button>
-                    <button class="watch-support-btn" data-superchat-button type="button" disabled>スパチャ</button>
-                    <button class="watch-like-btn" data-like-button type="button" disabled aria-label="いいね">♥</button>
+                  <div class="watch-action-row">
+                    <button class="watch-tool-button" data-fullscreen-button type="button">全画面</button>
+                    <button class="watch-like-btn" data-like-button type="button" disabled aria-label="いいね">♥ いいね</button>
                   </div>
                 </section>
               </div>
@@ -93,7 +92,7 @@
     </section>
   </main>
 
-  <script type="module" src="./watch-entry.js?v=20261005-room1"></script>
-  <script type="module" src="./watch-test-ui.js?v=20261005-room1"></script>
+  <script type="module" src="./watch-test-ui.js?v=20261005-view2"></script>
+  <script type="module" src="./watch-entry.js?v=20261005-view2"></script>
 </body>
 </html>
