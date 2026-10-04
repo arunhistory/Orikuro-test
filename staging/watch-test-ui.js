@@ -7,7 +7,7 @@ if(!compatibility.supported&&unsupportedReason)unsupportedReason.textContent="�
 let transportReady=false;
 let supportCatalog={gifts:[],superchatAmounts:[]};
 let mediaClient=null;
-let demoController=null;
+let roomController=null;
 let authorizedDemo=false;
 let audioEnabled=false;
 
@@ -43,10 +43,10 @@ async function stopMedia(){
     audioButton.textContent="音声ON";
   }
 }
-async function stopDemo(){
-  if(!demoController)return;
-  const current=demoController;
-  demoController=null;
+async function stopRoom(){
+  if(!roomController)return;
+  const current=roomController;
+  roomController=null;
   try{await current.stop();}catch{}
 }
 
@@ -54,10 +54,10 @@ document.addEventListener("orikuro:service-ready",event=>{
   const detail=event?.detail&&typeof event.detail==="object"?event.detail:{};
   const grant=detail.watchGrant;
   authorizedDemo=detail.authorizedDemo===true;
-  demoController=authorizedDemo&&detail.demoController?detail.demoController:null;
+  roomController=authorizedDemo&&detail.roomController?detail.roomController:null;
   if(!compatibility.supported||!grant||!canvas){
     if(status)status.textContent="視聴準備エラー";
-    void stopDemo();
+    void stopRoom();
     return;
   }
   try{
@@ -66,14 +66,10 @@ document.addEventListener("orikuro:service-ready",event=>{
     mediaClient.start();
     canvas.hidden=false;
     if(authorizedDemo){
-      if(status)status.textContent="立ち絵配信へ接続しています。";
-      if(programStatus)programStatus.textContent="立ち絵 自動配信";
+      if(status)status.textContent="視聴ルームへ接続しています。";
+      if(programStatus)programStatus.textContent="配信待ち";
       if(audioButton){audioButton.disabled=true;audioButton.textContent="音声なし";}
       setInteractive(false);
-      void demoController?.start().catch(()=>{
-        if(status)status.textContent="立ち絵配信を開始できません。";
-        void stopDemo();
-      });
     }else if(audioButton){
       audioButton.disabled=false;
       audioButton.textContent="音声ON";
@@ -81,7 +77,7 @@ document.addEventListener("orikuro:service-ready",event=>{
   }catch{
     if(status)status.textContent="視聴開始エラー";
     void stopMedia();
-    void stopDemo();
+    void stopRoom();
   }
 },{once:true});
 
@@ -103,8 +99,14 @@ audioButton?.addEventListener("click",async()=>{
 });
 
 window.addEventListener("orikuro:transport-ready",()=>{
-  if(waiting instanceof HTMLElement)waiting.hidden=true;
-  if(status)status.textContent=authorizedDemo?"立ち絵配信中":"視聴中";
+  if(waiting instanceof HTMLElement){
+    if(authorizedDemo){
+      waiting.hidden=false;
+      const text=waiting.querySelector("span");
+      if(text)text.textContent="視聴ルーム接続済み / 配信開始待ち";
+    }else waiting.hidden=true;
+  }
+  if(status)status.textContent=authorizedDemo?"視聴ルーム接続済み / 配信待ち":"視聴中";
   setInteractive(true);
 });
 window.addEventListener("orikuro:transport-reconnecting",()=>{
@@ -122,7 +124,7 @@ window.addEventListener("orikuro:support-catalog",event=>{
 });
 window.addEventListener("orikuro:stream-ended",event=>{
   void stopMedia();
-  void stopDemo();
+  void stopRoom();
   const reason=event?.detail?.reason||"ended";
   location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}`);
 });
@@ -162,5 +164,5 @@ if(superchatButton){
 
 window.addEventListener("pagehide",()=>{
   void stopMedia();
-  void stopDemo();
+  void stopRoom();
 },{once:true});
