@@ -317,3 +317,29 @@
   .watch-material-progress.is-running>span{animation:none;transform:scaleX(1)}
   .watch-like-btn.is-pressed{animation:none}
 }
+
+
+.watch-waiting{
+  position:absolute;
+  inset:0;
+  z-index:3;
+  display:grid;
+  place-items:center;
+  padding:72px 24px 46px;
+  background:
+    radial-gradient(circle at 50% 42%,rgba(124,92,255,.16),transparent 36%),
+    #090b12;
+  color:rgba(255,255,255,.68);
+  text-align:center;
+  pointer-events:none;
+}
+.watch-waiting[hidden]{display:none}
+.watch-waiting>span{
+  padding:8px 12px;
+  border:1px solid rgba(255,255,255,.11);
+  border-radius:999px;
+  background:rgba(8,10,16,.54);
+  font-size:9px;
+  font-weight:900;
+  backdrop-filter:blur(8px);
+}
