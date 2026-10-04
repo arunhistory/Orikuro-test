@@ -226,11 +226,13 @@ fullscreenButton?.addEventListener("click",async()=>{
   if(!(fullscreenTarget instanceof HTMLElement))return;
   try{
     if(document.fullscreenElement){await document.exitFullscreen();return;}
-    if(typeof fullscreenTarget.requestFullscreen==="function"){await fullscreenTarget.requestFullscreen();}
+    if(typeof fullscreenTarget.requestFullscreen==="function"){await fullscreenTarget.requestFullscreen();return;}
   }catch{}
+  document.body.classList.toggle("watch-local-fullscreen");
+  fullscreenButton.textContent=document.body.classList.contains("watch-local-fullscreen")?"全画面終了":"全画面";
 });
 document.addEventListener("fullscreenchange",()=>{
-  if(fullscreenButton)fullscreenButton.textContent=document.fullscreenElement?"全画面終了":"全画面";
+  if(fullscreenButton)fullscreenButton.textContent=document.fullscreenElement||document.body.classList.contains("watch-local-fullscreen")?"全画面終了":"全画面";
 });
 
 window.addEventListener("pagehide",()=>{
