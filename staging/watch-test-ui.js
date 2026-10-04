@@ -3,6 +3,8 @@ import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 import{WatchMaterialPlayer}from"./watch-materials.js?v=20261004-view1";
 
 const compatibility=applyStreamingCompatibility(document);
+const unsupportedReason=document.querySelector("[data-stream-unsupported-reason]");
+if(!compatibility.supported&&unsupportedReason)unsupportedReason.textContent="この環境では視聴通信を利用できません。";
 let transportReady=false;
 let supportCatalog={gifts:[],superchatAmounts:[]};
 let mediaClient=null;
