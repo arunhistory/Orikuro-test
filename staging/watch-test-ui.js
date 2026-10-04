@@ -65,7 +65,20 @@ document.addEventListener("orikuro:service-ready",event=>{
   const detail=event?.detail&&typeof event.detail==="object"?event.detail:{};
   const grant=detail.watchGrant;
   startMaterials();
-  if(!compatibility.supported||!grant||!canvas){
+  if(!compatibility.supported||!canvas){
+    if(status)status.textContent="視聴準備エラー";
+    return;
+  }
+  if(detail.authorizedDemo===true){
+    if(status)status.textContent="権限確認済み / 自動素材配信中";
+    if(audioButton){
+      audioButton.disabled=true;
+      audioButton.textContent="音声なし";
+    }
+    setInteractive(false);
+    return;
+  }
+  if(!grant){
     if(status)status.textContent="視聴準備エラー";
     return;
   }
