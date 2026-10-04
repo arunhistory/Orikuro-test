@@ -14,13 +14,20 @@
     .broadcast-cartoon-impact{position:absolute;width:44px;height:44px;border:3px solid currentColor;border-radius:999px;transform:translate(-50%,-50%) scale(.25);opacity:0;will-change:left,top,opacity,transform}
     .broadcast-cartoon-streak{position:absolute;height:3px;width:24%;border-radius:999px;background:currentColor;opacity:0;transform-origin:right center}
     .broadcast-cartoon-vibration{position:absolute;width:16px;height:48px;border-left:3px solid currentColor;border-right:3px solid currentColor;opacity:0}
-    .broadcast-cartoon-act-panel{margin-top:10px;padding:10px;border:1px solid rgba(127,127,127,.28);border-radius:12px}
-    .broadcast-cartoon-act-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-    .broadcast-cartoon-act-head span{font-size:.78rem;opacity:.78}
-    .broadcast-cartoon-act-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
-    .broadcast-cartoon-act-grid button{min-height:44px;padding:8px 5px;border-radius:10px;font:inherit;font-size:.82rem;cursor:pointer}
-    .broadcast-cartoon-act-grid button:disabled{cursor:not-allowed;opacity:.55}
-    @media(max-width:520px){.broadcast-cartoon-act-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .broadcast-cartoon-act-overlay{position:absolute;right:clamp(6px,1.2vw,12px);bottom:clamp(6px,1.2vw,12px);z-index:12;width:min(220px,calc(100% - 16px));display:flex;flex-direction:column;align-items:flex-end;gap:5px;pointer-events:none}
+    .broadcast-cartoon-act-toggle{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;min-height:30px;max-width:100%;padding:5px 9px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:rgba(10,12,18,.44);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font:inherit;cursor:pointer}
+    .broadcast-cartoon-act-toggle strong{font-size:.76rem;white-space:nowrap}
+    .broadcast-cartoon-act-toggle small{max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.68rem;opacity:.82}
+    .broadcast-cartoon-act-panel{pointer-events:auto;width:100%;max-height:min(46vh,230px);overflow:auto;padding:7px;border:1px solid rgba(255,255,255,.22);border-radius:11px;background:rgba(10,12,18,.58);box-shadow:0 8px 22px rgba(0,0,0,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+    .broadcast-cartoon-act-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+    .broadcast-cartoon-act-head strong{font-size:.78rem}
+    .broadcast-cartoon-act-close{width:26px;height:26px;padding:0;border:0;border-radius:999px;background:rgba(255,255,255,.09);color:inherit;font:inherit;cursor:pointer}
+    .broadcast-cartoon-act-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+    .broadcast-cartoon-act-grid button{min-height:32px;padding:5px 4px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(255,255,255,.08);color:inherit;font:inherit;font-size:.74rem;cursor:pointer}
+    .broadcast-cartoon-act-grid button[aria-pressed="true"]{background:rgba(255,255,255,.20);border-color:rgba(255,255,255,.38)}
+    .broadcast-cartoon-act-grid button:disabled{cursor:not-allowed;opacity:.48}
+    @media(max-width:520px){.broadcast-cartoon-act-overlay{width:min(196px,calc(100% - 12px));right:6px;bottom:6px}.broadcast-cartoon-act-panel{max-height:42vh}.broadcast-cartoon-act-grid button{min-height:30px;font-size:.7rem}}
+    @media(max-height:500px){.broadcast-cartoon-act-panel{max-height:38vh}.broadcast-cartoon-act-grid button{min-height:28px;padding:3px}}
   </style>
 </head>
 <body class="broadcast-app-page">
@@ -264,6 +271,28 @@
                   <span data-live-character-label>配信モデル</span>
                 </div>
                 <div class="broadcast-cartoon-fx" data-cartoon-fx-layer aria-hidden="true"></div>
+                <div class="broadcast-cartoon-act-overlay" data-cartoon-act-overlay hidden>
+                  <button class="broadcast-cartoon-act-toggle" type="button" data-cartoon-act-toggle aria-expanded="false" aria-controls="cartoon-act-panel">
+                    <strong>演技</strong>
+                    <small data-cartoon-act-status role="status" aria-live="polite">待機</small>
+                  </button>
+                  <section class="broadcast-cartoon-act-panel" id="cartoon-act-panel" data-cartoon-act-panel hidden aria-label="立ち絵演技">
+                    <div class="broadcast-cartoon-act-head">
+                      <strong>演技</strong>
+                      <button class="broadcast-cartoon-act-close" type="button" data-cartoon-act-close aria-label="演技操作を閉じる">×</button>
+                    </div>
+                    <div class="broadcast-cartoon-act-grid" role="group" aria-label="立ち絵の演技を選択">
+                      <button type="button" data-cartoon-act="surprise">びっくり</button>
+                      <button type="button" data-cartoon-act="tsukkomi">ツッコミ</button>
+                      <button type="button" data-cartoon-act="zukkoke">ズコー</button>
+                      <button type="button" data-cartoon-act="blast">吹っ飛ぶ</button>
+                      <button type="button" data-cartoon-act="spin">くるくる</button>
+                      <button type="button" data-cartoon-act="peek">のぞく</button>
+                      <button type="button" data-cartoon-act="shiver">ブルブル</button>
+                      <button type="button" data-cartoon-act="camera_rush">カメラ突撃</button>
+                    </div>
+                  </section>
+                </div>
 
                 <div class="broadcast-live-hud">
                   <div class="broadcast-live-owner-row">
@@ -414,22 +443,6 @@
                   <button class="broadcast-mic-toggle" type="button" data-live-background-toggle aria-expanded="false" aria-controls="live-background-panel">背景切替</button>
                   <button class="broadcast-memo-toggle" type="button" data-live-memo-toggle>メモ追加</button>
                 </div>
-                <section class="broadcast-cartoon-act-panel" data-cartoon-act-panel hidden aria-label="立ち絵演技テスト">
-                  <div class="broadcast-cartoon-act-head">
-                    <strong>演技テスト</strong>
-                    <span data-cartoon-act-status role="status" aria-live="polite">待機</span>
-                  </div>
-                  <div class="broadcast-cartoon-act-grid" role="group" aria-label="立ち絵の演技を選択">
-                    <button type="button" data-cartoon-act="surprise">びっくり</button>
-                    <button type="button" data-cartoon-act="tsukkomi">ツッコミ</button>
-                    <button type="button" data-cartoon-act="zukkoke">ズコー</button>
-                    <button type="button" data-cartoon-act="blast">吹っ飛ぶ</button>
-                    <button type="button" data-cartoon-act="spin">くるくる</button>
-                    <button type="button" data-cartoon-act="peek">のぞく</button>
-                    <button type="button" data-cartoon-act="shiver">ブルブル</button>
-                    <button type="button" data-cartoon-act="camera_rush">カメラ突撃</button>
-                  </div>
-                </section>
                 <div class="broadcast-mic-test broadcast-live-background-panel" id="live-background-panel" data-live-background-panel hidden>
                   <div class="broadcast-mic-head">
                     <strong>配信中の背景切替</strong>
@@ -512,6 +525,6 @@
   <script type="module" src="./assets/js/stream-realtime.js?v=20261001-h264sync2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
   <script type="module" src="./system-stream-test-ui.js?v=20261004-cartoon1"></script>
-  <script type="module" src="./cartoon-act-test.js?v=20261004-cartoon1"></script>
+  <script type="module" src="./cartoon-act-test.js?v=20261004-cartoon2"></script>
 </body>
 </html>
