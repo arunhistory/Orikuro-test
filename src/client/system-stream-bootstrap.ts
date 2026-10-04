@@ -25,7 +25,9 @@ function contentTarget(): HTMLElement | null {
 function takeAccessKey(): string | null {
   const params = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : '');
   const key = params.get('access') || params.get('op') || '';
-  history.replaceState(null, '', location.pathname + location.search);
+  // Keep the reusable access fragment in the tab URL.
+  // Duplicating/opening the same authorized URL must create a fresh streamId
+  // without invalidating or stopping the stream running in another tab.
   return OP_RE.test(key) ? key : null;
 }
 async function stopRaw(value: unknown, keepalive = false): Promise<boolean> {
@@ -78,17 +80,10 @@ async function revealPrep(): Promise<void> {
     return;
   }
 
-  const previous = getStreamRealtimeGrant();
-  if (previous) {
-    if (status) status.textContent = '前回の配信を終了しています…';
-    const cleaned = await stopRaw(previous);
-    if (!cleaned) {
-      if (status) status.textContent = '前回の配信終了を確認できません。もう一度開いてください。';
-      if (content) content.hidden = true;
-      return;
-    }
-  }
-  clearStreamRealtimeGrant();
+  // A duplicated/new tab can inherit a snapshot of sessionStorage from its opener.
+  // That inherited grant belongs to the other tab and must never be stopped here.
+  // Clear only this tab's copied local grant, then request a brand-new streamId.
+  if (getStreamRealtimeGrant()) clearStreamRealtimeGrant();
 
   document.documentElement.dataset.systemAccessReady = 'true';
   if (status) status.textContent = '';
