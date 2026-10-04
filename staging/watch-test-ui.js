@@ -1,6 +1,5 @@
 import{WatchMediaClient}from"./assets/js/watch-media.js?v=20260918-media2";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
-import{WatchMaterialPlayer}from"./watch-materials.js?v=20261004-view1";
 
 const compatibility=applyStreamingCompatibility(document);
 const unsupportedReason=document.querySelector("[data-stream-unsupported-reason]");
@@ -8,7 +7,8 @@ if(!compatibility.supported&&unsupportedReason)unsupportedReason.textContent="�
 let transportReady=false;
 let supportCatalog={gifts:[],superchatAmounts:[]};
 let mediaClient=null;
-let materialPlayer=null;
+let demoController=null;
+let authorizedDemo=false;
 let audioEnabled=false;
 
 const commentInput=document.querySelector("[data-comment-input]");
@@ -19,12 +19,11 @@ const superchatButton=document.querySelector("[data-superchat-button]");
 const status=document.querySelector("[data-viewer-status]");
 const canvas=document.querySelector("[data-watch-media-canvas]");
 const audioButton=document.querySelector("[data-watch-audio]");
-const materialStage=document.querySelector("[data-watch-material-stage]");
-const materialProgress=document.querySelector("[data-watch-material-progress]");
+const waiting=document.querySelector("[data-watch-waiting]");
 const programStatus=document.querySelector("[data-watch-program-status]");
 
 function setInteractive(ready){
-  transportReady=ready&&compatibility.supported;
+  transportReady=ready&&compatibility.supported&&!authorizedDemo;
   if(commentInput)commentInput.disabled=!transportReady;
   if(commentSend)commentSend.disabled=!transportReady;
   if(likeButton)likeButton.disabled=!transportReady;
@@ -32,16 +31,6 @@ function setInteractive(ready){
   if(superchatButton)superchatButton.disabled=!transportReady||supportCatalog.superchatAmounts.length===0;
 }
 setInteractive(false);
-
-function startMaterials(){
-  if(materialPlayer||!materialStage)return;
-  try{
-    materialPlayer=new WatchMaterialPlayer(materialStage,materialProgress,programStatus);
-    materialPlayer.start();
-  }catch{
-    if(programStatus)programStatus.textContent="素材表示エラー";
-  }
-}
 
 async function stopMedia(){
   if(mediaClient){
@@ -54,32 +43,21 @@ async function stopMedia(){
     audioButton.textContent="音声ON";
   }
 }
-
-function stopMaterials(){
-  if(!materialPlayer)return;
-  materialPlayer.destroy();
-  materialPlayer=null;
+async function stopDemo(){
+  if(!demoController)return;
+  const current=demoController;
+  demoController=null;
+  try{await current.stop();}catch{}
 }
 
 document.addEventListener("orikuro:service-ready",event=>{
   const detail=event?.detail&&typeof event.detail==="object"?event.detail:{};
   const grant=detail.watchGrant;
-  startMaterials();
-  if(!compatibility.supported||!canvas){
+  authorizedDemo=detail.authorizedDemo===true;
+  demoController=authorizedDemo&&detail.demoController?detail.demoController:null;
+  if(!compatibility.supported||!grant||!canvas){
     if(status)status.textContent="視聴準備エラー";
-    return;
-  }
-  if(detail.authorizedDemo===true){
-    if(status)status.textContent="権限確認済み / 自動素材配信中";
-    if(audioButton){
-      audioButton.disabled=true;
-      audioButton.textContent="音声なし";
-    }
-    setInteractive(false);
-    return;
-  }
-  if(!grant){
-    if(status)status.textContent="視聴準備エラー";
+    void stopDemo();
     return;
   }
   try{
@@ -87,18 +65,28 @@ document.addEventListener("orikuro:service-ready",event=>{
     mediaClient.onEnded(()=>window.dispatchEvent(new CustomEvent("orikuro:stream-ended",{detail:{reason:"ended"}})));
     mediaClient.start();
     canvas.hidden=false;
-    if(audioButton){
+    if(authorizedDemo){
+      if(status)status.textContent="立ち絵配信へ接続しています。";
+      if(programStatus)programStatus.textContent="立ち絵 自動配信";
+      if(audioButton){audioButton.disabled=true;audioButton.textContent="音声なし";}
+      setInteractive(false);
+      void demoController?.start().catch(()=>{
+        if(status)status.textContent="立ち絵配信を開始できません。";
+        void stopDemo();
+      });
+    }else if(audioButton){
       audioButton.disabled=false;
       audioButton.textContent="音声ON";
     }
   }catch{
     if(status)status.textContent="視聴開始エラー";
     void stopMedia();
+    void stopDemo();
   }
 },{once:true});
 
 audioButton?.addEventListener("click",async()=>{
-  if(!mediaClient)return;
+  if(!mediaClient||authorizedDemo)return;
   try{
     if(audioEnabled){
       await mediaClient.disableAudio();
@@ -115,11 +103,13 @@ audioButton?.addEventListener("click",async()=>{
 });
 
 window.addEventListener("orikuro:transport-ready",()=>{
-  if(status)status.textContent="接続済み / 自動素材配信中";
+  if(waiting instanceof HTMLElement)waiting.hidden=true;
+  if(status)status.textContent=authorizedDemo?"立ち絵配信中":"視聴中";
   setInteractive(true);
 });
 window.addEventListener("orikuro:transport-reconnecting",()=>{
-  if(status)status.textContent="再接続中 / 自動素材は継続";
+  if(waiting instanceof HTMLElement)waiting.hidden=false;
+  if(status)status.textContent="再接続中";
   setInteractive(false);
 });
 window.addEventListener("orikuro:support-catalog",event=>{
@@ -132,7 +122,7 @@ window.addEventListener("orikuro:support-catalog",event=>{
 });
 window.addEventListener("orikuro:stream-ended",event=>{
   void stopMedia();
-  stopMaterials();
+  void stopDemo();
   const reason=event?.detail?.reason||"ended";
   location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}`);
 });
@@ -146,7 +136,6 @@ if(likeButton){
     window.dispatchEvent(new CustomEvent("orikuro:like-request",{detail:{count:1}}));
   });
 }
-
 const commentForm=document.querySelector("[data-comment-form]");
 if(commentForm){
   commentForm.addEventListener("submit",event=>{
@@ -172,6 +161,6 @@ if(superchatButton){
 }
 
 window.addEventListener("pagehide",()=>{
-  stopMaterials();
   void stopMedia();
+  void stopDemo();
 },{once:true});
