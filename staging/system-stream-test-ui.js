@@ -306,7 +306,6 @@ let standingActivationQueue=Promise.resolve();
 let liveBackgroundSwitching=false;
 let liveBackgroundGeneration=0;
 let liveBackgroundIndependent=false;
-let liveBackgroundRenderedAck="";
 let standingMotionRaf=0;
 let standingShapePrevious=null;
 let standingTrackedState={x:0,y:0,yaw:0,pitch:0,roll:0};
@@ -1254,13 +1253,37 @@ async function applyLiveBackgroundChoice(choiceId){
     if(selectedMode==="radio"){
       applyBackgroundPreset(choiceId);
     }else{
-      // Wait for the actual encoder to acknowledge its new decoded source;
-      // otherwise keep the previous UI choice and its original frame alive.
-      liveBackgroundRenderedAck="";
-      window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{
-        detail:{choiceId,index,image,color:solid?.color||null}
-      }));
-      if(liveBackgroundRenderedAck!==choiceId)throw new Error("LIVE_BACKGROUND_RENDERER_NOT_READY");
+      // Transactional live-background handoff. The encoder must explicitly
+      // acknowledge this exact request before the UI commits the new choice.
+      const requestId=globalThis.crypto?.randomUUID?.()||("bg_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2));
+      const rendered=await new Promise((resolve,reject)=>{
+        let settled=false;
+        const cleanup=()=>{
+          window.removeEventListener("orikuro:live-background-rendered",onRendered);
+          window.removeEventListener("orikuro:live-background-render-failed",onFailed);
+          clearTimeout(timer);
+        };
+        const onRendered=(event)=>{
+          const detail=event?.detail;
+          if(!detail||detail.requestId!==requestId||detail.choiceId!==choiceId)return;
+          settled=true;cleanup();resolve(true);
+        };
+        const onFailed=(event)=>{
+          const detail=event?.detail;
+          if(!detail||detail.requestId!==requestId||detail.choiceId!==choiceId)return;
+          settled=true;cleanup();reject(new Error(typeof detail.code==="string"?detail.code:"LIVE_BACKGROUND_RENDERER_REJECTED"));
+        };
+        const timer=setTimeout(()=>{
+          if(settled)return;
+          cleanup();reject(new Error("LIVE_BACKGROUND_RENDERER_TIMEOUT"));
+        },2000);
+        window.addEventListener("orikuro:live-background-rendered",onRendered);
+        window.addEventListener("orikuro:live-background-render-failed",onFailed);
+        window.dispatchEvent(new CustomEvent("orikuro:standing-background-change",{
+          detail:{requestId,choiceId,index,image,color:solid?.color||null}
+        }));
+      });
+      if(!rendered)throw new Error("LIVE_BACKGROUND_RENDERER_NOT_READY");
       backgroundChoice=choiceId;
       liveBackgroundIndependent=true;
       releaseUnusedStandingBackgroundUrls(index);
@@ -1771,9 +1794,6 @@ document.querySelector("[data-mic-device]")?.addEventListener("change",event=>{
   if(!(select instanceof HTMLSelectElement))return;
   void switchPreparedAudioInput(select.value);
 });
-window.addEventListener("orikuro:live-background-rendered",event=>{
-  liveBackgroundRenderedAck=typeof event?.detail?.choiceId==="string"?event.detail.choiceId:"";
-});
 document.querySelector("[data-live-background-toggle]")?.addEventListener("click",event=>{
   const button=event.currentTarget;
   const panel=document.querySelector("[data-live-background-panel]");
@@ -2240,7 +2260,6 @@ window.addEventListener("orikuro:output-ready",()=>setState("output","送出可�
 
 window.addEventListener("orikuro:stream-live",()=>{
   liveBackgroundIndependent=false;
-  liveBackgroundRenderedAck="";
   document.documentElement.dataset.broadcastPhase="live";
   document.querySelector("[data-broadcast-wizard]")?.setAttribute("hidden","");
   document.querySelector("[data-live-screen]")?.removeAttribute("hidden");
@@ -2276,7 +2295,6 @@ window.addEventListener("orikuro:stream-live",()=>{
 
 window.addEventListener("orikuro:stream-start-failed",event=>{
   liveBackgroundIndependent=false;
-  liveBackgroundRenderedAck="";
   liveBackgroundGeneration++;
   liveBackgroundSwitching=false;
   const backgroundPanel=document.querySelector("[data-live-background-panel]");
