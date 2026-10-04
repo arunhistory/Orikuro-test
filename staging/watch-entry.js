@@ -2,11 +2,12 @@ import{clearServiceFlowToken}from"./assets/js/service-flow.js?v=20260918-flow3";
 import{clearStreamRealtimeGrant}from"./assets/js/realtime-grant.js";
 import{clearWatchRealtimeGrant,takeWatchRealtimeGrant}from"./assets/js/watch-grant.js";
 
-const ROOM_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/system-stream-test";
+const ROOM_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/system-watch-room";
 const STOP_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/service-flow";
 const ACCESS_RE=/^[a-f0-9]{64}$/;
 const STREAM_ID_RE=/^[A-Za-z0-9_-]{16,128}$/;
 const CAP_RE=/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const NF_HOST="health--orikuro-northflank--gzhr8p5vl59b.code.run";
 
 function statusTarget(){return document.querySelector("[data-service-gate-status]");}
 function contentTarget(){return document.querySelector("[data-service-content]");}
@@ -34,6 +35,12 @@ function takeAccessKey(){
   if(location.hash)history.replaceState(null,"",location.pathname+location.search);
   return ACCESS_RE.test(value)?value:null;
 }
+function checkedWs(raw,path){
+  if(typeof raw!=="string")throw new Error("ROOM_URL_INVALID");
+  const url=new URL(raw);
+  if(url.protocol!=="wss:"||url.hostname!==NF_HOST||(url.port&&url.port!=="443")||url.username||url.password||url.pathname!==path||url.search||url.hash)throw new Error("ROOM_URL_INVALID");
+  return url.toString();
+}
 async function roomRequest(accessKey){
   const response=await fetch(ROOM_URL,{
     method:"POST",
@@ -44,18 +51,17 @@ async function roomRequest(accessKey){
     referrerPolicy:"no-referrer"
   });
   const payload=await response.json().catch(()=>null);
-  if(!response.ok||!payload||payload.ok!==true)throw new Error("ROOM_CREATE_FAILED");
+  if(!response.ok||!payload||payload.ok!==true)throw new Error(typeof payload?.code==="string"?payload.code:"ROOM_CREATE_FAILED");
   const result=payload.result&&typeof payload.result==="object"?payload.result:null;
-  const grant=result?.realtimeGrant&&typeof result.realtimeGrant==="object"?result.realtimeGrant:null;
-  if(!grant)throw new Error("ROOM_GRANT_MISSING");
+  const grant=result?.watchGrant&&typeof result.watchGrant==="object"?result.watchGrant:null;
+  const controlCapability=typeof result?.controlCapability==="string"?result.controlCapability:"";
+  if(!grant||!CAP_RE.test(controlCapability))throw new Error("ROOM_GRANT_MISSING");
   const streamId=typeof grant.streamId==="string"?grant.streamId:"";
-  const monitorCapability=typeof grant.monitorCapability==="string"?grant.monitorCapability:"";
-  const controlCapability=typeof grant.controlCapability==="string"?grant.controlCapability:"";
-  const mediaWebSocketUrl=typeof grant.mediaWebSocketUrl==="string"?grant.mediaWebSocketUrl:"";
+  const capability=typeof grant.capability==="string"?grant.capability:"";
   const expiresAt=Number(grant.expiresAt);
-  if(!STREAM_ID_RE.test(streamId)||!CAP_RE.test(monitorCapability)||!CAP_RE.test(controlCapability)||!Number.isFinite(expiresAt)||expiresAt<=Date.now())throw new Error("ROOM_GRANT_INVALID");
-  const mediaUrl=new URL(mediaWebSocketUrl);
-  if(mediaUrl.protocol!=="wss:"||mediaUrl.pathname!=="/realtime/media")throw new Error("ROOM_MEDIA_URL_INVALID");
+  if(!STREAM_ID_RE.test(streamId)||!CAP_RE.test(capability)||!Number.isSafeInteger(expiresAt)||expiresAt<=Date.now())throw new Error("ROOM_GRANT_INVALID");
+  const mediaWebSocketUrl=checkedWs(grant.mediaWebSocketUrl,"/realtime/media");
+  const commentsWebSocketUrl=checkedWs(grant.commentsWebSocketUrl,"/realtime/comments");
 
   let stopped=false;
   const roomController=Object.freeze({
@@ -63,7 +69,7 @@ async function roomRequest(accessKey){
       if(stopped)return true;
       stopped=true;
       try{
-        const stop=await fetch(STOP_URL,{
+        const response=await fetch(STOP_URL,{
           method:"POST",
           headers:{"content-type":"application/json"},
           body:JSON.stringify({action:"stream_stop",streamId,controlCapability}),
@@ -72,36 +78,32 @@ async function roomRequest(accessKey){
           referrerPolicy:"no-referrer",
           keepalive:true
         });
-        const data=await stop.json().catch(()=>null);
+        const data=await response.json().catch(()=>null);
         const result=data?.result&&typeof data.result==="object"?data.result:null;
-        return stop.ok&&data?.ok===true&&result?.streamId===streamId&&result?.cloudflareStopped===true&&result?.northflankRevoked===true;
+        return response.ok&&data?.ok===true&&result?.streamId===streamId&&result?.cloudflareStopped===true&&result?.northflankRevoked===true;
       }catch{return false;}
     }
   });
-  return{
-    watchGrant:{streamId,capability:monitorCapability,mediaWebSocketUrl,expiresAt},
-    roomController
-  };
+  return{watchGrant:{streamId,capability,expiresAt,mediaWebSocketUrl,commentsWebSocketUrl},roomController};
 }
 async function authorize(){
   const status=statusTarget();
   if(status)status.textContent="利用準備を確認しています。";
   const accessKey=takeAccessKey();
-  try{
-    if(accessKey){
-      clearStreamRealtimeGrant();
-      clearWatchRealtimeGrant();
-      clearServiceFlowToken();
-      if(status)status.textContent="視聴ルームを準備しています。";
+  if(accessKey){
+    clearStreamRealtimeGrant();
+    clearWatchRealtimeGrant();
+    clearServiceFlowToken();
+    reveal({path:"./watch-test.html",authorizedDemo:true,roomPending:true});
+    try{
       const room=await roomRequest(accessKey);
-      reveal({
-        path:"./watch-test.html",
-        authorizedDemo:true,
-        watchGrant:room.watchGrant,
-        roomController:room.roomController
-      });
-      return;
+      document.dispatchEvent(new CustomEvent("orikuro:watch-room-ready",{detail:room}));
+    }catch(error){
+      document.dispatchEvent(new CustomEvent("orikuro:watch-room-failed",{detail:{code:error instanceof Error?error.message:"ROOM_CREATE_FAILED"}}));
     }
+    return;
+  }
+  try{
     const watchGrant=takeWatchRealtimeGrant();
     if(!watchGrant)throw new Error("WATCH_GRANT_MISSING");
     clearStreamRealtimeGrant();
