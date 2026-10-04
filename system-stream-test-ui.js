@@ -803,7 +803,15 @@ function applyStandingPreviewState(state){
     const yaw=clampStandingMotion(Number(state.yaw)||0,-STANDING_POSE_HARD_LIMIT_DEG.yaw,STANDING_POSE_HARD_LIMIT_DEG.yaw);
     const pitch=clampStandingMotion(Number(state.pitch)||0,-STANDING_POSE_HARD_LIMIT_DEG.pitch,STANDING_POSE_HARD_LIMIT_DEG.pitch);
     const roll=clampStandingMotion(Number(state.roll)||0,-STANDING_POSE_HARD_LIMIT_DEG.roll,STANDING_POSE_HARD_LIMIT_DEG.roll);
-    img.style.transform=`translate3d(${(state.x*unit).toFixed(2)}px,${(state.y*unit).toFixed(2)}px,0) rotateZ(${roll.toFixed(3)}deg) rotateY(${yaw.toFixed(3)}deg) rotateX(${(-pitch).toFixed(3)}deg)`;
+    const live=!!img.closest("[data-live-screen]");
+    if(live&&window.__orikuroCartoonActRunning===true)return;
+    const baseX=(state.x*unit*.35);
+    const baseY=(state.y*unit*.25);
+    const baseRoll=roll*.18;
+    const baseSkew=clampStandingMotion(yaw*.04,-1.5,1.5);
+    const baseScaleY=clampStandingMotion(1-pitch*.0015,.97,1.03);
+    img.style.transformOrigin="50% 62%";
+    img.style.transform=`translate3d(${baseX.toFixed(2)}px,${baseY.toFixed(2)}px,0) rotate(${baseRoll.toFixed(3)}deg) skewX(${baseSkew.toFixed(3)}deg) scale(1,${baseScaleY.toFixed(4)})`;
   });
 }
 function acceptStandingFaceRegion(sample){
