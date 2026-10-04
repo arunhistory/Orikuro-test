@@ -1,10 +1,12 @@
 import{WatchMediaClient}from"./assets/js/watch-media.js?v=20260918-media2";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
+import{WatchMaterialPlayer}from"./watch-materials.js?v=20261004-view1";
 
 const compatibility=applyStreamingCompatibility(document);
 let transportReady=false;
 let supportCatalog={gifts:[],superchatAmounts:[]};
 let mediaClient=null;
+let materialPlayer=null;
 let audioEnabled=false;
 
 const commentInput=document.querySelector("[data-comment-input]");
@@ -14,8 +16,10 @@ const giftButton=document.querySelector("[data-gift-button]");
 const superchatButton=document.querySelector("[data-superchat-button]");
 const status=document.querySelector("[data-viewer-status]");
 const canvas=document.querySelector("[data-watch-media-canvas]");
-const placeholder=document.querySelector("[data-watch-placeholder]");
 const audioButton=document.querySelector("[data-watch-audio]");
+const materialStage=document.querySelector("[data-watch-material-stage]");
+const materialProgress=document.querySelector("[data-watch-material-progress]");
+const programStatus=document.querySelector("[data-watch-program-status]");
 
 function setInteractive(ready){
   transportReady=ready&&compatibility.supported;
@@ -27,6 +31,16 @@ function setInteractive(ready){
 }
 setInteractive(false);
 
+function startMaterials(){
+  if(materialPlayer||!materialStage)return;
+  try{
+    materialPlayer=new WatchMaterialPlayer(materialStage,materialProgress,programStatus);
+    materialPlayer.start();
+  }catch{
+    if(programStatus)programStatus.textContent="素材表示エラー";
+  }
+}
+
 async function stopMedia(){
   if(mediaClient){
     try{await mediaClient.stop();}catch{}
@@ -35,13 +49,20 @@ async function stopMedia(){
   audioEnabled=false;
   if(audioButton){
     audioButton.disabled=true;
-    audioButton.textContent="音量";
+    audioButton.textContent="音声ON";
   }
+}
+
+function stopMaterials(){
+  if(!materialPlayer)return;
+  materialPlayer.destroy();
+  materialPlayer=null;
 }
 
 document.addEventListener("orikuro:service-ready",event=>{
   const detail=event?.detail&&typeof event.detail==="object"?event.detail:{};
   const grant=detail.watchGrant;
+  startMaterials();
   if(!compatibility.supported||!grant||!canvas){
     if(status)status.textContent="視聴準備エラー";
     return;
@@ -50,13 +71,11 @@ document.addEventListener("orikuro:service-ready",event=>{
     mediaClient=new WatchMediaClient(grant,canvas,status);
     mediaClient.onEnded(()=>window.dispatchEvent(new CustomEvent("orikuro:stream-ended",{detail:{reason:"ended"}})));
     mediaClient.start();
-    if(placeholder)placeholder.hidden=true;
     canvas.hidden=false;
     if(audioButton){
       audioButton.disabled=false;
       audioButton.textContent="音声ON";
     }
-    setInteractive(true);
   }catch{
     if(status)status.textContent="視聴開始エラー";
     void stopMedia();
@@ -81,11 +100,11 @@ audioButton?.addEventListener("click",async()=>{
 });
 
 window.addEventListener("orikuro:transport-ready",()=>{
-  if(status)status.textContent="接続済み";
+  if(status)status.textContent="接続済み / 自動素材配信中";
   setInteractive(true);
 });
 window.addEventListener("orikuro:transport-reconnecting",()=>{
-  if(status)status.textContent="再接続中";
+  if(status)status.textContent="再接続中 / 自動素材は継続";
   setInteractive(false);
 });
 window.addEventListener("orikuro:support-catalog",event=>{
@@ -98,6 +117,7 @@ window.addEventListener("orikuro:support-catalog",event=>{
 });
 window.addEventListener("orikuro:stream-ended",event=>{
   void stopMedia();
+  stopMaterials();
   const reason=event?.detail?.reason||"ended";
   location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}`);
 });
@@ -135,4 +155,8 @@ if(superchatButton){
     window.dispatchEvent(new CustomEvent("orikuro:superchat-picker-request",{detail:{amounts:supportCatalog.superchatAmounts}}));
   });
 }
-window.addEventListener("pagehide",()=>{void stopMedia();},{once:true});
+
+window.addEventListener("pagehide",()=>{
+  stopMaterials();
+  void stopMedia();
+},{once:true});
