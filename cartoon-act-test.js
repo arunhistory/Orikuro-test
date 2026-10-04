@@ -9,7 +9,10 @@ const ACT_LABELS=Object.freeze({
   spin:"くるくる",peek:"のぞく",shiver:"ブルブル",camera_rush:"カメラ突撃"
 });
 const NUMERIC_KEYS=["x","y","z","yaw","pitch","roll","scaleX","scaleY","skewX","skewY","opacity"];
+const overlay=document.querySelector("[data-cartoon-act-overlay]");
 const panel=document.querySelector("[data-cartoon-act-panel]");
+const toggle=document.querySelector("[data-cartoon-act-toggle]");
+const closeButton=document.querySelector("[data-cartoon-act-close]");
 const statusEl=document.querySelector("[data-cartoon-act-status]");
 const fxLayer=document.querySelector("[data-cartoon-fx-layer]");
 const buttons=[...document.querySelectorAll("[data-cartoon-act]")].filter((el)=>el instanceof HTMLButtonElement);
@@ -36,10 +39,18 @@ function standingLiveReady(){
     &&layer instanceof HTMLElement&&!layer.hidden
     &&image instanceof HTMLImageElement&&!image.hidden&&!!image.getAttribute("src");
 }
+function setPanelOpen(open){
+  const allowed=open&&standingLiveReady();
+  if(panel instanceof HTMLElement)panel.hidden=!allowed;
+  if(toggle instanceof HTMLButtonElement)toggle.setAttribute("aria-expanded",allowed?"true":"false");
+}
 function syncPanel(){
-  if(!(panel instanceof HTMLElement))return;
-  panel.hidden=!standingLiveReady();
-  if(panel.hidden)setStatus("待機");
+  const ready=standingLiveReady();
+  if(overlay instanceof HTMLElement)overlay.hidden=!ready;
+  if(!ready){
+    setPanelOpen(false);
+    setStatus("待機");
+  }
 }
 function eventId(){
   if(globalThis.crypto?.randomUUID)return crypto.randomUUID();
@@ -278,12 +289,33 @@ async function requestAct(act){
     for(const button of buttons)button.disabled=false;
   }
 }
+function refreshActiveGeometry(){
+  if(!active)return;
+  const elapsed=clamp(performance.now()-active.start,0,active.plan.durationMs);
+  applyTransform(sample(active.plan,elapsed));
+  updateFx(active.plan,elapsed);
+}
+if(toggle instanceof HTMLButtonElement){
+  toggle.addEventListener("click",()=>setPanelOpen(panel instanceof HTMLElement&&panel.hidden));
+}
+if(closeButton instanceof HTMLButtonElement){
+  closeButton.addEventListener("click",()=>setPanelOpen(false));
+}
 for(const button of buttons){
-  button.addEventListener("click",()=>{const act=String(button.dataset.cartoonAct||"");void requestAct(act);});
+  button.addEventListener("click",()=>{
+    const act=String(button.dataset.cartoonAct||"");
+    setPanelOpen(false);
+    void requestAct(act);
+  });
 }
 window.addEventListener("orikuro:stream-live",()=>requestAnimationFrame(syncPanel));
-window.addEventListener("orikuro:stream-start-failed",()=>{if(panel instanceof HTMLElement)panel.hidden=true;resetActVisual();});
-window.addEventListener("orikuro:stream-ended",()=>resetActVisual());
-window.addEventListener("pagehide",()=>resetActVisual(),{once:true});
-window.addEventListener("resize",()=>{if(active)applyTransform(sample(active.plan,clamp(performance.now()-active.start,0,active.plan.durationMs)));});
+window.addEventListener("orikuro:stream-start-failed",()=>{if(overlay instanceof HTMLElement)overlay.hidden=true;setPanelOpen(false);resetActVisual();});
+window.addEventListener("orikuro:stream-ended",()=>{if(overlay instanceof HTMLElement)overlay.hidden=true;setPanelOpen(false);resetActVisual();});
+window.addEventListener("resize",refreshActiveGeometry);
+const preview=liveFrame();
+const previewResizeObserver=preview instanceof HTMLElement&&typeof ResizeObserver==="function"
+  ?new ResizeObserver(()=>{syncPanel();refreshActiveGeometry();})
+  :null;
+if(previewResizeObserver&&preview instanceof HTMLElement)previewResizeObserver.observe(preview);
+window.addEventListener("pagehide",()=>{previewResizeObserver?.disconnect();resetActVisual();},{once:true});
 syncPanel();
