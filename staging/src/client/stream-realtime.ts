@@ -1630,23 +1630,37 @@ function bindUI(): void {
     }
   });
   window.addEventListener('orikuro:standing-background-change', (event) => {
-    if(pageStopping||!liveTransmission||selectedMode!=='standing')return;
     const detail=objectValue((event as CustomEvent).detail);
+    const requestId=typeof detail?.requestId==='string'&&detail.requestId.length<=128?detail.requestId:'';
     const choice=typeof detail?.choiceId==='string'?detail.choiceId:'';
+    const fail=(code:string)=>{
+      window.dispatchEvent(new CustomEvent('orikuro:live-background-render-failed',{detail:{requestId,choiceId:choice,code}}));
+    };
+    if(!requestId){fail('LIVE_BACKGROUND_REQUEST_ID_INVALID');return;}
+    if(pageStopping||!liveTransmission||selectedMode!=='standing'){fail('LIVE_BACKGROUND_STREAM_NOT_ACTIVE');return;}
     const imageIndex=Number(detail?.index);
     if(/^standing-image-[1-4]$/.test(choice)){
-      if(imageIndex!==Number(choice.slice(-1))-1)return;
+      if(imageIndex!==Number(choice.slice(-1))-1){fail('LIVE_BACKGROUND_INDEX_MISMATCH');return;}
       const image=detail?.image;
-      if(!(image instanceof HTMLImageElement)||!image.complete||image.naturalWidth<1||image.naturalHeight<1)return;
+      if(!(image instanceof HTMLImageElement)||!image.complete||image.naturalWidth<1||image.naturalHeight<1){
+        fail('LIVE_BACKGROUND_IMAGE_NOT_READY');return;
+      }
       videoBackgroundImage=image;
     }else if(/^solid-[1-6]$/.test(choice)){
       const color=detail?.color;
-      if(typeof color!=='string'||!/^#[0-9a-fA-F]{6}$/.test(color))return;
+      if(typeof color!=='string'||!/^#[0-9a-fA-F]{6}$/.test(color)){
+        fail('LIVE_BACKGROUND_COLOR_INVALID');return;
+      }
       videoBackgroundImage=null;
       videoBackgroundColor=color;
-    }else return;
-    drawStandingVideoScene();
-    window.dispatchEvent(new CustomEvent('orikuro:live-background-rendered',{detail:{choiceId:choice}}));
+    }else{fail('LIVE_BACKGROUND_CHOICE_INVALID');return;}
+    if(!videoContext||!videoStandingImage){fail('LIVE_BACKGROUND_RENDERER_NOT_READY');return;}
+    try{
+      drawStandingVideoScene();
+    }catch{
+      fail('LIVE_BACKGROUND_DRAW_FAILED');return;
+    }
+    window.dispatchEvent(new CustomEvent('orikuro:live-background-rendered',{detail:{requestId,choiceId:choice}}));
   });
   window.addEventListener('orikuro:face-region-sample', (event) => {
     sendFaceRegionControl((event as CustomEvent).detail);
