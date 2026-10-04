@@ -10,7 +10,16 @@ export type WatchRealtimeGrant = Readonly<{
   capability: string;
   expiresAt: number;
   mediaWebSocketUrl: string;
+  commentsWebSocketUrl: string;
 }>;
+
+function checkedUrl(value: unknown, path: string): string {
+  if (typeof value !== 'string') throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続先を確認できません。');
+  let url: URL;
+  try { url = new URL(value); } catch { throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続先を確認できません。'); }
+  if (url.protocol !== 'wss:' || url.hostname !== NORTHFLANK_HOST || (url.port && url.port !== '443') || url.username || url.password || url.pathname !== path || url.search || url.hash) throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続先を確認できません。');
+  return url.toString();
+}
 
 function parseGrant(value: unknown): WatchRealtimeGrant {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続情報を確認できません。');
@@ -18,12 +27,14 @@ function parseGrant(value: unknown): WatchRealtimeGrant {
   const streamId = raw.streamId;
   const capability = raw.capability;
   const expiresAt = raw.expiresAt;
-  const mediaWebSocketUrl = raw.mediaWebSocketUrl;
-  if (typeof streamId !== 'string' || !STREAM_ID_RE.test(streamId) || typeof capability !== 'string' || capability.length > 12_000 || !CAPABILITY_RE.test(capability) || typeof expiresAt !== 'number' || !Number.isSafeInteger(expiresAt) || expiresAt <= Date.now() || expiresAt > Date.now() + 11 * 60_000 || typeof mediaWebSocketUrl !== 'string') throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続情報を確認できません。');
-  let url: URL;
-  try { url = new URL(mediaWebSocketUrl); } catch { throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続先を確認できません。'); }
-  if (url.protocol !== 'wss:' || url.hostname !== NORTHFLANK_HOST || (url.port && url.port !== '443') || url.username || url.password || url.pathname !== '/realtime/media' || url.search || url.hash) throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続先を確認できません。');
-  return Object.freeze({ streamId, capability, expiresAt, mediaWebSocketUrl: url.toString() });
+  if (typeof streamId !== 'string' || !STREAM_ID_RE.test(streamId) || typeof capability !== 'string' || capability.length > 12_000 || !CAPABILITY_RE.test(capability) || typeof expiresAt !== 'number' || !Number.isSafeInteger(expiresAt) || expiresAt <= Date.now() || expiresAt > Date.now() + 11 * 60_000) throw new ServiceFlowError('WATCH_GRANT_INVALID', '視聴接続情報を確認できません。');
+  return Object.freeze({
+    streamId,
+    capability,
+    expiresAt,
+    mediaWebSocketUrl: checkedUrl(raw.mediaWebSocketUrl, '/realtime/media'),
+    commentsWebSocketUrl: checkedUrl(raw.commentsWebSocketUrl, '/realtime/comments'),
+  });
 }
 
 export function clearWatchRealtimeGrant(): void { sessionStorage.removeItem(STORAGE_KEY); }
