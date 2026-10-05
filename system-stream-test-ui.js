@@ -1884,10 +1884,13 @@ let liveNoteZ=20;
 
 function previewBoundsFor(element){
   const desktop=window.matchMedia("(min-width:900px)").matches;
-  const workspace=desktop
-    ?element.closest(".broadcast-live-desktop-side")
-    :element.closest(".broadcast-live-screen");
-  return workspace instanceof HTMLElement?workspace:null;
+  if(desktop){
+    const workspace=element.closest(".broadcast-live-desktop-side");
+    return workspace instanceof HTMLElement?workspace:null;
+  }
+  const screen=element.closest(".broadcast-live-screen");
+  const preview=screen?.querySelector(".broadcast-live-preview");
+  return preview instanceof HTMLElement?preview:null;
 }
 
 function clampLiveNote(note){
