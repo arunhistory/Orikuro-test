@@ -1385,6 +1385,15 @@ function updateWizard(){
     start.textContent=selectedMode==="standing"?"立ち絵配信スタート":"ラジオ配信スタート";
     start.disabled=currentStep!==4||!readyForStep(4)||!sessionReady()||!compatibility.supported||(selectedMode==="standing"&&!standingCameraReady);
   }
+  if(currentStep===4){
+    if(!compatibility.supported)setFeedback("このブラウザでは配信を開始できません。","error");
+    else if(!readyForStep(1))setFeedback("マイク入力の準備を完了してください。","working");
+    else if(!readyForStep(2))setFeedback("配信素材・背景の準備を確認しています。","working");
+    else if(!readyForStep(3))setFeedback("枠タイトルを入力してください。","working");
+    else if(selectedMode==="standing"&&!standingCameraReady)setFeedback("カメラ接続を確認しています。許可後、自動で開始可能になります。","working");
+    else if(!sessionReady())setFeedback("配信経路を準備しています。完了すると開始できます。","working");
+    else if(document.documentElement.dataset.broadcastPhase==="prep")setFeedback("配信準備完了。開始できます。","ready");
+  }
   updateSummary();
   syncVisibleStandingAssets();
 }
