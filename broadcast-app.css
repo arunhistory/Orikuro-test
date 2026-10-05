@@ -2036,3 +2036,84 @@ html[data-stream-mode="standing"] .broadcast-background-preview>span[data-backgr
     font-size:12px;
   }
 }
+
+
+/* Mobile live workspace: keep phone-first overlay flow */
+@media (max-width:899px){
+  html[data-broadcast-phase="live"] .broadcast-live-screen{
+    position:relative;
+    display:block;
+    min-height:0;
+    overflow:hidden;
+  }
+  html[data-broadcast-phase="live"] .broadcast-live-preview{
+    position:absolute;
+    inset:0 0 108px;
+    min-width:0;
+    min-height:0;
+    border:0;
+    border-radius:0;
+  }
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side{
+    position:absolute;
+    inset:0;
+    display:block;
+    min-width:0;
+    min-height:0;
+    pointer-events:none;
+  }
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side .broadcast-live-hud,
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side .broadcast-live-comments,
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side .broadcast-compact-panel,
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side .broadcast-listener-panel,
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side .broadcast-cartoon-act-overlay,
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side .broadcast-live-controls,
+  html[data-broadcast-phase="live"] .broadcast-live-desktop-side .broadcast-live-note{
+    pointer-events:auto;
+  }
+  html[data-broadcast-phase="live"] .broadcast-live-hud{
+    position:absolute;
+    top:5px;
+    left:5px;
+    right:5px;
+  }
+  html[data-broadcast-phase="live"] .broadcast-live-comments{
+    position:absolute;
+    left:5px;
+    bottom:113px;
+    width:min(58%,330px);
+    max-height:38%;
+  }
+  html[data-broadcast-phase="live"] .broadcast-compact-panel{
+    top:76px;
+    right:5px;
+    bottom:113px;
+    width:min(82%,290px);
+    max-height:none;
+  }
+  html[data-broadcast-phase="live"] .broadcast-listener-panel{
+    top:76px;
+    right:5px;
+    bottom:113px;
+    width:min(84%,300px);
+    max-height:none;
+  }
+  html[data-broadcast-phase="live"] .broadcast-live-notes{
+    position:absolute;
+    inset:0 0 108px;
+    pointer-events:none;
+  }
+  html[data-broadcast-phase="live"] .broadcast-cartoon-act-overlay{
+    right:6px;
+    bottom:114px;
+  }
+  html[data-broadcast-phase="live"] .broadcast-live-controls{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    min-height:108px;
+    max-height:56dvh;
+    overflow:auto;
+  }
+}
