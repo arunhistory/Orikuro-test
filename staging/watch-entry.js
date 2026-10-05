@@ -42,6 +42,13 @@ function checkedWs(raw,path,host=NF_HOST){
   if(url.protocol!=="wss:"||url.hostname!==host||(url.port&&url.port!=="443")||url.username||url.password||url.pathname!==path||url.search||url.hash)throw new Error("ROOM_URL_INVALID");
   return url.toString();
 }
+function checkedAudioWs(raw,streamId){
+  if(typeof raw!=="string")throw new Error("ROOM_AUDIO_URL_INVALID");
+  const url=new URL(raw);
+  const keys=[...url.searchParams.keys()];
+  if(url.protocol!=="wss:"||url.hostname!==NF_HOST||(url.port&&url.port!=="443")||url.username||url.password||url.pathname!=="/realtime/audio"||url.hash||keys.length!==1||keys[0]!=="stream_id"||url.searchParams.get("stream_id")!==streamId)throw new Error("ROOM_AUDIO_URL_INVALID");
+  return url.toString();
+}
 async function roomRequest(accessKey){
   const response=await fetch(ROOM_URL,{
     method:"POST",
@@ -66,7 +73,9 @@ async function roomRequest(accessKey){
   if(!STREAM_ID_RE.test(streamId)||demo.streamId!==streamId||!CAP_RE.test(capability)||!CAP_RE.test(publisherCapability)||!CAP_RE.test(controlCapability)||!Number.isSafeInteger(expiresAt)||expiresAt<=Date.now()||!Number.isSafeInteger(publisherExpiresAt)||publisherExpiresAt<=Date.now())throw new Error("ROOM_GRANT_INVALID");
   const mediaWebSocketUrl=checkedWs(grant.mediaWebSocketUrl,"/realtime/media");
   const commentsWebSocketUrl=checkedWs(grant.commentsWebSocketUrl,"/realtime/comments");
+  const supportWebSocketUrl=checkedWs(grant.supportWebSocketUrl,"/realtime/support");
   const cloudflareWebSocketUrl=checkedWs(demo.cloudflareWebSocketUrl,`/v1/streams/${streamId}/ws`,CF_HOST);
+  const audioWebSocketUrl=checkedAudioWs(demo.audioWebSocketUrl,streamId);
 
   let stopped=false;
   const roomController=Object.freeze({
@@ -90,8 +99,8 @@ async function roomRequest(accessKey){
     }
   });
   return{
-    watchGrant:{streamId,capability,expiresAt,mediaWebSocketUrl,commentsWebSocketUrl},
-    demoPublisher:{streamId,publisherCapability,controlCapability,cloudflareWebSocketUrl,expiresAt:publisherExpiresAt},
+    watchGrant:{streamId,capability,expiresAt,mediaWebSocketUrl,commentsWebSocketUrl,supportWebSocketUrl},
+    demoPublisher:{streamId,publisherCapability,controlCapability,cloudflareWebSocketUrl,audioWebSocketUrl,expiresAt:publisherExpiresAt},
     roomController
   };
 }
