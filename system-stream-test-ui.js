@@ -12,7 +12,6 @@ const BACKGROUND_ACTIVATE_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/function
 const STANDING_PREVIEW_STOP_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview-stop";
 const STANDING_IMAGE_COUNT=4;
 const supportedModes=new Set(["radio","standing"]);
-const RESULT_STORAGE_KEY="oc_system_stream_test_result_v1";
 const radioPresets=new Map([
   ["solid-1",{label:"黒",color:"#000000"}],
   ["solid-2",{label:"白",color:"#FFFFFF"}],
@@ -329,7 +328,6 @@ let standingCameraReady=false;
 let standingTrackingStart=null;
 let standingPreliveComposition=null;
 let startedAt=0;
-let liveStreamId="";
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
 
@@ -2306,8 +2304,6 @@ window.addEventListener("orikuro:stream-live",()=>{
     micToggle.textContent="マイクテスト";
   }
   startClock();
-  const activeGrant=getStreamRealtimeGrant();
-  liveStreamId=activeGrant?.streamId||"";
   document.querySelectorAll("[data-stream-status]").forEach(status=>status.textContent="配信中");
   const stop=document.querySelector("[data-audio-stop]");
   if(stop)stop.disabled=false;
@@ -2352,28 +2348,9 @@ window.addEventListener("orikuro:stream-stop-failed",()=>{
 });
 
 window.addEventListener("orikuro:stream-ended",event=>{
-  const endedAt=Date.now();
-  const reason=event?.detail?.reason||"ended";
-  const durationSeconds=startedAt?Math.max(0,Math.floor((endedAt-startedAt)/1000)):0;
-  if(systemTest){
-    const currentGrant=getStreamRealtimeGrant();
-    const streamId=liveStreamId||currentGrant?.streamId||"";
-    const result={
-      version:1,
-      status:"completed",
-      reason,
-      streamId,
-      mode:selectedMode,
-      title:streamTitleValue(),
-      durationSeconds,
-      endedAt
-    };
-    try{sessionStorage.setItem(RESULT_STORAGE_KEY,JSON.stringify(result));}catch{}
-  }
   stopClock();
-  liveStreamId="";
-  const testParam=systemTest?"&test=1":"";
-  location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}${testParam}&v=20261005-result2`);
+  const reason=event?.detail?.reason||"ended";
+  location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}`);
 });
 
 const stopButton=document.querySelector("[data-audio-stop]");
