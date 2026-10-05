@@ -331,21 +331,6 @@ let startedAt=0;
 let timer=0;
 document.documentElement.dataset.broadcastPhase="prep";
 
-const layoutToggle=document.querySelector("[data-layout-toggle]");
-function updateLayoutToggle(){
-  if(!(layoutToggle instanceof HTMLButtonElement))return;
-  const mode=document.documentElement.dataset.streamLayout||"auto";
-  layoutToggle.textContent=mode==="desktop"?"スマホ表示":"PC表示";
-  layoutToggle.setAttribute("aria-pressed",mode==="desktop"?"true":"false");
-}
-layoutToggle?.addEventListener("click",()=>{
-  const current=document.documentElement.dataset.streamLayout||"auto";
-  const next=current==="desktop"?"mobile":"desktop";
-  const setter=window.__orikuroSetStreamLayout;
-  if(typeof setter==="function")setter(next);
-});
-updateLayoutToggle();
-
 
 function setState(name,text,state="waiting"){
   const el=document.querySelector(`[data-stream-state="${name}"]`);
