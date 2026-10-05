@@ -233,6 +233,7 @@ export class WatchMediaClient {
   private videoAnchorPerfMs = 0;
   private pendingFrames: VideoFrame[] = [];
   private renderTimer: number | null = null;
+  private firstFramePresented = false;
   private audioContext: AudioContext | null = null;
   private audioEnabled = false;
   private scheduledAudio = new Set<AudioBufferSourceNode>();
@@ -434,6 +435,10 @@ export class WatchMediaClient {
         this.canvas.height = frame.displayHeight;
       }
       this.context.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
+      if (!this.firstFramePresented) {
+        this.firstFramePresented = true;
+        window.dispatchEvent(new CustomEvent('orikuro:media-first-frame', { detail: { streamId: this.grant.streamId } }));
+      }
     } finally { frame.close(); }
     queueMicrotask(() => this.pumpVideoFrames());
   }
@@ -508,6 +513,7 @@ export class WatchMediaClient {
     this.clearScheduledAudio();
     this.videoAnchorMediaUs = null;
     this.videoAnchorPerfMs = 0;
+    this.firstFramePresented = false;
     this.expectedCursor = null;
     this.allowKeyframeJump = false;
     if (!keepCursor) this.lastCursor = 0n;
