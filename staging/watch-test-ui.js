@@ -1,5 +1,5 @@
-import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-upper1";
-import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-upper1";
+import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-noaudio1";
+import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-noaudio1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 
 const COMMENT_PROTOCOL="orikuro-comments-v1";
@@ -15,7 +15,7 @@ let mediaClient=null,demoPublisher=null,roomController=null,currentGrant=null;
 let commentsSocket=null,commentsAuthenticated=false,commentsCanSend=false,commentsCanLike=false,commentSequence=0,commentsReconnectTimer=null,commentsReconnectAttempt=0;
 let supportSocket=null,supportAuthenticated=false,supportCanPublish=false,supportSequence=0,supportReconnectTimer=null,supportReconnectAttempt=0;
 let supportGiftCatalog=[],supportSuperchatAmounts=[],selectedSuperchatAmount=0;
-let audioEnabled=false,pageStopping=false,warningTimer=null,endTimer=null,clockTimer=null,effectTimer=null;
+let audioStarted=false,pageStopping=false,warningTimer=null,endTimer=null,clockTimer=null,effectTimer=null;
 let giftTotal=0,superchatTotal=0,supportScore=0;
 const supportBySubject=new Map(),subjectAliases=new Map();
 
@@ -24,7 +24,7 @@ const qa=s=>[...document.querySelectorAll(s)];
 const status=q("[data-viewer-status]"),clock=q("[data-stream-clock]"),waiting=q("[data-watch-waiting]");
 const mediaCanvas=q("[data-watch-media-canvas]"),demoCanvas=q("[data-watch-demo-canvas]");
 const commentList=q("[data-comment-list]"),commentInput=q("[data-comment-input]");
-const likeCounts=qa("[data-like-count]"),audioButton=q("[data-watch-audio]");
+const likeCounts=qa("[data-like-count]");
 const supportEffect=q("[data-support-effect]");
 const giftPanel=q("[data-gift-panel]"),superchatPanel=q("[data-superchat-panel]");
 const giftOptions=q("[data-gift-options]"),superchatOptions=q("[data-superchat-options]"),superchatMessage=q("[data-superchat-message]");
@@ -161,7 +161,7 @@ function closeRealtime(){
   if(supportSocket&&supportSocket.readyState<WebSocket.CLOSING)try{supportSocket.close(1000,"viewer closed")}catch{}
   commentsSocket=null;supportSocket=null;commentsAuthenticated=false;supportAuthenticated=false;
 }
-async function stopMedia(){if(mediaClient){try{await mediaClient.stop()}catch{}mediaClient=null}audioEnabled=false;if(audioButton){audioButton.textContent="🔊";audioButton.setAttribute("aria-label","音声をオンにする")}}
+async function stopMedia(){if(mediaClient){try{await mediaClient.stop()}catch{}mediaClient=null}audioStarted=false}
 async function stopDemo(keepalive=false){if(!demoPublisher)return;const current=demoPublisher;demoPublisher=null;try{await current.stop(keepalive)}catch{}}
 async function stopRoom(){if(!roomController)return;const current=roomController;roomController=null;try{await current.stop()}catch{}}
 function clearSessionTimers(){for(const id of [warningTimer,endTimer,clockTimer])if(id!==null)clearTimeout(id);warningTimer=endTimer=clockTimer=null;}
@@ -230,7 +230,11 @@ q("[data-like-surface]")?.addEventListener("pointerup",event=>{
   if(now-lastSurfaceTap<330){lastSurfaceTap=0;sendLike(null,event.clientX,event.clientY);return}
   lastSurfaceTap=now;
 });
-audioButton?.addEventListener("click",async()=>{if(!mediaClient){setStatus("音声を接続しています");return}try{if(audioEnabled){await mediaClient.disableAudio();audioEnabled=false;audioButton.textContent="🔊";audioButton.setAttribute("aria-label","音声をオンにする")}else{await mediaClient.enableAudio();audioEnabled=true;audioButton.textContent="🔈";audioButton.setAttribute("aria-label","音声をオフにする")}}catch{setStatus("音声再生エラー")}});
+async function ensureAudio(){
+  if(audioStarted||!mediaClient)return;
+  try{await mediaClient.enableAudio();audioStarted=true}catch{}
+}
+document.addEventListener("pointerdown",()=>{void ensureAudio()},{once:true,capture:true});
 
 q("[data-live-support-toggle]")?.addEventListener("click",()=>openPanel(supportPanel));
 q("[data-live-support-close]")?.addEventListener("click",()=>closePanel(supportPanel));
