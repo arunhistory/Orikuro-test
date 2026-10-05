@@ -1,5 +1,5 @@
-import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-layout2";
-import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-layout2";
+import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-upper1";
+import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-upper1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 
 const COMMENT_PROTOCOL="orikuro-comments-v1";
@@ -24,7 +24,7 @@ const qa=s=>[...document.querySelectorAll(s)];
 const status=q("[data-viewer-status]"),clock=q("[data-stream-clock]"),waiting=q("[data-watch-waiting]");
 const mediaCanvas=q("[data-watch-media-canvas]"),demoCanvas=q("[data-watch-demo-canvas]");
 const commentList=q("[data-comment-list]"),commentInput=q("[data-comment-input]");
-const likeCount=q("[data-like-count]"),audioButton=q("[data-watch-audio]");
+const likeCounts=qa("[data-like-count]"),audioButton=q("[data-watch-audio]");
 const supportEffect=q("[data-support-effect]");
 const giftPanel=q("[data-gift-panel]"),superchatPanel=q("[data-superchat-panel]");
 const giftOptions=q("[data-gift-options]"),superchatOptions=q("[data-superchat-options]"),superchatMessage=q("[data-superchat-message]");
@@ -128,9 +128,9 @@ function connectComments(grant){
   socket.addEventListener("message",event=>{
     if(socket!==commentsSocket||typeof event.data!=="string"||event.data.length>64000)return;
     let data;try{data=JSON.parse(event.data);}catch{return;}if(!data||typeof data!=="object")return;
-    if(data.type==="auth_ok"){commentsAuthenticated=true;commentsCanSend=data.canComment===true;commentsCanLike=data.canLike===true;commentsReconnectAttempt=0;if(Number.isSafeInteger(data.likeCount)&&likeCount)likeCount.textContent=String(data.likeCount);return;}
+    if(data.type==="auth_ok"){commentsAuthenticated=true;commentsCanSend=data.canComment===true;commentsCanLike=data.canLike===true;commentsReconnectAttempt=0;if(Number.isSafeInteger(data.likeCount))likeCounts.forEach(node=>node.textContent=String(data.likeCount));return;}
     if(data.type==="comment"){const m=data.message;if(!m||typeof m!=="object")return;const seq=Number(m.sequence);if(!Number.isSafeInteger(seq)||seq<=commentSequence)return;commentSequence=seq;appendFeed("comment",String(m.displayName||"リスナー").slice(0,80),String(m.text||"").slice(0,200));return;}
-    if(data.type==="like_total"&&Number.isSafeInteger(data.count)&&likeCount)likeCount.textContent=String(data.count);
+    if(data.type==="like_total"&&Number.isSafeInteger(data.count))likeCounts.forEach(node=>node.textContent=String(data.count));
   });
   socket.addEventListener("close",event=>{if(socket!==commentsSocket)return;commentsSocket=null;commentsAuthenticated=false;if(!pageStopping&&event.code!==1008&&grant.expiresAt>Date.now()){const delay=reconnectDelay(commentsReconnectAttempt++);commentsReconnectTimer=setTimeout(()=>{commentsReconnectTimer=null;connectComments(grant);},delay);}});
 }
