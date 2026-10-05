@@ -33,7 +33,7 @@ function takeAccessKey(){
   const hash=location.hash.startsWith("#")?location.hash.slice(1):"";
   const params=new URLSearchParams(hash);
   const value=params.get("access")||params.get("op")||"";
-  if(location.hash)history.replaceState(null,"",location.pathname+location.search);
+  // Reusable staging access stays in the URL fragment so reload creates a fresh isolated room.
   return ACCESS_RE.test(value)?value:null;
 }
 function checkedWs(raw,path,host=NF_HOST){
