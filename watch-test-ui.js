@@ -182,7 +182,7 @@ async function earlyFailure(message){
 
 function startGrant(grant,controller=null,demoGrant=null){
   if(!compatibility.supported||!grant||!(mediaCanvas instanceof HTMLCanvasElement)){setStatus("視聴準備エラー");return}
-  roomController=controller||roomController;scheduleSession(grant);connectComments(grant);connectSupport(grant);
+  roomController=controller||roomController;scheduleSession(grant);connectComments(grant);connectSupport(grant);qa("[data-listener-count]").forEach(node=>node.textContent="1");
   try{
     mediaClient=new WatchMediaClient(grant,mediaCanvas,status);
     mediaClient.onEnded(()=>{const expected=Date.now()>=grant.expiresAt-5000;if(expected)void finishNatural();else void earlyFailure("配信が予期せず終了しました");});
