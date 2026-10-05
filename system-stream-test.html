@@ -15,7 +15,7 @@
   <meta name="theme-color" content="#11131d"/>
   <meta name="robots" content="noindex,nofollow"/>
   <title>配信準備 | Original Create Project</title>
-  <link rel="stylesheet" href="./broadcast-app.css?v=20261005-desktop-workspace2"/>
+  <link rel="stylesheet" href="./broadcast-app.css?v=20261005-desktop-live3"/>
   <style>
     .broadcast-prepared-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:center}
     .broadcast-cartoon-fx{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
@@ -280,29 +280,21 @@
                   <span data-live-character-label>配信モデル</span>
                 </div>
                 <div class="broadcast-cartoon-fx" data-cartoon-fx-layer aria-hidden="true"></div>
-                <div class="broadcast-cartoon-act-overlay" data-cartoon-act-overlay hidden>
-                  <button class="broadcast-cartoon-act-toggle" type="button" data-cartoon-act-toggle aria-expanded="false" aria-controls="cartoon-act-panel">
-                    <strong>演技</strong>
-                    <small data-cartoon-act-status role="status" aria-live="polite">待機</small>
-                  </button>
-                  <section class="broadcast-cartoon-act-panel" id="cartoon-act-panel" data-cartoon-act-panel hidden aria-label="立ち絵演技">
-                    <div class="broadcast-cartoon-act-head">
-                      <strong>演技</strong>
-                      <button class="broadcast-cartoon-act-close" type="button" data-cartoon-act-close aria-label="演技操作を閉じる">×</button>
-                    </div>
-                    <div class="broadcast-cartoon-act-grid" role="group" aria-label="立ち絵の演技を選択">
-                      <button type="button" data-cartoon-act="surprise">びっくり</button>
-                      <button type="button" data-cartoon-act="tsukkomi">ツッコミ</button>
-                      <button type="button" data-cartoon-act="zukkoke">ズコー</button>
-                      <button type="button" data-cartoon-act="blast">吹っ飛ぶ</button>
-                      <button type="button" data-cartoon-act="spin">くるくる</button>
-                      <button type="button" data-cartoon-act="peek">のぞく</button>
-                      <button type="button" data-cartoon-act="shiver">ブルブル</button>
-                      <button type="button" data-cartoon-act="camera_rush">カメラ突撃</button>
-                    </div>
-                  </section>
-                </div>
+                
 
+                
+
+                
+
+                
+
+                
+
+                
+
+                
+              </div>
+              <aside class="broadcast-live-desktop-side" aria-label="配信管理">
                 <div class="broadcast-live-hud">
                   <div class="broadcast-live-owner-row">
                     <img class="broadcast-live-owner-icon" src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
@@ -345,7 +337,35 @@
                     <button type="button" data-live-subtitle-cancel>取消</button>
                   </form>
                 </div>
-
+                <section class="broadcast-live-comments" aria-label="配信コメント">
+                  <header>
+                    <strong>コメント</strong>
+                    <span data-comment-status role="status" aria-live="polite">接続待ち</span>
+                  </header>
+                  <ol data-comment-list aria-live="polite" aria-relevant="additions text">
+                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
+                      <strong class="realtime-comment-name">リスナー1</strong>
+                      <span class="realtime-comment-text">こんばんは〜！今日も来た！</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
+                      <strong class="realtime-comment-name">リスナー3</strong>
+                      <span class="realtime-comment-text">初見です！</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="gift" data-comment-demo>
+                      <span class="realtime-system-text">リスナー5が「ペンギン」を投げました</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
+                      <strong class="realtime-comment-name">リスナー7</strong>
+                      <span class="realtime-comment-text">草</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="fan_level_up" data-comment-demo>
+                      <span class="realtime-system-text">リスナー12のファンレベルがLv.2に上がりました</span>
+                    </li>
+                    <li class="realtime-comment-item" data-feed-kind="superchat" data-comment-demo>
+                      <span class="realtime-system-text">リスナー10がスパチャ 1,000pt を送りました</span>
+                    </li>
+                  </ol>
+                </section>
                 <aside class="broadcast-compact-panel broadcast-support-panel" data-live-support-panel hidden aria-label="応援スコア詳細">
                   <header>
                     <strong>応援スコア</strong>
@@ -382,7 +402,6 @@
                   </div>
                   <small>※0 / +1 / +2 / +4 / +6 の領域とボーダーはお試し用の仮値</small>
                 </aside>
-
                 <aside class="broadcast-compact-panel broadcast-ranking-panel" data-live-ranking-panel hidden aria-label="イベントランキング">
                   <header>
                     <div>
@@ -393,7 +412,6 @@
                   </header>
                   <ol data-event-ranking-list></ol>
                 </aside>
-
                 <aside class="broadcast-compact-panel broadcast-listener-panel" data-live-listener-panel hidden aria-label="リスナー一覧">
                   <header>
                     <div>
@@ -411,41 +429,30 @@
                     <ol data-listener-list></ol>
                   </section>
                 </aside>
-
-                <section class="broadcast-live-comments" aria-label="配信コメント">
-                  <header>
-                    <strong>コメント</strong>
-                    <span data-comment-status role="status" aria-live="polite">接続待ち</span>
-                  </header>
-                  <ol data-comment-list aria-live="polite" aria-relevant="additions text">
-                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
-                      <strong class="realtime-comment-name">リスナー1</strong>
-                      <span class="realtime-comment-text">こんばんは〜！今日も来た！</span>
-                    </li>
-                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
-                      <strong class="realtime-comment-name">リスナー3</strong>
-                      <span class="realtime-comment-text">初見です！</span>
-                    </li>
-                    <li class="realtime-comment-item" data-feed-kind="gift" data-comment-demo>
-                      <span class="realtime-system-text">リスナー5が「ペンギン」を投げました</span>
-                    </li>
-                    <li class="realtime-comment-item" data-feed-kind="comment" data-comment-demo>
-                      <strong class="realtime-comment-name">リスナー7</strong>
-                      <span class="realtime-comment-text">草</span>
-                    </li>
-                    <li class="realtime-comment-item" data-feed-kind="fan_level_up" data-comment-demo>
-                      <span class="realtime-system-text">リスナー12のファンレベルがLv.2に上がりました</span>
-                    </li>
-                    <li class="realtime-comment-item" data-feed-kind="superchat" data-comment-demo>
-                      <span class="realtime-system-text">リスナー10がスパチャ 1,000pt を送りました</span>
-                    </li>
-                  </ol>
-                </section>
-
                 <div class="broadcast-live-notes" data-live-notes aria-label="配信メモ"></div>
-              </div>
-
-              <div class="broadcast-live-controls">
+                <div class="broadcast-cartoon-act-overlay" data-cartoon-act-overlay hidden>
+                  <button class="broadcast-cartoon-act-toggle" type="button" data-cartoon-act-toggle aria-expanded="false" aria-controls="cartoon-act-panel">
+                    <strong>演技</strong>
+                    <small data-cartoon-act-status role="status" aria-live="polite">待機</small>
+                  </button>
+                  <section class="broadcast-cartoon-act-panel" id="cartoon-act-panel" data-cartoon-act-panel hidden aria-label="立ち絵演技">
+                    <div class="broadcast-cartoon-act-head">
+                      <strong>演技</strong>
+                      <button class="broadcast-cartoon-act-close" type="button" data-cartoon-act-close aria-label="演技操作を閉じる">×</button>
+                    </div>
+                    <div class="broadcast-cartoon-act-grid" role="group" aria-label="立ち絵の演技を選択">
+                      <button type="button" data-cartoon-act="surprise">びっくり</button>
+                      <button type="button" data-cartoon-act="tsukkomi">ツッコミ</button>
+                      <button type="button" data-cartoon-act="zukkoke">ズコー</button>
+                      <button type="button" data-cartoon-act="blast">吹っ飛ぶ</button>
+                      <button type="button" data-cartoon-act="spin">くるくる</button>
+                      <button type="button" data-cartoon-act="peek">のぞく</button>
+                      <button type="button" data-cartoon-act="shiver">ブルブル</button>
+                      <button type="button" data-cartoon-act="camera_rush">カメラ突撃</button>
+                    </div>
+                  </section>
+                </div>
+                <div class="broadcast-live-controls">
                 <div class="broadcast-live-tools">
                   <button class="broadcast-mic-toggle" type="button" data-mic-test-toggle aria-expanded="false">マイクテスト</button>
                   <button class="broadcast-mic-toggle" type="button" data-live-mic-switch-toggle aria-expanded="false" aria-controls="live-mic-switch-panel">マイク切替</button>
@@ -515,6 +522,9 @@
                 </div>
                 <button class="stream-control stream-control-stop" type="button" data-audio-stop disabled>配信を終了</button>
               </div>
+              </aside>
+
+              
             </section>
 
             <div class="broadcast-debug-state" aria-hidden="true">
@@ -533,7 +543,7 @@
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20261005-concurrent-tabs1"></script>
   <script type="module" src="./assets/js/stream-realtime.js?v=20261004-bgfix2"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./system-stream-test-ui.js?v=20261005-desktop-request4"></script>
+  <script type="module" src="./system-stream-test-ui.js?v=20261005-desktop-live3"></script>
   <script type="module" src="./cartoon-act-test.js?v=20261004-cartoon2"></script>
 </body>
 </html>
