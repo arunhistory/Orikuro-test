@@ -1883,8 +1883,11 @@ let liveNoteSequence=0;
 let liveNoteZ=20;
 
 function previewBoundsFor(element){
-  const preview=element.closest(".broadcast-live-preview");
-  return preview instanceof HTMLElement?preview:null;
+  const desktop=window.matchMedia("(min-width:900px)").matches;
+  const workspace=desktop
+    ?element.closest(".broadcast-live-desktop-side")
+    :element.closest(".broadcast-live-screen");
+  return workspace instanceof HTMLElement?workspace:null;
 }
 
 function clampLiveNote(note){
@@ -1997,7 +2000,7 @@ function bindLiveNoteResize(note,grip){
 
 function createLiveNote(){
   if(!(liveNotes instanceof HTMLElement))return;
-  const preview=liveNotes.closest(".broadcast-live-preview");
+  const preview=previewBoundsFor(liveNotes);
   if(!(preview instanceof HTMLElement))return;
   liveNoteSequence+=1;
   const note=document.createElement("div");
