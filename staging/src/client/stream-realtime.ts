@@ -32,9 +32,9 @@ const AUDIO_ACK_TIMEOUT_MS = 5_000;
 const AUDIO_LISTENER_TIMEOUT_MS = 7_000;
 const AUDIO_METER_INTERVAL_MS = 80;
 const WORKLET_URL = './assets/js/stream-audio-worklet.js?v=20260919-audio3';
-const TARGET_WIDTH = 640;
-const TARGET_HEIGHT = 360;
-const TARGET_FPS = 5;
+const TARGET_WIDTH = 360;
+const TARGET_HEIGHT = 640;
+const TARGET_FPS = 30;
 const FRAME_INTERVAL_MS = Math.round(1000 / TARGET_FPS);
 const KEYFRAME_INTERVAL = TARGET_FPS * 2;
 const H264_CODEC = 'avc1.42001E';
@@ -1109,7 +1109,7 @@ async function supportedVideoConfig(): Promise<VideoEncoderConfig> {
     width: TARGET_WIDTH,
     height: TARGET_HEIGHT,
     framerate: TARGET_FPS,
-    bitrate: 800_000,
+    bitrate: 1_200_000,
     latencyMode: 'realtime',
     avc: { format: 'annexb' },
   };
