@@ -62,9 +62,8 @@ body.broadcast-app-page{
 }
 .broadcast-header{
   display:grid;
-  grid-template-columns:42px minmax(0,1fr) auto 42px;
+  grid-template-columns:42px 1fr 42px;
   align-items:center;
-  gap:7px;
   min-height:56px;
   padding:calc(6px + env(safe-area-inset-top)) 12px 5px;
 }
@@ -76,23 +75,7 @@ body.broadcast-app-page{
   background:rgba(255,255,255,.08);
   color:#fff;text-decoration:none;font-size:24px;line-height:1;
 }
-.broadcast-header-title{text-align:center;font-size:16px;font-weight:950;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.broadcast-layout-toggle{
-  appearance:none;
-  min-height:30px;
-  padding:0 10px;
-  border:1px solid rgba(255,255,255,.17);
-  border-radius:999px;
-  background:rgba(255,255,255,.08);
-  color:#fff;
-  font:inherit;
-  font-size:10px;
-  font-weight:900;
-  white-space:nowrap;
-  cursor:pointer;
-}
-.broadcast-layout-toggle:active{transform:translateY(1px)}
-html[data-stream-layout="desktop"] .broadcast-layout-toggle{background:rgba(139,103,255,.22);border-color:rgba(165,154,242,.45)}
+.broadcast-header-title{text-align:center;font-size:16px;font-weight:950}
 .broadcast-header-spacer{width:39px;height:39px}
 
 .broadcast-wizard{
