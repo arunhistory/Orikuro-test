@@ -2054,3 +2054,37 @@ html[data-stream-mode="standing"] .broadcast-background-preview>span[data-backgr
   }
 }
 
+
+
+/* Phone desktop-site bridge v9: make the virtual PC canvas fill the layout viewport. */
+html[data-desktop-requested="true"]{
+  width:1366px;
+  min-width:1366px;
+  height:768px;
+  min-height:768px;
+  overflow:hidden;
+}
+html[data-desktop-requested="true"] body,
+html[data-desktop-requested="true"] body.broadcast-app-page{
+  position:relative !important;
+  inset:auto !important;
+  width:1366px !important;
+  min-width:1366px !important;
+  max-width:none !important;
+  height:768px !important;
+  min-height:768px !important;
+  overflow:hidden !important;
+}
+html[data-desktop-requested="true"] .stream-main,
+html[data-desktop-requested="true"] .stream-gate,
+html[data-desktop-requested="true"] .stream-app,
+html[data-desktop-requested="true"] [data-stream-supported],
+html[data-desktop-requested="true"] .broadcast-shell{
+  width:1366px !important;
+  min-width:1366px !important;
+  max-width:none !important;
+  height:768px !important;
+  min-height:768px !important;
+  margin:0 !important;
+  overflow:hidden !important;
+}
