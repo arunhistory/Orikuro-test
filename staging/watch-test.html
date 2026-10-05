@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#05060a"/>
   <title>視聴テスト | Original Create Project</title>
   <link rel="stylesheet" href="./broadcast-app.css?v=20260920-standing1"/>
-  <link rel="stylesheet" href="./watch-app.css?v=20261005-layout2"/>
+  <link rel="stylesheet" href="./watch-app.css?v=20261005-upper1"/>
 </head>
 <body class="broadcast-app-page watch-app-page">
   <main class="stream-main">
@@ -28,32 +28,45 @@
                 <canvas class="watch-scene-canvas watch-media-canvas" data-watch-media-canvas width="360" height="640" hidden></canvas>
                 <div class="watch-waiting" data-watch-waiting><span>背景と立ち絵を準備しています…</span></div>
 
-                <div class="broadcast-live-hud watch-live-hud">
-                  <div class="broadcast-live-owner-row watch-owner-row">
+                <div class="broadcast-live-hud">
+                  <div class="broadcast-live-owner-row">
                     <img class="broadcast-live-owner-icon" src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                     <div class="broadcast-live-owner-copy">
                       <strong>立ち絵配信テスト</strong>
-                      <div class="broadcast-live-subtitle-row"><span data-viewer-status>準備中</span></div>
+                      <div class="broadcast-live-subtitle-row">
+                        <span data-viewer-status>準備中</span>
+                      </div>
                     </div>
-                    <span class="broadcast-live-status"><i></i><b data-stream-clock>00:00</b></span>
+                    <span class="broadcast-live-status">
+                      <i></i>
+                      <b data-stream-clock>00:00</b>
+                    </span>
+                  </div>
+
+                  <div class="broadcast-live-quickbar">
+                    <button type="button" data-live-support-toggle>
+                      <small>応援</small>
+                      <strong data-support-score>0</strong>
+                    </button>
+                    <button type="button" data-live-event-toggle>
+                      <small>イベント</small>
+                      <strong><span data-event-rank>--</span>位</strong>
+                      <span><b data-event-points>0</b>pt</span>
+                    </button>
+                    <button type="button" data-live-listeners-toggle>
+                      <small>リスナー</small>
+                      <strong><span data-listener-count>1</span>人</strong>
+                    </button>
+                    <span class="broadcast-live-like">
+                      <small>いいね</small>
+                      <strong data-like-count>0</strong>
+                    </span>
                   </div>
                 </div>
 
-                <nav class="watch-top-tools" aria-label="配信情報">
-                  <button class="watch-top-chip watch-event-chip" type="button" data-live-event-toggle>
-                    <span class="watch-top-chip-icon">🏆</span>
-                    <span class="watch-top-chip-copy"><small>イベント</small><strong><b data-event-rank>--</b>位・<b data-event-points>0</b>pt</strong></span>
-                  </button>
-                  <button class="watch-top-chip watch-listener-chip" type="button" data-live-listeners-toggle>
-                    <span class="watch-top-chip-icon">👥</span>
-                    <span class="watch-top-chip-copy"><small>リスナー</small><strong><b data-listener-count>1</b>人</strong></span>
-                  </button>
-                  <button class="watch-round-button watch-audio-button" type="button" data-watch-audio aria-label="音声切替">🔊</button>
-                </nav>
-
                 <aside class="watch-reaction-rail" aria-label="リアクション">
-                  <button class="watch-rail-button" type="button" data-live-support-toggle>
-                    <span class="watch-rail-icon">◇</span><strong data-support-score>0</strong><small>応援</small>
+                  <button class="watch-rail-button watch-audio-rail" type="button" data-watch-audio aria-label="音声切替">
+                    <span class="watch-rail-icon">🔊</span><strong>音声</strong>
                   </button>
                   <button class="watch-rail-button" type="button" data-gift-button>
                     <span class="watch-rail-icon">🎁</span><strong>ギフト</strong>
@@ -138,7 +151,7 @@
     </section>
   </main>
 
-  <script type="module" src="./watch-test-ui.js?v=20261005-layout2"></script>
-  <script type="module" src="./watch-entry.js?v=20261005-layout2"></script>
+  <script type="module" src="./watch-test-ui.js?v=20261005-upper1"></script>
+  <script type="module" src="./watch-entry.js?v=20261005-upper1"></script>
 </body>
 </html>
