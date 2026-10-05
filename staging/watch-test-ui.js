@@ -1,5 +1,5 @@
-import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-vertical2";
-import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-vertical2";
+import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-vertical3";
+import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-vertical3";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 
 const COMMENT_PROTOCOL="orikuro-comments-v1";
