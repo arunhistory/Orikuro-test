@@ -6,13 +6,12 @@
   <meta name="theme-color" content="#05060a"/>
   <title>視聴テスト | Original Create Project</title>
   <link rel="stylesheet" href="./broadcast-app.css?v=20260920-standing1"/>
-  <link rel="stylesheet" href="./watch-app.css?v=20261005-vertical3"/>
+  <link rel="stylesheet" href="./watch-app.css?v=20261005-match1"/>
 </head>
 <body class="broadcast-app-page watch-app-page">
   <main class="stream-main">
     <section class="stream-gate">
       <p class="stream-gate-status" role="status" aria-live="polite" data-service-gate-status>利用準備を確認しています。</p>
-
       <article class="stream-app" data-service-content hidden>
         <section class="stream-unsupported" data-stream-unsupported hidden>
           <div class="stream-unsupported-mark" aria-hidden="true">!</div>
@@ -22,81 +21,91 @@
         </section>
 
         <section data-stream-supported hidden>
-          <div class="broadcast-shell">
-            <section class="watch-live-screen" aria-label="縦型ライブ配信">
-              <div class="watch-video-stage" aria-hidden="true">
+          <div class="broadcast-shell watch-shell">
+            <section class="broadcast-live-screen watch-live-screen">
+              <div class="broadcast-live-preview watch-live-preview">
                 <canvas class="watch-scene-canvas watch-demo-canvas" data-watch-demo-canvas width="360" height="640"></canvas>
                 <canvas class="watch-scene-canvas watch-media-canvas" data-watch-media-canvas width="360" height="640" hidden></canvas>
-                <div class="watch-waiting" data-watch-waiting>
-                  <span>背景と立ち絵を準備しています…</span>
-                </div>
-              </div>
+                <div class="watch-waiting" data-watch-waiting><span>背景と立ち絵を準備しています…</span></div>
 
-              <div class="watch-ui-frame">
-                <header class="watch-topbar">
-                  <a class="watch-close" href="./index.html" aria-label="閉じる">×</a>
-                  <div class="watch-top-status">
-                    <strong data-watch-program-status>接続中</strong>
-                    <span data-viewer-status role="status" aria-live="polite">準備中</span>
-                  </div>
-                  <button class="watch-audio-button" type="button" data-watch-audio>音声</button>
-                </header>
-
-                <div class="broadcast-live-hud watch-live-hud">
+                <div class="broadcast-live-hud">
                   <div class="broadcast-live-owner-row">
                     <img class="broadcast-live-owner-icon" src="./assets/oc-symbol-user.jpg" alt="配信者アイコン"/>
                     <div class="broadcast-live-owner-copy">
-                      <strong>Original Create</strong>
-                      <div class="broadcast-live-subtitle-row"><span>立ち絵配信テスト</span></div>
+                      <strong>立ち絵配信テスト</strong>
+                      <div class="broadcast-live-subtitle-row"><span data-viewer-status>準備中</span></div>
                     </div>
-                    <span class="broadcast-live-status"><i></i><b>LIVE</b></span>
+                    <span class="broadcast-live-status"><i></i><b data-stream-clock>00:00</b></span>
                   </div>
 
-                  <div class="broadcast-live-quickbar watch-quickbar">
-                    <button type="button" data-support-score-button>
+                  <div class="broadcast-live-quickbar">
+                    <button type="button" data-live-support-toggle>
                       <small>応援</small><strong data-support-score>0</strong>
                     </button>
-                    <button type="button" data-ranking-button>
-                      <small>ランキング</small><strong data-ranking-position>--</strong>
+                    <button type="button" data-live-event-toggle>
+                      <small>イベント</small><strong><span data-event-rank>--</span>位</strong><span><b data-event-points>0</b>pt</span>
                     </button>
-                    <button type="button" data-listener-button>
-                      <small>リスナー</small><strong data-listener-count>1</strong>
+                    <button type="button" data-live-listeners-toggle>
+                      <small>リスナー</small><strong><span data-listener-count>1</span>人</strong>
                     </button>
-                    <button type="button" data-like-button-top>
+                    <button class="broadcast-live-like watch-live-like-button" type="button" data-like-button>
                       <small>いいね</small><strong data-like-count>0</strong>
                     </button>
                   </div>
                 </div>
 
-                <div class="watch-side-actions" aria-label="視聴操作">
-                  <button type="button" data-ranking-button-side><b>🏆</b><span>順位</span></button>
-                  <button type="button" data-gift-button><b>🎁</b><span>ギフト</span></button>
-                  <button type="button" data-superchat-button><b>💬</b><span>スパチャ</span></button>
-                  <button type="button" data-like-button><b>♥</b><span>いいね</span></button>
-                </div>
+                <aside class="broadcast-compact-panel broadcast-support-panel" data-live-support-panel hidden aria-label="応援スコア詳細">
+                  <header><strong>応援スコア</strong><button type="button" data-live-support-close aria-label="閉じる">×</button></header>
+                  <div class="broadcast-support-current"><span>この枠の応援</span><strong data-support-score>0</strong></div>
+                  <div class="watch-support-summary"><span>ギフト</span><strong data-gift-total>0pt</strong><span>スパチャ</span><strong data-superchat-total>0pt</strong></div>
+                  <small>公開テストは実消費0pt。演出判定額だけを反映します。</small>
+                </aside>
 
-                <section class="watch-chat-overlay" aria-label="コメント">
-                  <div class="watch-chat-list" data-comment-list aria-live="polite">
-                    <p class="watch-chat-empty" data-comment-empty>コメントしてみよう</p>
-                  </div>
-                  <form class="watch-comment-box" data-comment-form>
-                    <input class="watch-comment-input" data-comment-input type="text" maxlength="200" autocomplete="off" placeholder="コメントを入力"/>
-                    <button class="watch-send" data-comment-send type="submit" aria-label="コメントを送信">送</button>
+                <aside class="broadcast-compact-panel broadcast-ranking-panel" data-live-ranking-panel hidden aria-label="応援ランキング">
+                  <header><div><small>この配信枠</small><strong>ランキング</strong></div><button type="button" data-live-ranking-close aria-label="閉じる">×</button></header>
+                  <ol data-event-ranking-list></ol>
+                </aside>
+
+                <aside class="broadcast-compact-panel broadcast-listener-panel" data-live-listener-panel hidden aria-label="リスナー一覧">
+                  <header><div><small>現在 <b data-listener-count>1</b>人</small><strong>リスナー一覧</strong></div><button type="button" data-live-listeners-close aria-label="閉じる">×</button></header>
+                  <section class="broadcast-listener-normal"><ol data-listener-list><li><span>テストリスナー</span><small>視聴中</small></li></ol></section>
+                </aside>
+
+                <aside class="broadcast-compact-panel watch-send-panel" data-gift-panel hidden aria-label="ギフト選択">
+                  <header><strong>ギフト</strong><button type="button" data-gift-close aria-label="閉じる">×</button></header>
+                  <div class="watch-support-options" data-gift-options></div>
+                  <small>公開テストのため実際のポイント消費は0ptです。</small>
+                </aside>
+
+                <aside class="broadcast-compact-panel watch-send-panel" data-superchat-panel hidden aria-label="スパチャ">
+                  <header><strong>スパチャ</strong><button type="button" data-superchat-close aria-label="閉じる">×</button></header>
+                  <form class="watch-superchat-form" data-superchat-form>
+                    <div class="watch-support-options" data-superchat-options></div>
+                    <textarea data-superchat-message maxlength="200" placeholder="メッセージを入力" required></textarea>
+                    <button class="watch-support-submit" type="submit">スパチャを送る</button>
+                  </form>
+                  <small>公開テストのため実際のポイント消費は0ptです。</small>
+                </aside>
+
+                <section class="broadcast-live-comments watch-live-comments" aria-label="コメント">
+                  <header><strong>コメント</strong><span>LIVE</span></header>
+                  <ol data-comment-list></ol>
+                  <form class="watch-comment-form" data-comment-form>
+                    <input data-comment-input type="text" maxlength="200" autocomplete="off" placeholder="コメント"/>
+                    <button type="submit">送信</button>
                   </form>
                 </section>
 
-                <section class="watch-ranking-panel" data-ranking-panel hidden aria-label="応援ランキング">
-                  <header>
-                    <div><small>このテスト枠</small><strong>応援ランキング</strong></div>
-                    <button type="button" data-ranking-close aria-label="閉じる">×</button>
-                  </header>
-                  <p class="watch-ranking-note">テスト操作のみ。ポイント決済・残高変更は行いません。</p>
-                  <ol class="watch-ranking-list" data-ranking-list>
-                    <li data-ranking-empty>まだ応援はありません。</li>
-                  </ol>
-                </section>
+                <div class="watch-support-effect" data-support-effect hidden aria-live="polite"></div>
+                <div class="broadcast-live-notes" aria-hidden="true"></div>
 
-                <div class="watch-toast" data-watch-toast hidden role="status" aria-live="polite"></div>
+                <div class="broadcast-live-controls watch-live-controls">
+                  <div class="broadcast-live-tools watch-live-tools">
+                    <button class="broadcast-mic-toggle" type="button" data-watch-audio>音声ON</button>
+                    <button class="broadcast-memo-toggle" type="button" data-gift-button>ギフト</button>
+                    <button class="broadcast-memo-toggle" type="button" data-superchat-button>スパチャ</button>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
@@ -105,7 +114,7 @@
     </section>
   </main>
 
-  <script type="module" src="./watch-test-ui.js?v=20261005-vertical3"></script>
-  <script type="module" src="./watch-entry.js?v=20261005-vertical3"></script>
+  <script type="module" src="./watch-test-ui.js?v=20261005-match1"></script>
+  <script type="module" src="./watch-entry.js?v=20261005-match1"></script>
 </body>
 </html>
