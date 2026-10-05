@@ -1375,6 +1375,7 @@ function updateWizard(){
   const start=document.querySelector("[data-stream-start]");
   const footer=document.querySelector(".broadcast-wizard-footer");
   footer?.classList.toggle("is-first-step",currentStep===1);
+  footer?.classList.toggle("is-final-step",currentStep===4);
   if(back)back.hidden=currentStep===1;
   if(next){
     next.hidden=currentStep===4;
