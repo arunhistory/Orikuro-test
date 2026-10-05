@@ -1,5 +1,5 @@
-import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-match1";
-import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-match1";
+import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-layout2";
+import{WatchDemoPublisher}from"./assets/js/watch-demo-publisher.js?v=20261005-layout2";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 
 const COMMENT_PROTOCOL="orikuro-comments-v1";
@@ -161,7 +161,7 @@ function closeRealtime(){
   if(supportSocket&&supportSocket.readyState<WebSocket.CLOSING)try{supportSocket.close(1000,"viewer closed")}catch{}
   commentsSocket=null;supportSocket=null;commentsAuthenticated=false;supportAuthenticated=false;
 }
-async function stopMedia(){if(mediaClient){try{await mediaClient.stop()}catch{}mediaClient=null}audioEnabled=false;if(audioButton)audioButton.textContent="音声ON";}
+async function stopMedia(){if(mediaClient){try{await mediaClient.stop()}catch{}mediaClient=null}audioEnabled=false;if(audioButton){audioButton.textContent="🔊";audioButton.setAttribute("aria-label","音声をオンにする")}}
 async function stopDemo(keepalive=false){if(!demoPublisher)return;const current=demoPublisher;demoPublisher=null;try{await current.stop(keepalive)}catch{}}
 async function stopRoom(){if(!roomController)return;const current=roomController;roomController=null;try{await current.stop()}catch{}}
 function clearSessionTimers(){for(const id of [warningTimer,endTimer,clockTimer])if(id!==null)clearTimeout(id);warningTimer=endTimer=clockTimer=null;}
@@ -203,8 +203,34 @@ window.addEventListener("orikuro:transport-reconnecting",()=>{setStatus("再接�
 window.addEventListener("orikuro:demo-publisher-failed",event=>{const code=event?.detail?.code||"DEMO_PUBLISHER_FAILED";setStatus("配信経路エラー: "+code)});
 
 q("[data-comment-form]")?.addEventListener("submit",event=>{event.preventDefault();const message=commentInput?.value.trim()||"";if(!message)return;if(!commentsAuthenticated||!commentsCanSend||!commentsSocket||commentsSocket.readyState!==WebSocket.OPEN){setStatus("コメントへ接続しています");return}commentsSocket.send(JSON.stringify({type:"comment",text:message}));commentInput.value=""});
-q("[data-like-button]")?.addEventListener("click",()=>{if(!commentsAuthenticated||!commentsCanLike||!commentsSocket||commentsSocket.readyState!==WebSocket.OPEN){setStatus("いいねへ接続しています");return}commentsSocket.send(JSON.stringify({type:"like",count:1}))});
-audioButton?.addEventListener("click",async()=>{if(!mediaClient){setStatus("音声を接続しています");return}try{if(audioEnabled){await mediaClient.disableAudio();audioEnabled=false;audioButton.textContent="音声ON"}else{await mediaClient.enableAudio();audioEnabled=true;audioButton.textContent="音声OFF"}}catch{setStatus("音声再生エラー")}});
+function burstLike(clientX=null,clientY=null){
+  const layer=q("[data-like-burst-layer]");
+  if(!(layer instanceof HTMLElement))return;
+  const rect=layer.getBoundingClientRect();
+  const heart=document.createElement("span");
+  heart.className="watch-like-burst";
+  heart.textContent="♥";
+  const x=clientX===null?rect.width*.72:Math.max(24,Math.min(rect.width-24,clientX-rect.left));
+  const y=clientY===null?rect.height*.62:Math.max(60,Math.min(rect.height-80,clientY-rect.top));
+  heart.style.left=x+"px";heart.style.top=y+"px";
+  layer.append(heart);
+  setTimeout(()=>heart.remove(),760);
+}
+function sendLike(source=null,clientX=null,clientY=null){
+  if(!commentsAuthenticated||!commentsCanLike||!commentsSocket||commentsSocket.readyState!==WebSocket.OPEN){setStatus("いいねへ接続しています");return}
+  commentsSocket.send(JSON.stringify({type:"like",count:1}));
+  if(source instanceof HTMLElement){source.classList.remove("is-pressed");void source.offsetWidth;source.classList.add("is-pressed")}
+  burstLike(clientX,clientY);
+}
+q("[data-like-button]")?.addEventListener("click",event=>sendLike(event.currentTarget));
+let lastSurfaceTap=0;
+q("[data-like-surface]")?.addEventListener("pointerup",event=>{
+  if(event.target instanceof Element&&event.target.closest("button,input,textarea,form,a,aside,nav,.watch-comment-form,.watch-live-comments"))return;
+  const now=performance.now();
+  if(now-lastSurfaceTap<330){lastSurfaceTap=0;sendLike(null,event.clientX,event.clientY);return}
+  lastSurfaceTap=now;
+});
+audioButton?.addEventListener("click",async()=>{if(!mediaClient){setStatus("音声を接続しています");return}try{if(audioEnabled){await mediaClient.disableAudio();audioEnabled=false;audioButton.textContent="🔊";audioButton.setAttribute("aria-label","音声をオンにする")}else{await mediaClient.enableAudio();audioEnabled=true;audioButton.textContent="🔈";audioButton.setAttribute("aria-label","音声をオフにする")}}catch{setStatus("音声再生エラー")}});
 
 q("[data-live-support-toggle]")?.addEventListener("click",()=>openPanel(supportPanel));
 q("[data-live-support-close]")?.addEventListener("click",()=>closePanel(supportPanel));
