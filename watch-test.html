@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#05060a"/>
   <title>視聴テスト | Original Create Project</title>
   <link rel="stylesheet" href="./broadcast-app.css?v=20260920-standing1"/>
-  <link rel="stylesheet" href="./watch-app.css?v=20261005-noaudio1"/>
+  <link rel="stylesheet" href="./watch-app.css?v=20261005-superchat1"/>
 </head>
 <body class="broadcast-app-page watch-app-page">
   <main class="stream-main">
@@ -131,9 +131,32 @@
                     <button type="button" data-superchat-close aria-label="閉じる">×</button>
                   </header>
                   <form class="watch-superchat-form" data-superchat-form>
-                    <div class="watch-support-options" data-superchat-options></div>
+                    <section class="watch-superchat-composer" data-superchat-composer data-superchat-tier="1">
+                      <div class="watch-superchat-amount-head">
+                        <div>
+                          <small>応援ポイント</small>
+                          <strong><b data-superchat-amount-display>--</b>pt</strong>
+                        </div>
+                        <span class="watch-superchat-tier-badge" data-superchat-tier-label>接続中</span>
+                      </div>
+                      <div class="watch-superchat-adjust" aria-label="スパチャポイント調整">
+                        <button type="button" data-superchat-adjust="-100">−100</button>
+                        <button type="button" data-superchat-adjust="-10">−10</button>
+                        <label>
+                          <input type="number" inputmode="numeric" data-superchat-amount aria-label="スパチャポイント"/>
+                          <span>pt</span>
+                        </label>
+                        <button type="button" data-superchat-adjust="10">+10</button>
+                        <button type="button" data-superchat-adjust="100">+100</button>
+                      </div>
+                      <div class="watch-superchat-tier-guide" data-superchat-tier-guide aria-label="ポイント帯"></div>
+                      <small class="watch-superchat-tier-range" data-superchat-tier-range>ポイント範囲を取得しています。</small>
+                    </section>
                     <textarea data-superchat-message maxlength="200" placeholder="メッセージを入力" required></textarea>
-                    <button class="watch-support-submit" type="submit">スパチャを送る</button>
+                    <button class="watch-superchat-hold" type="button" data-superchat-hold aria-label="長押しでスパチャを送る">
+                      <span class="watch-superchat-hold-progress" aria-hidden="true"></span>
+                      <span data-superchat-hold-label>長押しで送る</span>
+                    </button>
                   </form>
                   <small>公開テストのため実際のポイント消費は0ptです。</small>
                 </aside>
@@ -148,7 +171,7 @@
     </section>
   </main>
 
-  <script type="module" src="./watch-test-ui.js?v=20261005-noaudio1"></script>
-  <script type="module" src="./watch-entry.js?v=20261005-noaudio1"></script>
+  <script type="module" src="./watch-test-ui.js?v=20261005-superchat1"></script>
+  <script type="module" src="./watch-entry.js?v=20261005-superchat1"></script>
 </body>
 </html>
