@@ -8,6 +8,7 @@ const ACCESS_RE=/^[a-f0-9]{64}$/;
 const STREAM_ID_RE=/^[A-Za-z0-9_-]{16,128}$/;
 const CAP_RE=/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const NF_HOST="health--orikuro-northflank--gzhr8p5vl59b.code.run";
+const CF_HOST="orikuro-streaming.garigarimegane625.workers.dev";
 
 function statusTarget(){return document.querySelector("[data-service-gate-status]");}
 function contentTarget(){return document.querySelector("[data-service-content]");}
@@ -35,10 +36,10 @@ function takeAccessKey(){
   if(location.hash)history.replaceState(null,"",location.pathname+location.search);
   return ACCESS_RE.test(value)?value:null;
 }
-function checkedWs(raw,path){
+function checkedWs(raw,path,host=NF_HOST){
   if(typeof raw!=="string")throw new Error("ROOM_URL_INVALID");
   const url=new URL(raw);
-  if(url.protocol!=="wss:"||url.hostname!==NF_HOST||(url.port&&url.port!=="443")||url.username||url.password||url.pathname!==path||url.search||url.hash)throw new Error("ROOM_URL_INVALID");
+  if(url.protocol!=="wss:"||url.hostname!==host||(url.port&&url.port!=="443")||url.username||url.password||url.pathname!==path||url.search||url.hash)throw new Error("ROOM_URL_INVALID");
   return url.toString();
 }
 async function roomRequest(accessKey){
@@ -54,14 +55,18 @@ async function roomRequest(accessKey){
   if(!response.ok||!payload||payload.ok!==true)throw new Error(typeof payload?.code==="string"?payload.code:"ROOM_CREATE_FAILED");
   const result=payload.result&&typeof payload.result==="object"?payload.result:null;
   const grant=result?.watchGrant&&typeof result.watchGrant==="object"?result.watchGrant:null;
-  const controlCapability=typeof result?.controlCapability==="string"?result.controlCapability:"";
-  if(!grant||!CAP_RE.test(controlCapability))throw new Error("ROOM_GRANT_MISSING");
+  const demo=result?.demoPublisher&&typeof result.demoPublisher==="object"?result.demoPublisher:null;
+  if(!grant||!demo)throw new Error("ROOM_GRANT_MISSING");
   const streamId=typeof grant.streamId==="string"?grant.streamId:"";
   const capability=typeof grant.capability==="string"?grant.capability:"";
   const expiresAt=Number(grant.expiresAt);
-  if(!STREAM_ID_RE.test(streamId)||!CAP_RE.test(capability)||!Number.isSafeInteger(expiresAt)||expiresAt<=Date.now())throw new Error("ROOM_GRANT_INVALID");
+  const publisherCapability=typeof demo.publisherCapability==="string"?demo.publisherCapability:"";
+  const controlCapability=typeof demo.controlCapability==="string"?demo.controlCapability:"";
+  const publisherExpiresAt=Number(demo.expiresAt);
+  if(!STREAM_ID_RE.test(streamId)||demo.streamId!==streamId||!CAP_RE.test(capability)||!CAP_RE.test(publisherCapability)||!CAP_RE.test(controlCapability)||!Number.isSafeInteger(expiresAt)||expiresAt<=Date.now()||!Number.isSafeInteger(publisherExpiresAt)||publisherExpiresAt<=Date.now())throw new Error("ROOM_GRANT_INVALID");
   const mediaWebSocketUrl=checkedWs(grant.mediaWebSocketUrl,"/realtime/media");
   const commentsWebSocketUrl=checkedWs(grant.commentsWebSocketUrl,"/realtime/comments");
+  const cloudflareWebSocketUrl=checkedWs(demo.cloudflareWebSocketUrl,`/v1/streams/${streamId}/ws`,CF_HOST);
 
   let stopped=false;
   const roomController=Object.freeze({
@@ -84,7 +89,11 @@ async function roomRequest(accessKey){
       }catch{return false;}
     }
   });
-  return{watchGrant:{streamId,capability,expiresAt,mediaWebSocketUrl,commentsWebSocketUrl},roomController};
+  return{
+    watchGrant:{streamId,capability,expiresAt,mediaWebSocketUrl,commentsWebSocketUrl},
+    demoPublisher:{streamId,publisherCapability,controlCapability,cloudflareWebSocketUrl,expiresAt:publisherExpiresAt},
+    roomController
+  };
 }
 async function authorize(){
   const status=statusTarget();
