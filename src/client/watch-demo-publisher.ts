@@ -4,6 +4,15 @@ const STANDING_URL=BASE+"/stream-standing-preview";
 const BACKGROUND_URL=BASE+"/stream-background-preview";
 const STOP_ASSETS_URL=BASE+"/stream-standing-preview-stop";
 const VIDEO_SUBPROTOCOL="orikuro-stream-v1";
+const AUDIO_SUBPROTOCOL="orikuro-audio-v1";
+const AUDIO_MAGIC=0x4f434155;
+const AUDIO_VERSION=1;
+const AUDIO_FORMAT_F32P=1;
+const AUDIO_HEADER_BYTES=32;
+const AUDIO_SAMPLE_RATE=48000;
+const AUDIO_FRAMES=1024;
+const AUDIO_INTERVAL_MS=AUDIO_FRAMES*1000/AUDIO_SAMPLE_RATE;
+const AUDIO_PAYLOAD_BYTES=AUDIO_FRAMES*4;
 const MEDIA_MAGIC=0x4f52494b;
 const MEDIA_VERSION=1;
 const MEDIA_HEADER_BYTES=44;
@@ -24,6 +33,7 @@ export type WatchDemoPublisherGrant=Readonly<{
   publisherCapability:string;
   controlCapability:string;
   cloudflareWebSocketUrl:string;
+  audioWebSocketUrl:string;
   expiresAt:number;
 }>;
 
@@ -173,6 +183,24 @@ function normalizeKeyframe(payload:Uint8Array,cached:Uint8Array|null):{payload:U
   return{payload:joinAnnexB([...aud,...sps,...pps,...rest]),cache:nextCache};
 }
 
+function buildSilentAudio(sequence:number,timestampNs:number):ArrayBuffer{
+  const buffer=new ArrayBuffer(AUDIO_HEADER_BYTES+AUDIO_PAYLOAD_BYTES);
+  const view=new DataView(buffer);
+  view.setUint32(0,AUDIO_MAGIC,false);
+  view.setUint8(4,AUDIO_VERSION);
+  view.setUint8(5,1);
+  view.setUint8(6,AUDIO_FORMAT_F32P);
+  view.setUint8(7,0);
+  view.setUint32(8,AUDIO_SAMPLE_RATE,false);
+  view.setUint16(12,AUDIO_FRAMES,false);
+  view.setUint16(14,0,false);
+  view.setUint32(16,sequence>>>0,false);
+  view.setBigInt64(20,BigInt(Math.max(0,Math.round(timestampNs))),false);
+  view.setUint32(28,AUDIO_PAYLOAD_BYTES,false);
+  // ArrayBuffer bytes are already zero, which is valid silent float32-planar PCM.
+  return buffer;
+}
+
 function waitOpen(socket:WebSocket,timeoutMs=5000):Promise<void>{
   return new Promise((resolve,reject)=>{
     let timer=0;
@@ -193,6 +221,11 @@ export class WatchDemoPublisher{
   private background:HTMLImageElement|null=null;
   private urls:string[]=[];
   private socket:WebSocket|null=null;
+  private audioSocket:WebSocket|null=null;
+  private audioTimer:number|null=null;
+  private audioSequence=0;
+  private audioFrameIndex=0;
+  private audioStartedAt=0;
   private encoder:VideoEncoder|null=null;
   private parameterSets:Uint8Array|null=null;
   private sequence=0;
@@ -229,9 +262,21 @@ export class WatchDemoPublisher{
 
     const socket=new WebSocket(this.grant.cloudflareWebSocketUrl,[VIDEO_SUBPROTOCOL,"bearer."+this.grant.publisherCapability]);
     socket.binaryType="arraybuffer";
+    const audioSocket=new WebSocket(this.grant.audioWebSocketUrl,[AUDIO_SUBPROTOCOL,"bearer."+this.grant.publisherCapability]);
     this.socket=socket;
-    await waitOpen(socket);
+    this.audioSocket=audioSocket;
+    await Promise.all([waitOpen(socket),waitOpen(audioSocket)]);
     if(this.stopping)return;
+
+    audioSocket.addEventListener("close",()=>{
+      if(this.stopping||audioSocket!==this.audioSocket)return;
+      window.dispatchEvent(new CustomEvent("orikuro:demo-publisher-failed",{detail:{code:"WATCH_DEMO_AUDIO_CLOSED"}}));
+    });
+    audioSocket.addEventListener("message",event=>{
+      if(typeof event.data!=="string"||event.data.length>4096)return;
+      let data:Record<string,unknown>={};try{data=obj(JSON.parse(event.data));}catch{}
+      if(data.type==="audio_error")window.dispatchEvent(new CustomEvent("orikuro:demo-publisher-failed",{detail:{code:String(data.code||"WATCH_DEMO_AUDIO_ERROR")}}));
+    });
 
     this.encoder=new VideoEncoder({
       output:(chunk,metadata)=>this.handleChunk(chunk,metadata),
@@ -239,6 +284,7 @@ export class WatchDemoPublisher{
     });
     this.encoder.configure(supported.config??config);
     this.sequence=0;this.frameIndex=0;this.startedAt=performance.now();this.lastFrameAt=0;
+    this.startSilentAudio(this.startedAt);
     this.sendConfig();
     this.tick(this.startedAt);
     window.dispatchEvent(new CustomEvent("orikuro:demo-publisher-live",{detail:{streamId:this.grant.streamId,width:WIDTH,height:HEIGHT,fps:FPS}}));
@@ -283,6 +329,31 @@ export class WatchDemoPublisher{
     finally{frame.close();}
   };
 
+  private startSilentAudio(now:number):void{
+    this.audioSequence=0;
+    this.audioFrameIndex=0;
+    this.audioStartedAt=now;
+    const pump=()=>{
+      if(this.stopping)return;
+      const socket=this.audioSocket;
+      if(!socket||socket.readyState!==WebSocket.OPEN)return;
+      const elapsed=performance.now()-this.audioStartedAt;
+      let sent=0;
+      while(sent<4&&this.audioFrameIndex*AUDIO_INTERVAL_MS<=elapsed+1){
+        this.audioSequence=(this.audioSequence+1)>>>0;
+        if(this.audioSequence===0)this.audioSequence=1;
+        const timestampNs=Math.round(this.audioFrameIndex*AUDIO_FRAMES*1_000_000_000/AUDIO_SAMPLE_RATE);
+        if(socket.bufferedAmount<=512*1024)socket.send(buildSilentAudio(this.audioSequence,timestampNs));
+        this.audioFrameIndex++;
+        sent++;
+      }
+      const nextAt=this.audioFrameIndex*AUDIO_INTERVAL_MS;
+      const delay=Math.max(2,Math.min(25,nextAt-(performance.now()-this.audioStartedAt)));
+      this.audioTimer=window.setTimeout(pump,delay);
+    };
+    pump();
+  }
+
   private nextSequence():number{
     this.sequence=(this.sequence+1)>>>0;
     if(this.sequence===0)this.sequence=1;
@@ -325,9 +396,12 @@ export class WatchDemoPublisher{
     this.stopping=true;
     if(this.raf)cancelAnimationFrame(this.raf);
     this.raf=0;
+    if(this.audioTimer!==null){clearTimeout(this.audioTimer);this.audioTimer=null;}
     if(this.encoder){try{await this.encoder.flush();}catch{}try{this.encoder.close();}catch{}this.encoder=null;}
     if(this.socket&&this.socket.readyState<WebSocket.CLOSING){try{this.socket.close(1000,"demo publisher stopped");}catch{}}
+    if(this.audioSocket&&this.audioSocket.readyState<WebSocket.CLOSING){try{this.audioSocket.close(1000,"demo audio stopped");}catch{}}
     this.socket=null;
+    this.audioSocket=null;
     this.parameterSets=null;
     for(const url of this.urls)URL.revokeObjectURL(url);
     this.urls=[];
