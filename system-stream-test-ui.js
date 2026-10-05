@@ -2373,7 +2373,7 @@ window.addEventListener("orikuro:stream-ended",event=>{
   stopClock();
   liveStreamId="";
   const testParam=systemTest?"&test=1":"";
-  location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}${testParam}`);
+  location.replace(`./stream-ended.html?reason=${encodeURIComponent(reason)}${testParam}&v=20261005-result2`);
 });
 
 const stopButton=document.querySelector("[data-audio-stop]");
