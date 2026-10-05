@@ -2088,3 +2088,17 @@ html[data-desktop-requested="true"] .broadcast-shell{
   margin:0 !important;
   overflow:hidden !important;
 }
+
+
+/* Final preparation step: keep Back and Stream Start on the same visible row. */
+.broadcast-wizard-footer.is-final-step{
+  grid-template-columns:140px minmax(240px,340px);
+}
+.broadcast-wizard-footer.is-final-step .broadcast-nav-back{
+  grid-column:1;
+  grid-row:1;
+}
+.broadcast-wizard-footer.is-final-step .stream-control-primary{
+  grid-column:2;
+  grid-row:1;
+}
