@@ -23,6 +23,15 @@
   <link rel="stylesheet" href="./broadcast-app.css?v=20261005-start-button-v10"/>
   <style>
     .broadcast-prepared-background{position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;object-position:center}
+    /* Standing mode: the preview is the Cloudflare-rendered stream received from Northflank. */
+    .broadcast-scene-canvas{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:contain;background:#151827;display:none}
+    html[data-scene-preview="cloudflare"] .broadcast-scene-canvas{display:block}
+    html[data-scene-preview="cloudflare"] [data-preview-character-layer],
+    html[data-scene-preview="cloudflare"] [data-live-character-layer],
+    html[data-scene-preview="cloudflare"] [data-background-preview-image],
+    html[data-scene-preview="cloudflare"] [data-radio-scene-main]{display:none!important}
+    html[data-scene-preview="cloudflare"] [data-radio-background]{display:none!important}
+    .broadcast-preset-image-swatch[data-prepared="true"]{background:linear-gradient(135deg,#3b4a7a,#7aa7d9)}
     .broadcast-cartoon-fx{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
     .broadcast-cartoon-star{position:absolute;display:grid;place-items:center;width:28px;height:28px;font-size:24px;line-height:1;transform:translate(-50%,-50%);text-shadow:0 1px 2px rgba(0,0,0,.55);will-change:left,top,opacity,transform}
     .broadcast-cartoon-impact{position:absolute;width:44px;height:44px;border:3px solid currentColor;border-radius:999px;transform:translate(-50%,-50%) scale(.25);opacity:0;will-change:left,top,opacity,transform}
@@ -112,7 +121,7 @@
                   </div>
                   <p class="broadcast-mic-permission-status" data-mic-permission-status data-state="waiting">配信形式を選択するとマイクの使用許可を確認します。</p>
                   <p class="broadcast-mic-permission-status" data-camera-tracking-status data-state="waiting" hidden>立ち絵を選択すると、マイク許可の確認後にカメラの使用許可を確認します。</p>
-                  <p class="broadcast-mic-permission-status" data-stage-wasm-status data-state="waiting" role="status" aria-live="polite">0%ステージのGo WASMを認証付きで確認中です。配信WebSocketとは別に検査します。</p>
+                  <p class="broadcast-mic-permission-status" data-stage-wasm-status data-state="waiting" role="status" aria-live="polite">映像はCloudflareで描画・合成し、Northflankから配信されます。</p>
                 </section>
 
                 <section class="broadcast-step" data-wizard-step="2" hidden>
@@ -122,6 +131,7 @@
                     <p data-step2-description>ラジオ画面に使う背景を決めます。</p>
                   </div>
                   <div class="broadcast-background-preview" data-stream-preview>
+                    <canvas class="broadcast-scene-canvas" data-scene-preview-canvas width="360" height="640" aria-label="Cloudflareで描画した配信映像"></canvas>
                     <div class="broadcast-radio-background" data-radio-background aria-hidden="true">
                       
                     </div>
@@ -235,6 +245,7 @@
                     <p>リスナー側に表示される状態を確認してから開始します。</p>
                   </div>
                   <div class="broadcast-final-preview broadcast-scene-preview" data-prelive-preview>
+                    <canvas class="broadcast-scene-canvas" data-scene-preview-canvas width="360" height="640" aria-label="Cloudflareで描画した配信映像"></canvas>
                     <div class="broadcast-radio-background" data-radio-background aria-hidden="true"></div>
                     <img class="broadcast-prepared-background" data-background-preview-image alt="R2から配信用一時コピーへ復元した背景" hidden/>
                     <div class="broadcast-scene-main" data-radio-scene-main>
@@ -275,6 +286,7 @@
 
             <section class="broadcast-live-screen" data-live-screen hidden>
               <div class="broadcast-live-preview">
+                <canvas class="broadcast-scene-canvas" data-scene-preview-canvas width="360" height="640" aria-label="Cloudflareで描画した配信映像"></canvas>
                 <div class="broadcast-radio-background" data-radio-background aria-hidden="true"></div>
                 <img class="broadcast-prepared-background" data-background-preview-image alt="配信中の背景" hidden/>
                 <div class="broadcast-scene-main" data-radio-scene-main>
@@ -546,9 +558,9 @@
   </main>
 
   <script type="module" src="./assets/js/system-stream-bootstrap.js?v=20261005-concurrent-tabs1"></script>
-  <script type="module" src="./assets/js/stream-realtime.js?v=20261004-bgfix2"></script>
+  <script type="module" src="./assets/js/stream-realtime.js?v=20261006-cloudflare-scene1"></script>
   <script type="module" src="./assets/js/stream-lifecycle.js?v=20260920-stop1"></script>
-  <script type="module" src="./system-stream-test-ui.js?v=20261005-start-button-v10"></script>
-  <script type="module" src="./cartoon-act-test.js?v=20261004-cartoon2"></script>
+  <script type="module" src="./system-stream-test-ui.js?v=20261006-cloudflare-scene1"></script>
+  <script type="module" src="./cartoon-act-test.js?v=20261006-cloudflare-scene1"></script>
 </body>
 </html>
