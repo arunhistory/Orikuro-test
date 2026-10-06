@@ -32,12 +32,8 @@ const AUDIO_ACK_TIMEOUT_MS = 5_000;
 const AUDIO_LISTENER_TIMEOUT_MS = 7_000;
 const AUDIO_METER_INTERVAL_MS = 80;
 const WORKLET_URL = './assets/js/stream-audio-worklet.js?v=20260919-audio3';
-const TARGET_WIDTH = 360;
-const TARGET_HEIGHT = 640;
-const TARGET_FPS = 30;
-const FRAME_INTERVAL_MS = Math.round(1000 / TARGET_FPS);
-const KEYFRAME_INTERVAL = TARGET_FPS * 2;
-const H264_CODEC = 'avc1.42001E';
+const LISTENER_KIND_VIDEO = 1;
+const CONTROL_RECONNECT_MAX_MS = 4_000;
 const encoderText = new TextEncoder();
 
 type JsonObject = Record<string, unknown>;
@@ -93,25 +89,22 @@ let serverStopPromise: Promise<boolean> | null = null;
 let serverStopped = false;
 let uiBound = false;
 
+// Cloudflare publisher socket: Tracking (face_region_v1) and ACT
+// (cartoon_act_v1) inputs only. The browser never renders or encodes the
+// stream picture: Cloudflare composes it and Northflank delivers it; the
+// preview below decodes Northflank's own output.
 let videoSocket: WebSocket | null = null;
-let videoStream: MediaStream | null = null;
-let videoElement: HTMLVideoElement | null = null;
-let videoCanvas: HTMLCanvasElement | null = null;
-let videoContext: CanvasRenderingContext2D | null = null;
-let videoEncoder: VideoEncoder | null = null;
-let videoTimer: number | null = null;
-let videoSequence = 0;
-let videoFrameIndex = 0;
-let videoStartedAt = 0;
-let videoBackpressureUntil = 0;
-let h264ParameterSets: Uint8Array | null = null;
-let preparedVideoConfig: VideoEncoderConfig | null = null;
+let controlReconnectTimer: number | null = null;
+let controlReconnectAttempt = 0;
 let standingVideoPreparePromise: Promise<void> | null = null;
-let videoStandingImage: HTMLImageElement | null = null;
-let videoBackgroundImage: HTMLImageElement | null = null;
-let videoBackgroundColor = '#151827';
-type StandingFrameState = Readonly<{x:number;y:number;z:number;yaw:number;pitch:number;roll:number;confidence:number;lod:number;faceLocalWarp:number;}>;
-type StandingFrameWindow = Window & { __orikuroStandingFrameState?: StandingFrameState };
+let actSequence = 0;
+let previewDecoder: VideoDecoder | null = null;
+let previewDecoderCodec = '';
+let previewNeedsKeyframe = true;
+let previewPendingFrame: VideoFrame | null = null;
+let previewRaf = 0;
+let previewFrames = 0;
+let lastSceneForwarded = -1;
 type FaceRegionControl = Readonly<{type:'face_region_v1';frameId:number;timestampNS:number;present:boolean;centerX:number;centerY:number;size:number;angleRad:number;confidence:number;}>;
 let lastFaceRegionFrameId=0;
 let lastFaceRegionTimestampNS=0;
@@ -509,6 +502,107 @@ function emitListenerMeter(audio: ListenerAudio, sequence: number, cursor: numbe
   }));
 }
 
+// Publisher preview: decodes the H.264 the viewers receive from Northflank
+// (Cloudflare composite -> Northflank encode) and draws it into the preview
+// canvases. This is the only picture the publisher UI shows.
+function previewCanvases(): HTMLCanvasElement[] {
+  return Array.from(document.querySelectorAll<HTMLCanvasElement>('canvas[data-scene-preview-canvas]'));
+}
+
+function resetPreviewDecoder(): void {
+  if (previewRaf) { cancelAnimationFrame(previewRaf); previewRaf = 0; }
+  previewPendingFrame?.close();
+  previewPendingFrame = null;
+  if (previewDecoder && previewDecoder.state !== 'closed') { try { previewDecoder.close(); } catch {} }
+  previewDecoder = null;
+  previewDecoderCodec = '';
+  previewNeedsKeyframe = true;
+}
+
+function annexBUnits(bytes: Uint8Array): Uint8Array[] {
+  const units: Uint8Array[] = [];
+  let i = 0, start = -1;
+  while (i + 3 <= bytes.length) {
+    const sc4 = i + 4 <= bytes.length && bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 0 && bytes[i + 3] === 1;
+    const sc3 = bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 1;
+    if (sc4 || sc3) {
+      if (start >= 0) units.push(bytes.subarray(start, i));
+      i += sc4 ? 4 : 3;
+      start = i;
+      continue;
+    }
+    i++;
+  }
+  if (start >= 0 && start < bytes.length) units.push(bytes.subarray(start));
+  return units;
+}
+
+function avcCodec(bytes: Uint8Array): string | null {
+  const sps = annexBUnits(bytes).find((unit) => unit.length >= 4 && (unit[0] & 31) === 7);
+  if (!sps) return null;
+  return 'avc1.' + [sps[1], sps[2], sps[3]].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function drawPreviewFrame(): void {
+  previewRaf = 0;
+  const frame = previewPendingFrame;
+  previewPendingFrame = null;
+  if (!frame) return;
+  try {
+    for (const canvas of previewCanvases()) {
+      if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
+        canvas.width = frame.displayWidth;
+        canvas.height = frame.displayHeight;
+      }
+      canvas.getContext('2d')?.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    }
+    previewFrames++;
+    if (previewFrames === 1 || previewFrames % 30 === 0) {
+      window.dispatchEvent(new CustomEvent('orikuro:scene-preview-frame', { detail: { frames: previewFrames, width: frame.displayWidth, height: frame.displayHeight } }));
+    }
+  } finally { frame.close(); }
+}
+
+function handlePreviewVideo(raw: ArrayBuffer): void {
+  if (typeof VideoDecoder === 'undefined' || typeof EncodedVideoChunk === 'undefined') return;
+  if (raw.byteLength <= LISTENER_WIRE_HEADER_BYTES) return;
+  const wire = new DataView(raw);
+  if (wire.getUint32(0, false) !== LISTENER_WIRE_MAGIC || wire.getUint8(4) !== LISTENER_WIRE_VERSION || wire.getUint8(5) !== LISTENER_KIND_VIDEO) return;
+  const payloadBytes = wire.getUint32(48, false);
+  if (LISTENER_WIRE_HEADER_BYTES + payloadBytes !== raw.byteLength) return;
+  const keyframe = (wire.getUint16(6, false) & 1) === 1;
+  const num = wire.getUint32(20, false), den = wire.getUint32(24, false);
+  if (!num || !den) return;
+  const pts = Number(wire.getBigInt64(28, false));
+  const timestamp = Math.max(0, Math.round(pts * num * 1_000_000 / den));
+  const payload = new Uint8Array(raw, LISTENER_WIRE_HEADER_BYTES, payloadBytes);
+  if (keyframe) {
+    const codec = avcCodec(payload);
+    if (!codec) return;
+    if (!previewDecoder || previewDecoder.state === 'closed' || codec !== previewDecoderCodec) {
+      resetPreviewDecoder();
+      try {
+        previewDecoder = new VideoDecoder({
+          output: (frame) => {
+            previewPendingFrame?.close();
+            previewPendingFrame = frame;
+            if (!previewRaf) previewRaf = requestAnimationFrame(drawPreviewFrame);
+          },
+          error: () => { resetPreviewDecoder(); },
+        });
+        previewDecoder.configure({ codec, optimizeForLatency: true });
+        previewDecoderCodec = codec;
+      } catch { resetPreviewDecoder(); return; }
+    }
+    previewNeedsKeyframe = false;
+  }
+  if (previewNeedsKeyframe || !previewDecoder || previewDecoder.state !== 'configured') return;
+  if (previewDecoder.decodeQueueSize > 6) { previewNeedsKeyframe = true; return; }
+  try {
+    previewDecoder.decode(new EncodedVideoChunk({ type: keyframe ? 'key' : 'delta', timestamp, data: payload }));
+  } catch { previewNeedsKeyframe = true; }
+}
+
 function scheduleMonitorReconnect(): void {
   if (pageStopping || !streamWanted || monitorReconnectTimer !== null || !validGrant()) return;
   const delay = reconnectDelay(monitorReconnectAttempt++);
@@ -583,6 +677,10 @@ async function connectDeliveryMonitor(current: StreamRealtimeGrant, waitForFirst
     }
     if (!(event.data instanceof ArrayBuffer)) {
       socket.close(1008, 'invalid monitor media');
+      return;
+    }
+    if (event.data.byteLength > 5 && new DataView(event.data).getUint8(5) === LISTENER_KIND_VIDEO) {
+      handlePreviewVideo(event.data);
       return;
     }
     const packet = parseListenerAudio(event.data);
@@ -769,25 +867,11 @@ async function prepareCommonStreaming(): Promise<void> {
 
 function releaseStandingVideoStandby(): void {
   standingVideoPreparePromise = null;
-  preparedVideoConfig = null;
-  if (videoTimer !== null) {
-    clearInterval(videoTimer);
-    videoTimer = null;
-  }
-  if (videoEncoder) {
-    try { videoEncoder.close(); } catch {}
-    videoEncoder = null;
-  }
-  h264ParameterSets = null;
+  if (controlReconnectTimer !== null) { clearTimeout(controlReconnectTimer); controlReconnectTimer = null; }
   if (videoSocket) {
     try { videoSocket.close(1000, 'standing standby released'); } catch {}
     videoSocket = null;
   }
-  videoCanvas = null;
-  videoContext = null;
-  videoStandingImage = null;
-  videoBackgroundImage = null;
-  videoBackgroundColor = '#151827';
 }
 
 async function prepareStandingVideoRuntime(): Promise<void> {
@@ -800,23 +884,8 @@ async function prepareStandingVideoRuntime(): Promise<void> {
   if (!current) return;
 
   standingVideoPreparePromise = (async () => {
-    const config = preparedVideoConfig ?? await supportedVideoConfig();
-    if (selectedMode !== 'standing' || pageStopping) return;
-    preparedVideoConfig = config;
-
-    if (!videoCanvas || !videoContext) {
-      const canvas = document.createElement('canvas');
-      canvas.width = TARGET_WIDTH;
-      canvas.height = TARGET_HEIGHT;
-      const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
-      if (!context) throw new Error('VIDEO_CANVAS_UNAVAILABLE');
-      videoCanvas = canvas;
-      videoContext = context;
-    }
-
     await connectVideo(current);
     if (selectedMode !== 'standing' || pageStopping) return;
-    if (!videoEncoder || videoEncoder.state !== 'configured') createEncoder(config);
     window.dispatchEvent(new CustomEvent('orikuro:standing-runtime-ready'));
   })();
 
@@ -969,155 +1038,6 @@ async function rebuildPreparedAudio(): Promise<void> {
   }
 }
 
-function buildVideoPacket(kind: number, payload: Uint8Array, keyframe: boolean, ptsUs: number): ArrayBuffer {
-  videoSequence = (videoSequence + 1) >>> 0;
-  if (videoSequence === 0) videoSequence = 1;
-  const buffer = new ArrayBuffer(MEDIA_HEADER_BYTES + payload.byteLength);
-  const view = new DataView(buffer);
-  view.setUint32(0, MEDIA_MAGIC, false);
-  view.setUint8(4, MEDIA_VERSION);
-  view.setUint8(5, kind);
-  view.setUint16(6, keyframe ? MEDIA_FLAG_KEYFRAME : 0, false);
-  view.setUint32(8, videoSequence, false);
-  view.setUint16(12, 0, false);
-  view.setUint16(14, 0, false);
-  view.setUint32(16, 1, false);
-  view.setUint32(20, 1_000_000, false);
-  view.setBigInt64(24, BigInt(Math.max(0, Math.round(ptsUs))), false);
-  view.setBigInt64(32, BigInt(Math.max(0, Math.round(ptsUs))), false);
-  view.setUint32(40, payload.byteLength, false);
-  new Uint8Array(buffer, MEDIA_HEADER_BYTES).set(payload);
-  return buffer;
-}
-
-function annexBUnits(bytes: Uint8Array): Uint8Array[] {
-  const starts: Array<{offset:number;prefix:number}> = [];
-  for (let i = 0; i + 2 < bytes.length;) {
-    let prefix = 0;
-    if (i + 3 < bytes.length && bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 0 && bytes[i + 3] === 1) prefix = 4;
-    else if (bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 1) prefix = 3;
-    if (prefix) {
-      starts.push({offset:i,prefix});
-      i += prefix;
-    } else {
-      i++;
-    }
-  }
-  const units: Uint8Array[] = [];
-  for (let i = 0; i < starts.length; i++) {
-    const begin = starts[i].offset + starts[i].prefix;
-    const end = i + 1 < starts.length ? starts[i + 1].offset : bytes.length;
-    if (begin < end) units.push(bytes.slice(begin, end));
-  }
-  return units;
-}
-
-function annexBHasStartCode(bytes: Uint8Array): boolean {
-  return annexBUnits(bytes).length > 0;
-}
-
-function joinAnnexB(units: Uint8Array[]): Uint8Array {
-  const total = units.reduce((sum, unit) => sum + 4 + unit.byteLength, 0);
-  const out = new Uint8Array(total);
-  let pos = 0;
-  for (const unit of units) {
-    out.set([0, 0, 0, 1], pos);
-    pos += 4;
-    out.set(unit, pos);
-    pos += unit.byteLength;
-  }
-  return out;
-}
-
-function h264NalType(unit: Uint8Array): number {
-  return unit.byteLength ? unit[0] & 31 : 0;
-}
-
-function rememberH264ParameterSets(payload: Uint8Array): void {
-  const units = annexBUnits(payload);
-  const sps = units.filter((unit) => h264NalType(unit) === 7);
-  const pps = units.filter((unit) => h264NalType(unit) === 8);
-  if (sps.length && pps.length) h264ParameterSets = joinAnnexB([...sps, ...pps]);
-}
-
-function normalizeH264Keyframe(payload: Uint8Array): Uint8Array | null {
-  const units = annexBUnits(payload);
-  if (!units.length) return null;
-  rememberH264ParameterSets(payload);
-  const cached = h264ParameterSets ? annexBUnits(h264ParameterSets) : [];
-  const inBandSps = units.filter((unit) => h264NalType(unit) === 7);
-  const inBandPps = units.filter((unit) => h264NalType(unit) === 8);
-  const sps = inBandSps.length ? inBandSps : cached.filter((unit) => h264NalType(unit) === 7);
-  const pps = inBandPps.length ? inBandPps : cached.filter((unit) => h264NalType(unit) === 8);
-  const aud = units.filter((unit) => h264NalType(unit) === 9);
-  const rest = units.filter((unit) => {
-    const type = h264NalType(unit);
-    return type !== 7 && type !== 8 && type !== 9;
-  });
-  if (!sps.length || !pps.length || !rest.some((unit) => h264NalType(unit) === 5)) return null;
-  return joinAnnexB([...aud, ...sps, ...pps, ...rest]);
-}
-
-function parseAvcC(description: AllowSharedBufferSource): Uint8Array | null {
-  const bytes = description instanceof ArrayBuffer
-    ? new Uint8Array(description)
-    : new Uint8Array(description.buffer, description.byteOffset, description.byteLength);
-  if (bytes.length < 7 || bytes[0] !== 1) return null;
-  let offset = 5;
-  const countSps = bytes[offset++] & 31;
-  const units: Uint8Array[] = [];
-  for (let i = 0; i < countSps; i++) {
-    if (offset + 2 > bytes.length) return null;
-    const len = (bytes[offset] << 8) | bytes[offset + 1];
-    offset += 2;
-    if (len < 1 || offset + len > bytes.length) return null;
-    units.push(bytes.slice(offset, offset + len));
-    offset += len;
-  }
-  if (offset >= bytes.length) return null;
-  const countPps = bytes[offset++];
-  for (let i = 0; i < countPps; i++) {
-    if (offset + 2 > bytes.length) return null;
-    const len = (bytes[offset] << 8) | bytes[offset + 1];
-    offset += 2;
-    if (len < 1 || offset + len > bytes.length) return null;
-    units.push(bytes.slice(offset, offset + len));
-    offset += len;
-  }
-  if (units.length < 2) return null;
-  const total = units.reduce((sum, unit) => sum + 4 + unit.byteLength, 0);
-  const out = new Uint8Array(total);
-  let pos = 0;
-  for (const unit of units) {
-    out.set([0, 0, 0, 1], pos);
-    pos += 4;
-    out.set(unit, pos);
-    pos += unit.byteLength;
-  }
-  return out;
-}
-
-function prependParameterSets(payload: Uint8Array): Uint8Array {
-  const normalized = normalizeH264Keyframe(payload);
-  return normalized ?? payload;
-}
-
-async function supportedVideoConfig(): Promise<VideoEncoderConfig> {
-  if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') throw new Error('WEBCODECS_H264_UNAVAILABLE');
-  const config: VideoEncoderConfig = {
-    codec: H264_CODEC,
-    width: TARGET_WIDTH,
-    height: TARGET_HEIGHT,
-    framerate: TARGET_FPS,
-    bitrate: 1_200_000,
-    latencyMode: 'realtime',
-    avc: { format: 'annexb' },
-  };
-  const support = await VideoEncoder.isConfigSupported(config);
-  if (!support.supported) throw new Error('H264_ANNEXB_UNSUPPORTED');
-  return support.config ?? config;
-}
-
 function faceRegionControl(raw: unknown): FaceRegionControl | null {
   const value=objectValue(raw);
   if(!value)return null;
@@ -1143,16 +1063,51 @@ function sendFaceRegionControl(raw: unknown): void {
   lastFaceRegionTimestampNS=sample.timestampNS;
 }
 
+// ACT operation input: Cloudflare render-2d performs it in the stream picture.
+function sendCartoonAct(raw: unknown): void {
+  const detail=objectValue(raw);
+  const act=typeof detail?.act==='string'?detail.act:'';
+  const eventId=typeof detail?.eventId==='string'&&/^[A-Za-z0-9_-]{16,96}$/.test(detail.eventId)?detail.eventId:'';
+  const fail=(code:string)=>window.dispatchEvent(new CustomEvent('orikuro:cartoon-act-result',{detail:{ok:false,code,eventId,act}}));
+  if(!eventId||!/^[a-z_]{3,32}$/.test(act)){fail('CARTOON_ACT_REQUEST_INVALID');return;}
+  if(pageStopping||selectedMode!=='standing'){fail('CARTOON_ACT_STANDING_NOT_ACTIVE');return;}
+  const socket=videoSocket;
+  if(!socket||socket.readyState!==WebSocket.OPEN){fail('CARTOON_ACT_CONTROL_NOT_CONNECTED');return;}
+  actSequence=Math.min(0xffffffff,actSequence+1);
+  socket.send(JSON.stringify({type:'cartoon_act_v1',eventId,act,sequence:actSequence}));
+}
+
 function handleVideoControl(raw: unknown): void {
   const payload = parseText(raw);
   if (!payload || typeof payload.type !== 'string') return;
+  if (payload.type === 'scene_status') {
+    // Cloudflare scene: render-2d -> first composition -> Northflank.
+    const forwarded = Number(payload.forwarded);
+    window.dispatchEvent(new CustomEvent('orikuro:scene-status', { detail: payload }));
+    if (Number.isFinite(forwarded) && forwarded > lastSceneForwarded) {
+      if (lastSceneForwarded < 0 || forwarded > 0) window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
+      lastSceneForwarded = forwarded;
+      if (liveTransmission) {
+        setText('[data-stream-state="output"]', '送出中');
+        window.dispatchEvent(new CustomEvent('orikuro:output-ready'));
+      }
+    }
+    return;
+  }
+  if (payload.type === 'cartoon_act_result') {
+    window.dispatchEvent(new CustomEvent('orikuro:cartoon-act-result', { detail: payload }));
+    return;
+  }
+  if (payload.type === 'support_act') {
+    window.dispatchEvent(new CustomEvent('orikuro:support-act-applied', { detail: payload }));
+    return;
+  }
   if (payload.type === 'ack') {
     setText('[data-stream-state="output"]', '送出中');
     window.dispatchEvent(new CustomEvent('orikuro:output-ready'));
     return;
   }
   if (payload.type === 'backpressure') {
-    videoBackpressureUntil = Date.now() + 1_000;
     setText('[data-stream-state="output"]', '混雑待機');
     return;
   }
@@ -1173,10 +1128,27 @@ function handleVideoControl(raw: unknown): void {
     window.dispatchEvent(new CustomEvent('orikuro:stream-ended', { detail: { reason: payload.reason ?? 'ended' } }));
     return;
   }
-  if (payload.type === 'downstream_unavailable' || payload.type === 'downstream_disconnected' || payload.type === 'fatal') {
+  if (payload.type === 'downstream_disconnected' || payload.type === 'downstream_unavailable') {
+    // Northflank keeps the session and reconnects to Cloudflare by itself.
+    setText('[data-stream-state="output"]', 'Northflank再接続待ち');
+    return;
+  }
+  if (payload.type === 'fatal') {
     setText('[data-stream-state="output"]', '送出停止');
     void stopStreaming(true);
   }
+}
+
+function scheduleControlReconnect(): void {
+  if (pageStopping || !streamWanted || selectedMode !== 'standing' || controlReconnectTimer !== null) return;
+  const current = validGrant();
+  if (!current) return;
+  const delay = Math.min(CONTROL_RECONNECT_MAX_MS, 250 * 2 ** Math.min(4, controlReconnectAttempt++));
+  controlReconnectTimer = window.setTimeout(() => {
+    controlReconnectTimer = null;
+    const next = validGrant();
+    if (next) void connectVideo(next).catch(() => scheduleControlReconnect());
+  }, delay);
 }
 
 async function connectVideo(current: StreamRealtimeGrant): Promise<void> {
@@ -1194,155 +1166,18 @@ async function connectVideo(current: StreamRealtimeGrant): Promise<void> {
   socket.addEventListener('close', () => {
     if (socket !== videoSocket) return;
     videoSocket = null;
+    // Only inputs travel on this socket; the stream itself continues on
+    // Cloudflare/Northflank. Reconnect the input channel.
     if (streamWanted && selectedMode === 'standing' && !pageStopping) {
-      setText('[data-stream-state="output"]', '接続終了');
-      void stopStreaming(true);
+      setText('[data-stream-state="output"]', '操作チャネル再接続中');
+      scheduleControlReconnect();
     }
   });
   await waitOpen(socket);
+  controlReconnectAttempt = 0;
+  lastFaceRegionFrameId = 0;
+  lastFaceRegionTimestampNS = 0;
   window.dispatchEvent(new CustomEvent('orikuro:transport-ready'));
-}
-
-function createEncoder(config: VideoEncoderConfig): void {
-  h264ParameterSets = null;
-  videoEncoder = new VideoEncoder({
-    output: (chunk, metadata) => {
-      const socket = videoSocket;
-      if (!streamWanted || !liveTransmission || !socket || socket.readyState !== WebSocket.OPEN) return;
-      if (metadata?.decoderConfig?.description) {
-        const parsed = parseAvcC(metadata.decoderConfig.description);
-        if (parsed) h264ParameterSets = parsed;
-      }
-      const payload = new Uint8Array(chunk.byteLength);
-      chunk.copyTo(payload);
-      if (!annexBHasStartCode(payload)) {
-        setText('[data-stream-state="output"]', 'H.264形式エラー');
-        void stopStreaming(true);
-        return;
-      }
-      if (socket.bufferedAmount > MAX_VIDEO_BUFFERED_BYTES) {
-        setText('[data-stream-state="output"]', '送出混雑');
-        void stopStreaming(true);
-        return;
-      }
-      rememberH264ParameterSets(payload);
-      const units = annexBUnits(payload);
-      const hasIdr = units.some((unit) => h264NalType(unit) === 5);
-      const keyframe = chunk.type === 'key' || hasIdr;
-      const wirePayload = keyframe ? normalizeH264Keyframe(payload) : payload;
-      if (!wirePayload) {
-        // A single malformed/incomplete keyframe must not tear down the whole
-        // stream. Drop it and wait for the next independently decodable IDR.
-        setText('[data-stream-state="output"]', 'H.264同期待ち');
-        return;
-      }
-      socket.send(buildVideoPacket(MEDIA_KIND_VIDEO, wirePayload, keyframe, chunk.timestamp));
-    },
-    error: () => {
-      setText('[data-stream-state="output"]', '映像エンコードエラー');
-      void stopStreaming(true);
-    },
-  });
-  videoEncoder.configure(config);
-}
-
-const STANDING_LAYER_LEFT=.12;
-const STANDING_LAYER_RIGHT=.12;
-const STANDING_LAYER_TOP=.12;
-const STANDING_LAYER_BOTTOM=.05;
-function standingVideoLayout(image:HTMLImageElement|null):{width:number;height:number;centerX:number;centerY:number;bottom:number}|null{
-  if(!image||image.naturalWidth<1||image.naturalHeight<1)return null;
-  const layerLeft=TARGET_WIDTH*STANDING_LAYER_LEFT;
-  const layerRight=TARGET_WIDTH*(1-STANDING_LAYER_RIGHT);
-  const layerTop=TARGET_HEIGHT*STANDING_LAYER_TOP;
-  const layerBottom=TARGET_HEIGHT*(1-STANDING_LAYER_BOTTOM);
-  const layerWidth=layerRight-layerLeft,layerHeight=layerBottom-layerTop;
-  const baseScale=Math.min(layerWidth/image.naturalWidth,layerHeight/image.naturalHeight);
-  const width=image.naturalWidth*baseScale,height=image.naturalHeight*baseScale;
-  const centerX=layerLeft+layerWidth/2;
-  const bottom=layerBottom;
-  const centerY=bottom-height/2;
-  return {width,height,centerX,centerY,bottom};
-}
-function standingVideoMotionBounds(image:HTMLImageElement|null):{minX:number;maxX:number;minY:number;maxY:number}|null{
-  const layout=standingVideoLayout(image);
-  if(!layout)return null;
-  return {
-    minX:-layout.centerX/TARGET_HEIGHT,
-    maxX:(TARGET_WIDTH-layout.centerX)/TARGET_HEIGHT,
-    minY:-layout.centerY/TARGET_HEIGHT,
-    maxY:(TARGET_HEIGHT-layout.centerY)/TARGET_HEIGHT,
-  };
-}
-function currentStandingFrameState(): StandingFrameState {
-  const state=(window as StandingFrameWindow).__orikuroStandingFrameState;
-  const bounds=standingVideoMotionBounds(videoStandingImage);
-  const rawX=Number.isFinite(state?.x)?Number(state?.x):0;
-  const rawY=Number.isFinite(state?.y)?Number(state?.y):0;
-  return {
-    x:bounds?Math.max(bounds.minX,Math.min(bounds.maxX,rawX)):rawX,
-    y:bounds?Math.max(bounds.minY,Math.min(bounds.maxY,rawY)):rawY,
-    z:Number.isFinite(state?.z)?Math.max(-0.08,Math.min(0.08,Number(state?.z))):0,
-    yaw:Number.isFinite(state?.yaw)?Math.max(-18,Math.min(18,Number(state?.yaw))):0,
-    pitch:Number.isFinite(state?.pitch)?Math.max(-14,Math.min(14,Number(state?.pitch))):0,
-    roll:Number.isFinite(state?.roll)?Math.max(-24,Math.min(24,Number(state?.roll))):0,
-    confidence:Number.isFinite(state?.confidence)?Math.max(0,Math.min(1,Number(state?.confidence))):1,
-    lod:Number.isFinite(state?.lod)?Math.max(0,Math.min(5,Math.round(Number(state?.lod)))):0,
-    faceLocalWarp:0,
-  };
-}
-function drawCover(context:CanvasRenderingContext2D,image:HTMLImageElement,offsetX=0,scaleGain=1):void{
-  const scale=Math.max(TARGET_WIDTH/image.naturalWidth,TARGET_HEIGHT/image.naturalHeight)*scaleGain;
-  const width=image.naturalWidth*scale,height=image.naturalHeight*scale;
-  context.drawImage(image,(TARGET_WIDTH-width)/2+offsetX,(TARGET_HEIGHT-height)/2,width,height);
-}
-function drawStandingVideoScene():void{
-  if(!videoContext||!videoStandingImage)return;
-  const context=videoContext,state=currentStandingFrameState();
-  context.save();context.setTransform(1,0,0,1,0,0);context.clearRect(0,0,TARGET_WIDTH,TARGET_HEIGHT);
-  if(videoBackgroundImage&&videoBackgroundImage.complete&&videoBackgroundImage.naturalWidth>0)drawCover(context,videoBackgroundImage,0,1.02);
-  else{context.fillStyle=/^#[0-9a-f]{6}$/i.test(videoBackgroundColor)?videoBackgroundColor:'#151827';context.fillRect(0,0,TARGET_WIDTH,TARGET_HEIGHT);}
-  context.restore();
-  const image=videoStandingImage,layout=standingVideoLayout(image);
-  if(!layout)return;
-  context.save();
-  context.translate(layout.centerX+state.x*TARGET_HEIGHT,layout.bottom+state.y*TARGET_HEIGHT);
-  context.drawImage(image,-layout.width/2,-layout.height,layout.width,layout.height);
-  context.restore();
-}
-function encodeVideoFrame(): void {
-  if(!streamWanted||!liveTransmission||selectedMode!=='standing'||Date.now()<videoBackpressureUntil||!videoEncoder||videoEncoder.state!=='configured'||!videoCanvas||!videoContext)return;
-  if(videoEncoder.encodeQueueSize>2)return;
-  drawStandingVideoScene();
-  const timestampUs=Math.max(0,Math.round((performance.now()-videoStartedAt)*1000));
-  const frame=new VideoFrame(videoCanvas,{timestamp:timestampUs});
-  try{const keyFrame=videoFrameIndex%KEYFRAME_INTERVAL===0;videoEncoder.encode(frame,{keyFrame});videoFrameIndex+=1;}finally{frame.close();}
-}
-async function startVideo(current:StreamRealtimeGrant):Promise<void>{
-  await prepareStandingVideoRuntime();
-  const image=Array.from(document.querySelectorAll<HTMLImageElement>('[data-standing-preview-image]')).find(item=>!item.hidden&&item.complete&&item.naturalWidth>0);
-  if(!image)throw new Error('STANDING_PREVIEW_MISSING');
-  if(!videoCanvas||!videoContext)throw new Error('VIDEO_CANVAS_UNAVAILABLE');
-  if(!videoSocket||videoSocket.readyState!==WebSocket.OPEN)await connectVideo(current);
-  if(!preparedVideoConfig)preparedVideoConfig=await supportedVideoConfig();
-  if(!videoEncoder||videoEncoder.state!=='configured')createEncoder(preparedVideoConfig);
-
-  const preparedBackground=Array.from(document.querySelectorAll<HTMLImageElement>('[data-background-preview-image]')).find(item=>!item.hidden&&item.complete&&item.naturalWidth>0)??null;
-  const solidBackground=Array.from(document.querySelectorAll<HTMLElement>('[data-radio-background]')).find(item=>!item.hidden)??null;
-  const backgroundColor=solidBackground?getComputedStyle(solidBackground).getPropertyValue('--radio-background-color').trim():'#151827';
-
-  videoStandingImage=image;
-  videoBackgroundImage=preparedBackground;
-  videoBackgroundColor=/^#[0-9a-f]{6}$/i.test(backgroundColor)?backgroundColor:'#151827';
-  drawStandingVideoScene();
-
-  videoSequence=0;videoFrameIndex=0;videoStartedAt=streamStartedAtPerfMs;
-  const configPayload=encoderText.encode(JSON.stringify({codec:'h264-annexb',profile:H264_CODEC,width:TARGET_WIDTH,height:TARGET_HEIGHT,fps:TARGET_FPS,keyframeIntervalFrames:KEYFRAME_INTERVAL,source:'standing-2.5d-streaming-temporary-copy',staging:true,faceLocalWarp:0}));
-  videoSocket?.send(buildVideoPacket(MEDIA_KIND_CONFIG,configPayload,false,0));
-  encodeVideoFrame();
-  if(videoTimer!==null)clearInterval(videoTimer);
-  videoTimer=window.setInterval(encodeVideoFrame,FRAME_INTERVAL_MS);
-  window.dispatchEvent(new CustomEvent('orikuro:composition-ready'));
 }
 
 async function requestServerLive(): Promise<boolean> {
@@ -1446,10 +1281,11 @@ async function startStreaming(mode: string): Promise<void> {
   }
   selectedMode = mode === 'standing' ? 'standing' : 'radio';
   if (selectedMode === 'standing') {
-    setText('[data-realtime-status]', '立ち絵の映像送出を準備しています。');
+    // Cloudflare is already rendering the scene; make sure the input channel
+    // (Tracking / ACT) is connected.
+    setText('[data-realtime-status]', 'Cloudflareの立ち絵シーンへ接続しています。');
     try {
-      streamStartedAtPerfMs = performance.now();
-      await startVideo(current);
+      if (!videoSocket || videoSocket.readyState !== WebSocket.OPEN) await connectVideo(current);
     } catch (error) {
       const code = error instanceof Error ? error.message : 'STANDING_VIDEO_START_FAILED';
       const message = `立ち絵の映像送出を開始できません: ${code}`;
@@ -1509,33 +1345,16 @@ async function stopStreaming(notifyServer: boolean, endReason: string | null = n
       commentsSocket = null;
     }
 
-    if (videoTimer !== null) { clearInterval(videoTimer); videoTimer = null; }
-    if (videoEncoder) {
-      try { videoEncoder.close(); } catch {}
-      videoEncoder = null;
-    }
-    h264ParameterSets = null;
+    if (controlReconnectTimer !== null) { clearTimeout(controlReconnectTimer); controlReconnectTimer = null; }
     if (videoSocket) {
       try { videoSocket.close(1000, 'publisher stop'); } catch {}
       videoSocket = null;
     }
-    if (videoStream) {
-      videoStream.getTracks().forEach((track) => track.stop());
-      videoStream = null;
-    }
     lastFaceRegionFrameId=0;
     lastFaceRegionTimestampNS=0;
-    if (videoElement) {
-      videoElement.srcObject = null;
-      videoElement = null;
-    }
-    videoCanvas = null;
-    videoContext = null;
-    preparedVideoConfig = null;
     standingVideoPreparePromise = null;
-    videoStandingImage = null;
-    videoBackgroundImage = null;
-    videoBackgroundColor = '#151827';
+    lastSceneForwarded = -1;
+    resetPreviewDecoder();
 
     if (audioWorklet) {
       audioWorklet.port.onmessage = null;
@@ -1629,38 +1448,8 @@ function bindUI(): void {
       void ensureAudioRuntime().catch(() => undefined);
     }
   });
-  window.addEventListener('orikuro:standing-background-change', (event) => {
-    const detail=objectValue((event as CustomEvent).detail);
-    const requestId=typeof detail?.requestId==='string'&&detail.requestId.length<=128?detail.requestId:'';
-    const choice=typeof detail?.choiceId==='string'?detail.choiceId:'';
-    const fail=(code:string)=>{
-      window.dispatchEvent(new CustomEvent('orikuro:live-background-render-failed',{detail:{requestId,choiceId:choice,code}}));
-    };
-    if(!requestId){fail('LIVE_BACKGROUND_REQUEST_ID_INVALID');return;}
-    if(pageStopping||!liveTransmission||selectedMode!=='standing'){fail('LIVE_BACKGROUND_STREAM_NOT_ACTIVE');return;}
-    const imageIndex=Number(detail?.index);
-    if(/^standing-image-[1-4]$/.test(choice)){
-      if(imageIndex!==Number(choice.slice(-1))-1){fail('LIVE_BACKGROUND_INDEX_MISMATCH');return;}
-      const image=detail?.image;
-      if(!(image instanceof HTMLImageElement)||!image.complete||image.naturalWidth<1||image.naturalHeight<1){
-        fail('LIVE_BACKGROUND_IMAGE_NOT_READY');return;
-      }
-      videoBackgroundImage=image;
-    }else if(/^solid-[1-6]$/.test(choice)){
-      const color=detail?.color;
-      if(typeof color!=='string'||!/^#[0-9a-fA-F]{6}$/.test(color)){
-        fail('LIVE_BACKGROUND_COLOR_INVALID');return;
-      }
-      videoBackgroundImage=null;
-      videoBackgroundColor=color;
-    }else{fail('LIVE_BACKGROUND_CHOICE_INVALID');return;}
-    if(!videoContext||!videoStandingImage){fail('LIVE_BACKGROUND_RENDERER_NOT_READY');return;}
-    try{
-      drawStandingVideoScene();
-    }catch{
-      fail('LIVE_BACKGROUND_DRAW_FAILED');return;
-    }
-    window.dispatchEvent(new CustomEvent('orikuro:live-background-rendered',{detail:{requestId,choiceId:choice}}));
+  window.addEventListener('orikuro:cartoon-act-request', (event) => {
+    sendCartoonAct((event as CustomEvent).detail);
   });
   window.addEventListener('orikuro:face-region-sample', (event) => {
     sendFaceRegionControl((event as CustomEvent).detail);
