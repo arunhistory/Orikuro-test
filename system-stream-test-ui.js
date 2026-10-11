@@ -1,4 +1,5 @@
 import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
+import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-superchat1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 import{StandingFaceTracker}from"./standing-face-tracker.js?v=20261003-fixedruntime2";
 
@@ -308,6 +309,10 @@ let standingPreparationGeneration=0;
 let standingPreparationController=null;
 let standingPreparationPromise=null;
 let standingActivationQueue=Promise.resolve();
+let standingScenePreviewClient=null;
+let standingScenePreviewStreamId="";
+let standingScenePreviewMirrorRaf=0;
+let standingScenePreviewFirstFrameHandler=null;
 let liveBackgroundSwitching=false;
 let liveBackgroundGeneration=0;
 let liveBackgroundIndependent=false;
@@ -1086,6 +1091,80 @@ function refreshBackgroundPending(){
     if(button instanceof HTMLButtonElement)renderBackgroundPending(button,index);
   }
 }
+function standingScenePreviewCanvases(){
+  return [...document.querySelectorAll("[data-scene-preview-canvas]")].filter(el=>el instanceof HTMLCanvasElement);
+}
+function stopStandingScenePreviewMirror(){
+  if(standingScenePreviewMirrorRaf){cancelAnimationFrame(standingScenePreviewMirrorRaf);standingScenePreviewMirrorRaf=0;}
+}
+function startStandingScenePreviewMirror(source){
+  stopStandingScenePreviewMirror();
+  const draw=()=>{
+    if(!standingScenePreviewClient||selectedMode!=="standing"){standingScenePreviewMirrorRaf=0;return;}
+    for(const canvas of standingScenePreviewCanvases()){
+      if(canvas===source)continue;
+      if(canvas.width!==source.width)canvas.width=source.width;
+      if(canvas.height!==source.height)canvas.height=source.height;
+      const ctx=canvas.getContext("2d",{alpha:false,desynchronized:true});
+      if(ctx)ctx.drawImage(source,0,0,canvas.width,canvas.height);
+    }
+    standingScenePreviewMirrorRaf=requestAnimationFrame(draw);
+  };
+  standingScenePreviewMirrorRaf=requestAnimationFrame(draw);
+}
+async function stopStandingScenePreview(){
+  stopStandingScenePreviewMirror();
+  if(standingScenePreviewFirstFrameHandler){
+    window.removeEventListener("orikuro:media-first-frame",standingScenePreviewFirstFrameHandler);
+    standingScenePreviewFirstFrameHandler=null;
+  }
+  const client=standingScenePreviewClient;
+  standingScenePreviewClient=null;
+  standingScenePreviewStreamId="";
+  if(client)try{await client.stop();}catch{}
+}
+function startStandingScenePreview(generation){
+  if(generation!==standingPreparationGeneration||selectedMode!=="standing")return false;
+  const current=getStreamRealtimeGrant();
+  if(!current||typeof current.monitorCapability!=="string"||!current.monitorCapability||typeof current.mediaWebSocketUrl!=="string")throw new Error("SCENE_PREVIEW_GRANT_MISSING");
+  const canvases=standingScenePreviewCanvases();
+  const source=canvases[0];
+  if(!(source instanceof HTMLCanvasElement))throw new Error("SCENE_PREVIEW_CANVAS_MISSING");
+  if(standingScenePreviewClient&&standingScenePreviewStreamId===current.streamId)return true;
+  if(standingScenePreviewClient)void stopStandingScenePreview();
+  const previewGrant={
+    streamId:current.streamId,
+    capability:current.monitorCapability,
+    expiresAt:current.expiresAt,
+    mediaWebSocketUrl:current.mediaWebSocketUrl
+  };
+  const client=new WatchMediaClient(previewGrant,source,null);
+  standingScenePreviewClient=client;
+  standingScenePreviewStreamId=current.streamId;
+  standingScenePreviewFirstFrameHandler=event=>{
+    if(client!==standingScenePreviewClient||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+    if(event?.detail?.streamId!==current.streamId)return;
+    for(const canvas of standingScenePreviewCanvases()){
+      if(canvas===source)continue;
+      if(canvas.width!==source.width)canvas.width=source.width;
+      if(canvas.height!==source.height)canvas.height=source.height;
+      const ctx=canvas.getContext("2d",{alpha:false,desynchronized:true});
+      if(ctx)ctx.drawImage(source,0,0,canvas.width,canvas.height);
+    }
+    window.dispatchEvent(new CustomEvent("orikuro:scene-preview-frame",{detail:{streamId:current.streamId,width:source.width,height:source.height,source:"northflank"}}));
+  };
+  window.addEventListener("orikuro:media-first-frame",standingScenePreviewFirstFrameHandler);
+  client.onEnded(()=>{
+    if(client!==standingScenePreviewClient||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
+    setState("composition","Northflank映像が終了しました","error");
+    setFeedback("配信前プレビューの映像が終了しました。開始できません。","error");
+    standingPreviewDecoded=false;
+    updateWizard();
+  });
+  client.start();
+  startStandingScenePreviewMirror(source);
+  return true;
+}
 function waitForScenePreview(generation,timeoutMs){
   return new Promise(resolve=>{
     let done=false;
@@ -1159,6 +1238,7 @@ function beginStandingPreparation(){
     renderStandingBackgroundChoice();
     setState("composition","Cloudflare描画中 / Northflank映像を確認中","working");
     updateWizard();
+    startStandingScenePreview(generation);
 
     // "Ready" means: a real frame from Northflank was decoded and drawn in
     // the publisher preview. Until then the stream cannot be started.
@@ -1206,6 +1286,7 @@ async function stopStandingTemporary(){
 function cancelStandingPreparation(stopRemote=true){
   standingPreparationGeneration++;standingPreparationController?.abort();standingPreparationController=null;standingPreparationPromise=null;
   standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;standingPreviewDecoded=false;backgroundPreviewReady=false;standingBackgroundsPrepared=false;standingActiveBackgroundIndex=-1;standingBackgroundReady.clear();standingBackgroundPending.clear();standingBackgroundPreparationPromises.clear();standingBackgroundPreparationQueue=Promise.resolve();
+  void stopStandingScenePreview();
   stopStandingMotion(true);
   if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);standingPreviewUrl="";revokeStandingBackgroundUrls();
   document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement){img.removeAttribute("src");img.hidden=true;}});
