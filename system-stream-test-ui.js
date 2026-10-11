@@ -300,6 +300,8 @@ const standingBackgroundUrls=new Map();
 // keeps the current background on screen and shows "準備中").
 const standingBackgroundReady=new Set();
 const standingBackgroundPending=new Set();
+const standingBackgroundPreparationPromises=new Map();
+let standingBackgroundPreparationQueue=Promise.resolve();
 let standingBackgroundsPrepared=false;
 let standingActiveBackgroundIndex=-1;
 let standingPreparationGeneration=0;
@@ -1040,13 +1042,36 @@ async function prepareStandingBackend(signal,generation){
 // (selection only; their pixels stay in Cloudflare).
 function markStandingBackgroundsPrepared(){
   for(let index=0;index<STANDING_IMAGE_COUNT;index++){
-    standingBackgroundUrls.set(index,"cloudflare-prepared");
+    const ready=standingBackgroundReady.has(index);
+    if(ready)standingBackgroundUrls.set(index,"cloudflare-prepared");
+    else standingBackgroundUrls.delete(index);
     const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);
-    if(swatch instanceof HTMLElement){swatch.style.backgroundImage="";swatch.dataset.prepared="true";swatch.dataset.label=String(index+1);}
+    if(swatch instanceof HTMLElement){
+      swatch.style.backgroundImage="";
+      swatch.dataset.prepared=ready?"true":"false";
+      swatch.dataset.label=String(index+1);
+    }
     const button=document.querySelector(`[data-standing-background-index="${index}"]`);
-    if(button instanceof HTMLButtonElement){button.disabled=false;renderBackgroundPending(button,index);}
+    if(button instanceof HTMLButtonElement){
+      button.disabled=!ready&&!standingPreviewDecoded;
+      renderBackgroundPending(button,index);
+    }
   }
   updateLiveBackgroundOptions();
+}
+function markStandingBackgroundReady(index){
+  standingBackgroundReady.add(index);
+  standingBackgroundUrls.set(index,"cloudflare-prepared");
+  const swatch=document.querySelector(`[data-standing-background-swatch="${index}"]`);
+  if(swatch instanceof HTMLElement){
+    swatch.style.backgroundImage="";
+    swatch.dataset.prepared="true";
+    swatch.dataset.label=String(index+1);
+  }
+  const button=document.querySelector(`[data-standing-background-index="${index}"]`);
+  if(button instanceof HTMLButtonElement){button.disabled=false;renderBackgroundPending(button,index);}
+  updateLiveBackgroundOptions();
+  updateWizard();
 }
 function renderBackgroundPending(button,index){
   const label=button.querySelector("strong")||button;
@@ -1070,6 +1095,45 @@ function waitForScenePreview(generation,timeoutMs){
     window.addEventListener("orikuro:scene-preview-frame",onFrame);
     if(generation!==standingPreparationGeneration)finish(false);
   });
+}
+function queueStandingBackgroundPreparation(index){
+  if(standingBackgroundReady.has(index))return Promise.resolve(true);
+  const existing=standingBackgroundPreparationPromises.get(index);
+  if(existing)return existing;
+  const generation=standingPreparationGeneration;
+  const task=standingBackgroundPreparationQueue.catch(()=>undefined).then(async()=>{
+    if(generation!==standingPreparationGeneration||selectedMode!=="standing")return false;
+    const current=getStreamRealtimeGrant();if(!current)return false;
+    const response=await fetch(BACKGROUND_ACTIVATE_URL,{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability,backgroundIndex:index,prepareOnly:true}),
+      credentials:"omit",
+      cache:"no-store",
+      referrerPolicy:"no-referrer",
+      signal:standingPreparationController?.signal
+    });
+    const payload=await response.json().catch(()=>null);
+    if(!response.ok||payload?.ok!==true||payload?.result?.ready!==true||payload?.result?.backgroundIndex!==index){
+      throw new Error(typeof payload?.code==="string"?payload.code:"BACKGROUND_PREPARE_FAILED");
+    }
+    if(generation!==standingPreparationGeneration||selectedMode!=="standing")return false;
+    markStandingBackgroundReady(index);
+    return true;
+  });
+  standingBackgroundPreparationQueue=task.then(()=>undefined,()=>undefined);
+  standingBackgroundPreparationPromises.set(index,task);
+  void task.catch(()=>{if(standingBackgroundPreparationPromises.get(index)===task)standingBackgroundPreparationPromises.delete(index);});
+  return task;
+}
+function startRemainingStandingBackgroundPreparation(){
+  // First real Northflank frame is already drawn before this is called.
+  // Queue the remaining backgrounds exactly once and keep the work sequential.
+  for(let index=1;index<STANDING_IMAGE_COUNT;index++)void queueStandingBackgroundPreparation(index).catch(()=>{});
+  document.querySelectorAll("[data-standing-background-index]").forEach(button=>{
+    if(button instanceof HTMLButtonElement)button.disabled=false;
+  });
+  refreshBackgroundPending();
 }
 function beginStandingPreparation(){
   if(selectedMode!=="standing"||standingPreparationPromise)return;
@@ -1107,6 +1171,7 @@ function beginStandingPreparation(){
     }
     if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     standingPreviewDecoded=true;
+    startRemainingStandingBackgroundPreparation();
     const readyMs=Math.round(performance.now()-standingPreparationStartedAt);
     const entryMs=Math.round(performance.now());
     setState("composition","立ち絵・背景をCloudflareで描画中","ready");
@@ -1140,7 +1205,7 @@ async function stopStandingTemporary(){
 }
 function cancelStandingPreparation(stopRemote=true){
   standingPreparationGeneration++;standingPreparationController?.abort();standingPreparationController=null;standingPreparationPromise=null;
-  standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;standingPreviewDecoded=false;backgroundPreviewReady=false;standingBackgroundsPrepared=false;standingActiveBackgroundIndex=-1;standingBackgroundReady.clear();standingBackgroundPending.clear();
+  standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;standingPreviewDecoded=false;backgroundPreviewReady=false;standingBackgroundsPrepared=false;standingActiveBackgroundIndex=-1;standingBackgroundReady.clear();standingBackgroundPending.clear();standingBackgroundPreparationPromises.clear();standingBackgroundPreparationQueue=Promise.resolve();
   stopStandingMotion(true);
   if(standingPreviewUrl)URL.revokeObjectURL(standingPreviewUrl);standingPreviewUrl="";revokeStandingBackgroundUrls();
   document.querySelectorAll("[data-standing-preview-image]").forEach(img=>{if(img instanceof HTMLImageElement){img.removeAttribute("src");img.hidden=true;}});
@@ -1154,15 +1219,29 @@ function backgroundRequestId(){
 }
 // 背景変更要求 -> Cloudflare (素材取得/復号 -> Scene更新 -> 新背景を含むFrame確定) -> ACK.
 // Resolves true only after Cloudflare acknowledged the committed frame.
-async function activateStandingBackground(choiceId,{timeoutMs=0,attempt=0}={}){
+async function activateStandingBackground(choiceId,{timeoutMs=0}={}){
   if(selectedMode!=="standing")return false;
   const index=standingImageIndex(choiceId);
   const solid=radioPresets.get(choiceId);
   if(index<0&&!solid)return false;
   if(index>=0&&index===standingActiveBackgroundIndex&&!standingActiveSolid)return true;
   if(solid&&standingActiveSolid===solid.color)return true;
+  if(index>=0&&!standingBackgroundReady.has(index)){
+    standingBackgroundPending.add(index);refreshBackgroundPending();
+    setState("composition","選択した背景を準備中（現在の背景を表示中）","working");
+    try{
+      const ready=await queueStandingBackgroundPreparation(index);
+      if(!ready||selectedMode!=="standing"||backgroundChoice!==choiceId)return false;
+    }catch(error){
+      standingBackgroundPending.delete(index);refreshBackgroundPending();
+      const code=error instanceof Error?error.message:"BACKGROUND_PREPARE_FAILED";
+      setState("composition","背景準備失敗","error");
+      setFeedback(`背景を準備できません: ${code}。現在の背景を維持しています。`,"error");
+      return false;
+    }
+  }
   const current=getStreamRealtimeGrant();if(!current)return false;
-  let ok=false,pendingRetry=false;
+  let ok=false;
   standingActivationQueue=standingActivationQueue.catch(()=>undefined).then(async()=>{
     setState("composition","背景を切り替え中","working");
     const controller=new AbortController();
@@ -1172,13 +1251,6 @@ async function activateStandingBackground(choiceId,{timeoutMs=0,attempt=0}={}){
       if(index>=0)body.backgroundIndex=index;else body.solidColor=solid.color;
       const response=await fetch(BACKGROUND_ACTIVATE_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",signal:controller.signal});
       const payload=await response.json().catch(()=>null);
-      if(response.status===202&&payload?.ok===true&&payload?.result?.ready===false&&index>=0){
-        // Not prepared yet: Cloudflare keeps the current background.
-        standingBackgroundPending.add(index);refreshBackgroundPending();
-        setState("composition","選択した背景を準備中（現在の背景を表示中）","working");
-        pendingRetry=true;
-        return;
-      }
       if(!response.ok||payload?.ok!==true||payload?.result?.ready!==true)throw new Error(typeof payload?.code==="string"?payload.code:"BACKGROUND_ACTIVATE_FAILED");
       if(index>=0){standingBackgroundReady.add(index);standingBackgroundPending.delete(index);refreshBackgroundPending();}
       if(payload.result.requestId!==body.requestId)throw new Error("BACKGROUND_ACK_MISMATCH");
@@ -1194,10 +1266,6 @@ async function activateStandingBackground(choiceId,{timeoutMs=0,attempt=0}={}){
     }
   });
   await standingActivationQueue;
-  if(pendingRetry&&!ok&&attempt<45&&selectedMode==="standing"&&backgroundChoice===choiceId){
-    await new Promise(resolve=>setTimeout(resolve,1000));
-    if(selectedMode==="standing"&&backgroundChoice===choiceId)return await activateStandingBackground(choiceId,{timeoutMs,attempt:attempt+1});
-  }
   return ok;
 }
 async function applyLiveBackgroundChoice(choiceId){
