@@ -1305,7 +1305,10 @@ async function applyLiveBackgroundChoice(choiceId){
 async function applyStandingBackgroundChoice(choiceId){
   if(selectedMode!=="standing"||!standingChoiceValid(choiceId))return;
   const index=standingImageIndex(choiceId);
-  if(index>=0&&!standingBackgroundUrls.has(index))return;
+  // Before the first real Northflank frame only the initial background is
+  // selectable. After that, an unprepared choice stays selected as "準備中"
+  // while its already-serialized preparation finishes.
+  if(index>=0&&!standingBackgroundReady.has(index)&&!standingPreviewDecoded)return;
   const previous=backgroundChoice;
   backgroundChoice=choiceId;renderStandingBackgroundChoice();updateWizard();
   if(standingPreviewReady){
