@@ -355,6 +355,12 @@ function setFeedback(text,state="info"){
   el.textContent=text;
   el.dataset.state=state;
 }
+function setRealFrameStatus(text,state="waiting"){
+  document.querySelectorAll("[data-real-frame-status]").forEach(el=>{
+    el.textContent=text;
+    el.dataset.state=state;
+  });
+}
 
 function preparedAudioTrack(){
   const track=preparedAudioStream?.getAudioTracks?.()[0]||null;
@@ -1141,6 +1147,7 @@ function startStandingScenePreview(generation){
   const client=new WatchMediaClient(previewGrant,source,null);
   standingScenePreviewClient=client;
   standingScenePreviewStreamId=current.streamId;
+  setRealFrameStatus("Cloudflare合成映像をNorthflankから受信待ち","working");
   standingScenePreviewFirstFrameHandler=event=>{
     if(client!==standingScenePreviewClient||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     if(event?.detail?.streamId!==current.streamId)return;
@@ -1151,12 +1158,15 @@ function startStandingScenePreview(generation){
       const ctx=canvas.getContext("2d",{alpha:false,desynchronized:true});
       if(ctx)ctx.drawImage(source,0,0,canvas.width,canvas.height);
     }
+    standingPreviewDecoded=true;
+    setRealFrameStatus("Northflankから実映像を受信済み（Cloudflare合成）","ready");
     window.dispatchEvent(new CustomEvent("orikuro:scene-preview-frame",{detail:{streamId:current.streamId,width:source.width,height:source.height,source:"northflank"}}));
   };
   window.addEventListener("orikuro:media-first-frame",standingScenePreviewFirstFrameHandler);
   client.onEnded(()=>{
     if(client!==standingScenePreviewClient||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
     setState("composition","Northflank映像が終了しました","error");
+    setRealFrameStatus("Northflankの映像接続が終了しました","error");
     setFeedback("配信前プレビューの映像が終了しました。開始できません。","error");
     standingPreviewDecoded=false;
     updateWizard();
@@ -1166,13 +1176,21 @@ function startStandingScenePreview(generation){
   return true;
 }
 function waitForScenePreview(generation,timeoutMs){
+  if(generation!==standingPreparationGeneration)return Promise.resolve(false);
+  const current=getStreamRealtimeGrant();
+  if(standingPreviewDecoded&&current?.streamId===standingScenePreviewStreamId)return Promise.resolve(true);
   return new Promise(resolve=>{
     let done=false;
     const finish=(ok)=>{if(done)return;done=true;clearTimeout(timer);window.removeEventListener("orikuro:scene-preview-frame",onFrame);resolve(ok);};
-    const onFrame=()=>finish(true);
+    const onFrame=event=>{
+      if(generation!==standingPreparationGeneration)return finish(false);
+      if(event?.detail?.streamId!==current?.streamId)return;
+      finish(true);
+    };
     const timer=setTimeout(()=>finish(false),timeoutMs);
     window.addEventListener("orikuro:scene-preview-frame",onFrame);
     if(generation!==standingPreparationGeneration)finish(false);
+    else if(standingPreviewDecoded&&current?.streamId===standingScenePreviewStreamId)finish(true);
   });
 }
 function queueStandingBackgroundPreparation(index){
@@ -1226,6 +1244,7 @@ function beginStandingPreparation(){
     // Supabase authorizes and hands the stream to Cloudflare, which decrypts
     // the R2 temporary copies and starts rendering the scene (render-2d +
     // first composition) toward Northflank.
+    setRealFrameStatus("Cloudflareで立ち絵シーンを準備中","working");
     setState("composition","Cloudflareで立ち絵シーンを準備中","working");
     document.querySelectorAll("[data-preview-character-label],[data-live-character-label]").forEach(el=>{el.textContent="Cloudflareで描画を準備中…";});
     updateWizard();
@@ -1246,6 +1265,7 @@ function beginStandingPreparation(){
     while(!seen){
       if(controller.signal.aborted||generation!==standingPreparationGeneration||selectedMode!=="standing")return;
       setState("composition","Cloudflare描画中 / 映像未受信","error");
+      setRealFrameStatus("Northflank実映像を未受信（接続確認中）","error");
       setFeedback("Northflankからの映像をまだ受信していません。受信できるまで開始できません。","error");
       seen=await waitForScenePreview(generation,15000);
     }
@@ -1265,6 +1285,7 @@ function beginStandingPreparation(){
     if(!controller.signal.aborted&&generation===standingPreparationGeneration&&selectedMode==="standing"){
       const message=error instanceof Error?error.message:"STANDING_PREPARATION_FAILED";
       setState("composition","立ち絵・背景準備失敗","error");
+      setRealFrameStatus("実映像の準備に失敗: "+message,"error");
       setFeedback("立ち絵配信の専用準備を完了できません: "+message,"error");
     }
   }).finally(()=>{
@@ -1284,6 +1305,7 @@ async function stopStandingTemporary(){
   }catch{}
 }
 function cancelStandingPreparation(stopRemote=true){
+  setRealFrameStatus("配信映像の確認を終了しました","waiting");
   standingPreparationGeneration++;standingPreparationController?.abort();standingPreparationController=null;standingPreparationPromise=null;
   standingPreviewLoading=false;backgroundPreviewLoading=false;standingPreviewReady=false;standingPreviewDecoded=false;backgroundPreviewReady=false;standingBackgroundsPrepared=false;standingActiveBackgroundIndex=-1;standingBackgroundReady.clear();standingBackgroundPending.clear();standingBackgroundPreparationPromises.clear();standingBackgroundPreparationQueue=Promise.resolve();
   void stopStandingScenePreview();
@@ -2449,15 +2471,17 @@ startButton?.addEventListener("click",()=>{
   void (async()=>{
     try{
       if(requestedMode==="standing"){
-        const final=document.querySelector('[data-wizard-step="4"]');
-        const avatar=final?.querySelector("[data-standing-preview-image]");
-        if(!(avatar instanceof HTMLImageElement)||!avatar.src)throw new Error("STANDING_PREVIEW_MISSING");
-        await avatar.decode();
-        if(!captureStandingPreliveComposition())throw new Error("STANDING_PRELIVE_LAYOUT_MISSING");
-        if(standingImageIndex(requestedChoice)>=0){
-          const background=final?.querySelector("[data-background-preview-image]");
-          if(!(background instanceof HTMLImageElement)||!background.src)throw new Error("BACKGROUND_PREVIEW_MISSING");
-          await background.decode();
+        // Standing visual proof is the decoded Northflank return frame. The
+        // legacy DOM avatar/background images are intentionally not populated:
+        // composition and temporary asset decryption both remain on Cloudflare.
+        const current=getStreamRealtimeGrant();
+        const finalCanvas=document.querySelector('[data-wizard-step="4"] [data-scene-preview-canvas]');
+        if(!standingPreviewReady||!standingPreviewDecoded||!standingScenePreviewClient||
+          !current||standingScenePreviewStreamId!==current.streamId){
+          throw new Error("SCENE_PREVIEW_FRAME_NOT_RECEIVED");
+        }
+        if(!(finalCanvas instanceof HTMLCanvasElement)||finalCanvas.width!==360||finalCanvas.height!==640){
+          throw new Error("SCENE_PREVIEW_CANVAS_INVALID");
         }
       }
       if(selectedMode!==requestedMode||backgroundChoice!==requestedChoice||document.documentElement.dataset.broadcastPhase!=="starting")return;
