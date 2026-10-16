@@ -1315,6 +1315,25 @@ async function stopStandingTemporary(){
     try{await response.body?.cancel();}catch{}
   }catch{}
 }
+// Closing the system-test tab should release only the stream owned by this
+// tab. pagehide is a best-effort event: keepalive sends the request without
+// depending on an async response after the document is discarded.
+let testPageHideStopIssued=false;
+window.addEventListener("pagehide",()=>{
+  if(!systemTest||testPageHideStopIssued)return;
+  let grant=null;
+  try{grant=getStreamRealtimeGrant();}catch{return;}
+  if(!grant||typeof grant.streamId!=="string"||typeof grant.controlCapability!=="string")return;
+  testPageHideStopIssued=true;
+  void fetch(SYSTEM_STREAM_STOP_URL,{
+    method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({action:"stream_stop",streamId:grant.streamId,controlCapability:grant.controlCapability}),
+    credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",keepalive:true
+  }).catch(()=>{});
+});
+window.addEventListener("pageshow",event=>{
+  if(systemTest&&event.persisted&&testPageHideStopIssued)location.reload();
+});
 const failedStandingStopAttempts=new Set();
 async function stopFailedStandingTestStream(streamId){
   if(!systemTest||typeof streamId!=="string"||failedStandingStopAttempts.has(streamId))return false;
