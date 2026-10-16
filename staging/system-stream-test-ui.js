@@ -1,4 +1,4 @@
-import{getStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
+import{getStreamRealtimeGrant,clearStreamRealtimeGrant}from"./assets/js/realtime-grant.js?v=20260914-grant-handoff1";
 import{WatchMediaClient}from"./assets/js/watch-media.js?v=20261005-superchat1";
 import{applyStreamingCompatibility}from"./stream-compat.js?v=20260920-compat3";
 import{StandingFaceTracker}from"./standing-face-tracker.js?v=20261003-fixedruntime2";
@@ -9,6 +9,7 @@ const systemTest=document.documentElement.dataset.systemTest==="true";
 const STANDING_PREPARE_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-prepare";
 const BACKGROUND_ACTIVATE_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-background-activate";
 const STANDING_PREVIEW_STOP_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/external-services-system/stream-standing-preview-stop";
+const SYSTEM_STREAM_STOP_URL="https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/mail-system/service-flow";
 const STANDING_IMAGE_COUNT=4;
 const supportedModes=new Set(["radio","standing"]);
 const radioPresets=new Map([
@@ -1235,6 +1236,7 @@ function startRemainingStandingBackgroundPreparation(){
 function beginStandingPreparation(){
   if(selectedMode!=="standing"||standingPreparationPromise)return;
   const current=getStreamRealtimeGrant();if(!current)return;
+  const preparingStreamId=current.streamId;
   if(!standingPreparationController)standingPreparationController=new AbortController();
   const controller=standingPreparationController,generation=standingPreparationGeneration;
   backgroundPreviewLoading=true;
@@ -1281,12 +1283,21 @@ function beginStandingPreparation(){
     updateWizard();
 
     if(standingChoiceValid(backgroundChoice)&&backgroundChoice!=="standing-image-1")await activateStandingBackground(backgroundChoice);
-  })().catch(error=>{
+  })().catch(async error=>{
     if(!controller.signal.aborted&&generation===standingPreparationGeneration&&selectedMode==="standing"){
       const message=error instanceof Error?error.message:"STANDING_PREPARATION_FAILED";
       setState("composition","立ち絵・背景準備失敗","error");
       setRealFrameStatus("実映像の準備に失敗: "+message,"error");
       setFeedback("立ち絵配信の専用準備を完了できません: "+message,"error");
+      // The test stream was created before Cloudflare scene preparation.
+      // Do not leave its Northflank authorization/session running on a fatal
+      // preparation failure. End only this tab's uniquely identified stream.
+      if(systemTest&&/^(SCENE_START_FAILED:|STANDING_PREPARE_FANOUT_FAILED:|STANDING_PREPARE_INVALID|SCENE_NOT_RUNNING)/.test(message)){
+        const stopped=await stopFailedStandingTestStream(preparingStreamId);
+        if(generation===standingPreparationGeneration&&selectedMode==="standing"){
+          setFeedback("立ち絵配信の準備に失敗: "+message+(stopped?"。テスト配信を終了しました。再確認にはこのページを再読込してください。":"。テスト配信の終了を確認できません。新しい配信を開始しないでください。"),"error");
+        }
+      }
     }
   }).finally(()=>{
     if(generation===standingPreparationGeneration){
@@ -1303,6 +1314,30 @@ async function stopStandingTemporary(){
     const response=await fetch(STANDING_PREVIEW_STOP_URL,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({streamId:current.streamId,controlCapability:current.controlCapability}),credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer",keepalive:true});
     try{await response.body?.cancel();}catch{}
   }catch{}
+}
+const failedStandingStopAttempts=new Set();
+async function stopFailedStandingTestStream(streamId){
+  if(!systemTest||typeof streamId!=="string"||failedStandingStopAttempts.has(streamId))return false;
+  const grant=getStreamRealtimeGrant();
+  if(!grant||grant.streamId!==streamId||typeof grant.controlCapability!=="string")return false;
+  failedStandingStopAttempts.add(streamId);
+  try{
+    const response=await fetch(SYSTEM_STREAM_STOP_URL,{
+      method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({action:"stream_stop",streamId,controlCapability:grant.controlCapability}),
+      credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"
+    });
+    const payload=await response.json().catch(()=>null);
+    const result=payload?.result;
+    const stopped=response.ok&&payload?.ok===true&&result?.streamId===streamId&&result?.cloudflareStopped===true&&result?.northflankRevoked===true;
+    if(stopped&&getStreamRealtimeGrant()?.streamId===streamId){
+      clearStreamRealtimeGrant();
+      grantReady=false;
+      realtimeReady=false;
+      updateWizard();
+    }
+    return stopped;
+  }catch{return false;}
 }
 function cancelStandingPreparation(stopRemote=true){
   setRealFrameStatus("配信映像の確認を終了しました","waiting");
