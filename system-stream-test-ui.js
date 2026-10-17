@@ -386,10 +386,13 @@ function standingChoiceReady(choice=backgroundChoice){
 function readyForStep(step){
   if(step===1)return supportedModes.has(selectedMode)&&micReady();
   if(step===2)return selectedMode==="standing"
-    ?standingPreviewReady&&standingPreviewDecoded&&standingChoiceReady()
+    ?standingPreviewReady&&standingChoiceReady()
     :radioPresets.has(backgroundChoice);
   if(step===3)return streamTitleValue().length>0&&micReady();
-  if(step===4)return readyForStep(1)&&readyForStep(2)&&readyForStep(3);
+  // Background selection and title can be configured while the real video is
+  // connecting. Live start still requires a decoded Northflank preview frame.
+  if(step===4)return readyForStep(1)&&readyForStep(2)&&readyForStep(3)
+    &&(selectedMode!=="standing"||standingPreviewDecoded);
   return false;
 }
 
