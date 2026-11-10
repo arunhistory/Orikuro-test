@@ -1,0 +1,298 @@
+/*
+  components.css — 部品の見た目
+  ------------------------------------------------------------
+  ヘッダー / メニュー / フッター / 文書（規約類）。
+  色や文字は tokens.css の変数だけを使います。!important は使いません。
+  部品ごとに区切ってあり、各部品の .astro ファイルと名前がそろっています。
+*/
+
+/* =========================================================
+   Header（components/Header.astro）
+   ========================================================= */
+.page-header{
+  position:sticky;
+  top:0;
+  z-index:var(--z-header);
+  min-height:var(--header);
+  padding:14px var(--pad);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  border-bottom:1px solid var(--color-header-line);
+  background:var(--color-header-bg);
+  backdrop-filter:blur(16px) saturate(1.15);
+  box-shadow:var(--shadow-header);
+}
+.page-brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:15px;
+  font-weight:500;
+  letter-spacing:-.03em;
+}
+.brand-symbol{width:38px;height:38px;object-fit:cover;border-radius:50%}
+
+.menu-button{
+  display:block;
+  position:relative;
+  width:46px;
+  height:46px;
+  padding:0;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+}
+.menu-button span{
+  position:absolute;
+  width:24px;
+  height:2px;
+  background:var(--color-ink);
+  transition:transform .24s ease,top .24s ease;
+}
+.menu-button span:first-child{top:18px}
+.menu-button span:last-child{top:27px}
+.menu-button.is-open span:first-child{top:22px;transform:rotate(45deg)}
+.menu-button.is-open span:last-child{top:22px;transform:rotate(-45deg)}
+
+@media(max-width:760px){
+  .page-brand{font-size:14px}
+  .brand-symbol{width:34px;height:34px}
+}
+
+/* =========================================================
+   MobileMenu（components/MobileMenu.astro）
+   ========================================================= */
+.mobile-menu{
+  position:fixed;
+  inset:var(--header) 0 0 0;
+  z-index:var(--z-menu);
+  display:none;
+  padding:clamp(22px,4vw,46px) var(--pad) clamp(34px,6vw,72px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  background:
+    radial-gradient(circle at 14% 10%,rgba(255,77,93,.08),transparent 24%),
+    radial-gradient(circle at 86% 14%,rgba(51,231,243,.10),transparent 25%),
+    radial-gradient(circle at 48% 94%,rgba(134,88,255,.08),transparent 28%),
+    var(--color-menu-bg);
+  backdrop-filter:blur(24px) saturate(1.08);
+}
+.mobile-menu.is-open{display:block}
+
+.menu-map{
+  width:min(var(--content-width),100%);
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(22px,3vw,46px);
+}
+.menu-group{
+  position:relative;
+  min-width:0;
+  padding-top:17px;
+}
+.menu-group::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  height:2px;
+  background:var(--rainbow-line);
+  opacity:.72;
+}
+.menu-group-label{
+  margin:0 0 12px;
+  color:var(--color-menu-label);
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.18em;
+}
+.menu-group a{
+  position:relative;
+  display:block;
+  padding:13px 0;
+  border-bottom:1px solid var(--color-menu-line);
+  color:var(--color-ink);
+  font-size:clamp(17px,1.55vw,24px);
+  font-weight:600;
+  line-height:1.25;
+  letter-spacing:-.035em;
+  transition:padding .2s ease,color .2s ease,background .2s ease;
+}
+.menu-group a:hover{
+  padding-left:8px;
+  color:var(--color-link-hover);
+  background:linear-gradient(90deg,rgba(74,141,255,.045),transparent 70%);
+}
+
+@media(max-width:920px){
+  .menu-map{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .mobile-menu{padding-top:18px}
+  .menu-map{grid-template-columns:1fr;gap:22px}
+  .menu-group{padding-top:13px}
+  .menu-group a{font-size:19px;padding-top:10px;padding-bottom:10px}
+}
+
+/* =========================================================
+   Footer（components/Footer.astro）
+   ========================================================= */
+.site-footer{
+  padding:50px var(--pad);
+  border-top:1px solid var(--color-footer-line);
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:space-between;
+  gap:36px;
+  background:var(--color-footer-bg);
+  color:var(--color-footer-text);
+  backdrop-filter:blur(18px);
+}
+.site-footer p{margin:5px 0}
+.footer-brand{
+  color:var(--color-ink);
+  font-size:clamp(24px,3vw,40px);
+  font-weight:600;
+  letter-spacing:-.04em;
+}
+.footer-meta{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:flex-end;
+  gap:8px;
+  color:var(--color-footer-text);
+  font-size:9px;
+  font-weight:500;
+  letter-spacing:.14em;
+}
+.footer-links{
+  flex:0 0 100%;
+  width:100%;
+  margin:26px 0 0;
+  padding-top:22px;
+  border-top:1px solid var(--color-footer-links-line);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:10px 0;
+  color:var(--color-footer-links-base);
+  font-size:12px;
+  font-weight:500;
+  letter-spacing:.02em;
+  line-height:1.5;
+}
+.footer-links a{
+  color:var(--color-footer-link);
+  transition:opacity .18s ease,color .18s ease;
+}
+.footer-links a:hover{color:var(--color-ink)}
+.footer-links a:not(:last-child)::after{
+  content:"｜";
+  display:inline-block;
+  margin:0 10px;
+  color:var(--color-footer-separator);
+  font-weight:400;
+}
+.site-footer .footer-license{
+  flex:0 0 100%;
+  width:100%;
+  margin:18px 0 0;
+  padding-top:16px;
+  border-top:1px solid var(--color-footer-license-line);
+  text-align:center;
+  color:var(--color-ink);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  line-height:1.4;
+}
+
+@media(max-width:820px){
+  .site-footer{flex-direction:column}
+  .footer-meta{align-items:flex-start}
+  .footer-links{justify-content:flex-start;margin-top:20px;padding-top:18px;font-size:11px}
+  .footer-links a:not(:last-child)::after{margin:0 7px}
+  .site-footer .footer-license{margin-top:16px;padding-top:14px;text-align:left}
+}
+
+/* =========================================================
+   Document（layouts/DocumentLayout.astro）
+   規約・プライバシーポリシー・Cookieポリシー・運営者情報で共通
+   ========================================================= */
+.doc-main{
+  width:min(var(--content-width),calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(70px,9vw,116px) 0 clamp(110px,13vw,160px);
+}
+.doc{
+  width:min(900px,100%);
+  margin:0 auto;
+  padding:clamp(36px,6vw,72px) clamp(24px,6vw,72px);
+  border:1px solid var(--color-doc-border);
+  background:var(--color-doc-bg);
+  box-shadow:var(--shadow-doc);
+  font-family:var(--font-document);
+  color:var(--color-doc-ink);
+}
+.doc-title-block{
+  padding-bottom:clamp(30px,4vw,44px);
+  margin-bottom:clamp(34px,5vw,52px);
+  border-bottom:1px solid var(--color-doc-rule-strong);
+}
+.doc-kicker{
+  margin:0 0 12px;
+  color:var(--color-doc-kicker);
+  font-size:12px;
+  letter-spacing:.18em;
+}
+.doc-title-block h1{
+  margin:0;
+  font-size:clamp(34px,5vw,58px);
+  line-height:1.25;
+  font-weight:600;
+  letter-spacing:.04em;
+}
+.doc-intro{
+  margin:0 0 clamp(42px,6vw,66px);
+  font-size:clamp(15px,1.8vw,17px);
+  line-height:2.05;
+}
+.doc-section{margin-top:clamp(38px,5vw,56px)}
+.doc-section h2{
+  margin:0 0 20px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--color-doc-rule-soft);
+  font-size:clamp(19px,2.4vw,24px);
+  line-height:1.55;
+  font-weight:600;
+  letter-spacing:.03em;
+}
+.doc-section p,
+.doc-section li{
+  font-size:clamp(15px,1.7vw,17px);
+  line-height:2;
+}
+.doc-section p{margin:0 0 14px}
+.doc-section ul{margin:14px 0 0;padding-left:1.6em}
+.doc-section li+li{margin-top:8px}
+.doc-enacted{
+  margin:clamp(58px,8vw,84px) 0 0;
+  padding-top:20px;
+  border-top:1px solid var(--color-doc-rule);
+  text-align:right;
+  font-size:15px;
+  letter-spacing:.04em;
+}
+
+@media(max-width:760px){
+  .doc-main{padding-top:54px}
+  .doc{padding:32px 20px 38px}
+  .doc-intro{line-height:1.95}
+  .doc-section p,.doc-section li{line-height:1.9}
+}

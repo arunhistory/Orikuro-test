@@ -1,0 +1,27 @@
+---
+/*
+  DocumentLayout — 規約・プライバシーポリシー・Cookieポリシー・運営者情報など、
+  文章だけのページ用。白い紙の枠と見出しの形が決まっている。
+  ページ側は <DocumentLayout title="…" description="…"> の中に
+  <p class="doc-intro">、<section class="doc-section">、<p class="doc-enacted"> を並べる。
+*/
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+<BaseLayout title={title} description={description}>
+  <main class="doc-main">
+    <article class="doc">
+      <header class="doc-title-block">
+        <p class="doc-kicker">Original Create Project</p>
+        <h1>{title}</h1>
+      </header>
+      <slot />
+    </article>
+  </main>
+</BaseLayout>

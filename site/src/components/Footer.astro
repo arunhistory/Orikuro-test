@@ -1,0 +1,15 @@
+---
+// フッター：リンクは data/navigation.ts の footerLinks から作る。
+import { footerLinks, forSide } from '../data/navigation';
+import { href, isCurrent, side } from '../data/url';
+
+const pathname = Astro.url.pathname;
+---
+<footer class="site-footer">
+  <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
+  <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
+  <nav class="footer-links" aria-label="フッターリンク">
+    {forSide(footerLinks, side).map((link) => <a href={href(link.path)} aria-current={isCurrent(link.path, pathname) ? 'page' : undefined}>{link.label}</a>)}
+  </nav>
+  <p class="footer-license">©Original Create</p>
+</footer>

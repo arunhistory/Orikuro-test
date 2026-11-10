@@ -1,0 +1,14 @@
+---
+// ヘッダー：左にロゴ、右にメニューを開くボタン。全ページ共通。
+import { href } from '../data/url';
+---
+<header class="page-header">
+  <a class="page-brand" href={href('/')} aria-label="Original Create ホームページへ戻る">
+    <img class="brand-symbol" src={href('/images/oc-symbol-user.jpg')} alt="" />
+    <span>Original Create</span>
+  </a>
+
+  <button class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="site-menu" data-menu-button>
+    <span></span><span></span>
+  </button>
+</header>

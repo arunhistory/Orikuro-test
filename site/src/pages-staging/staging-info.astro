@@ -1,0 +1,11 @@
+---
+/*
+  テスト側だけに出るページの見本。
+  src/pages-staging/ に置いたページは、テスト側（/staging/）のビルドにだけ入り、
+  公開側には出ません。体験版の試験中の画面などはここに置きます。
+*/
+import DocumentLayout from '../layouts/DocumentLayout.astro';
+---
+<DocumentLayout title="テスト側について" description="Original Create Project テスト側">
+  <p class="doc-intro">このページはテスト側にだけあります。公開側には出ません。</p>
+</DocumentLayout>

@@ -1,0 +1,72 @@
+/*
+  tokens.css — 色・文字・余白の正本
+  ------------------------------------------------------------
+  サイトで使う値は、すべてここに名前をつけて置きます。
+  部品（components.css）とページは、ここの変数だけを使います。
+  値は 2026-11-10 時点の公開サイト（about.css / navigation.css /
+  footer.css / typography.css / terms.css）で「実際に効いていた値」を
+  そのまま写したものです。見た目を変えるときは、ここだけを直します。
+*/
+:root{
+  /* ---- 文字の色 ---- */
+  --color-ink:#10182a;            /* 本文・見出し・メニューの文字 */
+  --color-muted:#617084;          /* 補足の文字 */
+  --color-menu-label:#66758a;     /* メニューの「知る」「試す」などの小見出し */
+  --color-link-hover:#3154a8;     /* メニューのリンクにマウスを乗せたとき */
+  --color-footer-text:#68778a;    /* フッターの文字 */
+  --color-footer-link:#33445a;    /* フッターのリンク */
+  --color-footer-links-base:#536275;
+  --color-doc-ink:#16191f;        /* 規約などの文書の文字 */
+  --color-doc-kicker:#69717b;     /* 文書の上の小さな英字 */
+
+  /* ---- 背景 ---- */
+  --color-page:#f4f7fb;           /* ページの地の色（theme-color も同じ） */
+  --color-header-bg:rgba(249,251,255,.78);
+  --color-menu-bg:rgba(248,251,255,.96);
+  --color-footer-bg:rgba(247,250,254,.80);
+  --color-doc-bg:rgba(255,255,255,.82);
+
+  /* ---- 線と影 ---- */
+  --color-header-line:rgba(58,91,130,.12);
+  --color-menu-line:rgba(38,61,91,.10);
+  --color-footer-line:rgba(62,88,120,.10);
+  --color-footer-links-line:rgba(62,88,120,.12);
+  --color-footer-license-line:rgba(62,88,120,.08);
+  --color-footer-separator:rgba(62,88,120,.32);
+  --color-doc-border:rgba(44,55,72,.14);
+  --color-doc-rule-strong:rgba(24,28,35,.22);
+  --color-doc-rule:rgba(24,28,35,.18);
+  --color-doc-rule-soft:rgba(24,28,35,.12);
+  --shadow-header:0 10px 35px rgba(33,53,84,.05);
+  --shadow-doc:0 24px 72px rgba(35,48,66,.08);
+
+  /* ---- 虹色（メニューの線・背景のスペクトル） ---- */
+  --rainbow-1:#ff4d5d;
+  --rainbow-2:#ff8a34;
+  --rainbow-3:#ffe348;
+  --rainbow-4:#b8ff4a;
+  --rainbow-5:#39e86a;
+  --rainbow-6:#33e7f3;
+  --rainbow-7:#4a8dff;
+  --rainbow-8:#8658ff;
+  --rainbow-9:#ff58d6;
+  --rainbow-line:linear-gradient(90deg,var(--rainbow-1),var(--rainbow-2),var(--rainbow-3),var(--rainbow-4),var(--rainbow-5),var(--rainbow-6),var(--rainbow-7),var(--rainbow-8),var(--rainbow-9));
+
+  /* ---- 文字の種類 ---- */
+  --font-sans:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;
+  --font-serif:'Noto Serif JP','Yu Mincho','Hiragino Mincho ProN',serif;      /* 代表挨拶だけで使う */
+  --font-document:"Yu Mincho","YuMincho","Hiragino Mincho ProN","Hiragino Mincho Pro","MS PMincho",serif; /* 規約類 */
+
+  /* ---- 寸法 ---- */
+  --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
+  --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */
+  --content-width:1180px;         /* 中身の最大幅 */
+
+  /* ---- 重なり順 ---- */
+  --z-menu:45;
+  --z-header:50;
+}
+
+@media(max-width:760px){
+  :root{--header:66px}
+}
