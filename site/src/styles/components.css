@@ -301,15 +301,15 @@
    Privacy (privacy.html) — 文書見出し・小見出し・本文リンク
    ========================================================= */
 .doc--privacy .doc-title-block h1{
-  font-size:clamp(25px,6vw,58px);
-  letter-spacing:.02em;
+  font-size:var(--doc-privacy-title-size);
+  letter-spacing:var(--doc-privacy-title-tracking);
   white-space:nowrap;
 }
 .doc--privacy .doc-section h3{
-  margin:26px 0 10px;
-  font-size:clamp(16px,2vw,19px);
-  line-height:1.6;
-  font-weight:600;
+  margin:var(--doc-privacy-h3-margin);
+  font-size:var(--doc-privacy-h3-size);
+  line-height:var(--doc-privacy-h3-leading);
+  font-weight:var(--doc-privacy-h3-weight);
 }
 .doc--privacy .doc-section a{
   display:inline;
@@ -319,9 +319,9 @@
   background:none;
   box-shadow:none;
   color:var(--color-doc-link);
-  font-weight:400;
+  font-weight:var(--doc-privacy-link-weight);
   text-decoration:underline;
-  text-underline-offset:0;
+  text-underline-offset:var(--doc-privacy-link-underline-offset);
   line-height:inherit;
 }
 .doc--privacy .doc-section a::before,
