@@ -75,6 +75,20 @@
   --doc-cookie-link-weight:400;
   --doc-cookie-link-underline-offset:0;
 
+  /* ---- 運営者情報固有の旧サイト実効値 ---- */
+  --doc-operator-title-size:clamp(30px,6vw,58px);
+  --doc-operator-title-tracking:.02em;
+  --doc-operator-row-columns:minmax(140px,220px) 1fr;
+  --doc-operator-row-gap:28px;
+  --doc-operator-row-padding:22px 0;
+  --doc-operator-cell-font-size:clamp(15px,1.7vw,17px);
+  --doc-operator-cell-leading:1.9;
+  --doc-operator-dt-weight:600;
+  --doc-operator-dd-weight:400;
+  --doc-operator-mobile-columns:1fr;
+  --doc-operator-mobile-gap:6px;
+  --doc-operator-mobile-padding:20px 0;
+
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
   --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */

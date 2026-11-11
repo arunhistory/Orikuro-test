@@ -368,3 +368,38 @@
   color:var(--color-doc-link);
   text-decoration:underline;
 }
+
+/* =========================================================
+   Operator（operator.html）— 旧サイトと同じ見出し・情報一覧
+   ========================================================= */
+.doc--operator .doc-title-block h1{
+  font-size:var(--doc-operator-title-size);
+  letter-spacing:var(--doc-operator-title-tracking);
+  white-space:nowrap;
+}
+.doc-operator-list{
+  margin:0;
+  border-top:1px solid var(--color-doc-rule-soft);
+}
+.doc-operator-row{
+  display:grid;
+  grid-template-columns:var(--doc-operator-row-columns);
+  gap:var(--doc-operator-row-gap);
+  padding:var(--doc-operator-row-padding);
+  border-bottom:1px solid var(--color-doc-rule-soft);
+}
+.doc-operator-row dt,
+.doc-operator-row dd{
+  margin:0;
+  font-size:var(--doc-operator-cell-font-size);
+  line-height:var(--doc-operator-cell-leading);
+}
+.doc-operator-row dt{font-weight:var(--doc-operator-dt-weight)}
+.doc-operator-row dd{font-weight:var(--doc-operator-dd-weight)}
+@media(max-width:760px){
+  .doc-operator-row{
+    grid-template-columns:var(--doc-operator-mobile-columns);
+    gap:var(--doc-operator-mobile-gap);
+    padding:var(--doc-operator-mobile-padding);
+  }
+}
