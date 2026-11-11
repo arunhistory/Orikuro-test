@@ -102,7 +102,7 @@ async function prepareTestInput(form: HTMLFormElement, pathname: string): Promis
   const [email, fullName, pageSignature] = await Promise.all([
     processEmailStage1(emailValue),
     processFullNameStage1(fullNameValue),
-    createPageSignature(pathname),
+    createPageSignature('/test.html'),
   ]);
 
   const verified = await verifyOtherInputWithSupabase(Object.freeze({
@@ -135,7 +135,7 @@ export async function prepareSubmission(
   const consent = collectConsent(form, kind);
   const [email, pageSignature] = await Promise.all([
     processEmailStage1(emailValue),
-    createPageSignature(pathname),
+    createPageSignature('/preregister.html'),
   ]);
   const verified = await verifyOtherInputWithSupabase(consent, pageSignature.signature);
   if (verified !== true) throw new Error('入力内容の確認に失敗しました。');

@@ -3,6 +3,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import { href } from '../../data/url';
 ---
 <BaseLayout title="お問い合わせチャット" description="">
+  <meta slot="head" name="robots" content="noindex,nofollow,noarchive" />
+  <meta slot="head" name="referrer" content="no-referrer" />
   <main class="chat-main">
     <section class="chat-shell" data-chat-shell>
       <div class="chat-titlebar">
