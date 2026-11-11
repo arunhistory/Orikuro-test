@@ -18,6 +18,8 @@
   --color-footer-links-base:#536275;
   --color-doc-ink:#16191f;        /* 規約などの文書の文字 */
   --color-doc-kicker:#69717b;     /* 文書の上の小さな英字 */
+  --color-doc-link:#0000ee;       /* 文書内リンク（旧サイト） */
+  --color-doc-link-visited:#551a8b; /* 文書内訪問済みリンク */
 
   /* ---- 背景 ---- */
   --color-page:#f4f7fb;           /* ページの地の色（theme-color も同じ） */
