@@ -146,7 +146,8 @@ npm run compare        # 移したページを古いページと画素単位で�
 | お問い合わせ・チャット | `/contact/`・`/contact/chat/` | 未 |
 | 利用前の確認 | `/consent/` | 未 |
 | 事前登録メールの削除（3画面） | `/email-delete/` ほか | 未 |
-| プライバシーポリシー・Cookieポリシー・運営者情報 | `/legal/privacy/` ほか | 未（`DocumentLayout` で移せる） |
+| プライバシーポリシー | `/legal/privacy/` | 移行中（本文・見出し・リンクの移植済み。`build:pages`・`check`・`compare` 未実行） |
+| Cookieポリシー・運営者情報 | `/legal/cookie/`・`/legal/operator/` | 未（前ページの検証合格後に移行） |
 | 体験版の画面 | `/live/` | 未（体験版の制作で作る。それまでメニューの「配信テスト」「視聴テスト」は仮置き） |
 
 `npm run check` の「行き先がまだ無いもの」は、この表の「未」と同じものです。全て済めば0件になります。
