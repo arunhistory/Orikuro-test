@@ -1,0 +1,120 @@
+---
+// roadmap.html の本文を原文のまま移行。旧APIの表示処理だけ独立。
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="ロードマップ" description="Original Create Project ロードマップ">
+  <main class="roadmap-main">
+    <article class="roadmap-wrap">
+      <h1>ロードマップ</h1>
+
+      <ol class="roadmap-list" aria-label="Original Create Project ロードマップ">
+        <li><span class="roadmap-number">01</span><span class="roadmap-title">情報収集</span></li>
+        <li><span class="roadmap-number">02</span><span class="roadmap-title">各種申請</span></li>
+        <li><span class="roadmap-number">03</span><span class="roadmap-title">制作開始</span></li>
+        <li><span class="roadmap-number">04</span><span class="roadmap-title">αテスト</span></li>
+        <li><span class="roadmap-number">05</span><span class="roadmap-title">βテスト</span></li>
+        <li><span class="roadmap-number">06</span><span class="roadmap-title">事業説明</span></li>
+        <li><span class="roadmap-number">07</span><span class="roadmap-title">公開準備</span></li>
+        <li><span class="roadmap-number">08</span><span class="roadmap-title">公開開始</span></li>
+      </ol>
+
+      <section class="roadmap-current" data-roadmap-current>
+        <p class="roadmap-current-label">現在の状況</p>
+        <p class="roadmap-current-text" data-roadmap-status>未接続</p>
+        <time class="roadmap-current-date" data-roadmap-updated>最終更新 未接続</time>
+      </section>
+    </article>
+  </main>
+  <script src="../scripts/roadmap.ts"></script>
+</BaseLayout>
+<style>
+.roadmap-main{
+  width:var(--roadmap-main-width);
+  margin:var(--roadmap-main-margin);
+  padding:var(--roadmap-main-padding);
+}
+
+.roadmap-wrap{width:var(--roadmap-wrap-width);margin:var(--roadmap-wrap-margin)}
+
+.roadmap-wrap>h1{
+  margin:var(--roadmap-wrap-h1-margin);
+  font-size:var(--roadmap-wrap-h1-font-size);
+  line-height:var(--roadmap-wrap-h1-line-height);
+  letter-spacing:var(--roadmap-wrap-h1-letter-spacing);
+}
+
+.roadmap-list{
+  list-style:none;
+  margin:var(--roadmap-list-margin);
+  padding:var(--roadmap-list-padding);
+  border-top:var(--roadmap-list-border-top);
+}
+
+.roadmap-list li{
+  display:grid;
+  grid-template-columns:var(--roadmap-list-li-grid-template-columns);
+  align-items:center;
+  gap:var(--roadmap-list-li-gap);
+  min-height:var(--roadmap-list-li-min-height);
+  padding:var(--roadmap-list-li-padding);
+  border-bottom:var(--roadmap-list-li-border-bottom);
+}
+
+.roadmap-number{
+  color:var(--roadmap-number-color);
+  font-size:var(--roadmap-number-font-size);
+  font-weight:var(--roadmap-number-font-weight);
+  letter-spacing:var(--roadmap-number-letter-spacing);
+}
+
+.roadmap-title{
+  color:var(--roadmap-title-color);
+  font-size:var(--roadmap-title-font-size);
+  font-weight:var(--roadmap-title-font-weight);
+  line-height:var(--roadmap-title-line-height);
+  letter-spacing:var(--roadmap-title-letter-spacing);
+}
+
+.roadmap-current{
+  margin-top:var(--roadmap-current-margin-top);
+  padding:var(--roadmap-current-padding);
+  border:var(--roadmap-current-border);
+  border-radius:var(--roadmap-current-border-radius);
+  background:var(--roadmap-current-background);
+  box-shadow:var(--roadmap-current-box-shadow);
+  backdrop-filter:var(--roadmap-current-backdrop-filter);
+}
+
+.roadmap-current-label{
+  margin:var(--roadmap-current-label-margin);
+  color:var(--roadmap-current-label-color);
+  font-size:var(--roadmap-current-label-font-size);
+  font-weight:var(--roadmap-current-label-font-weight);
+  letter-spacing:var(--roadmap-current-label-letter-spacing);
+}
+
+.roadmap-current-text{
+  margin:var(--roadmap-current-text-margin);
+  color:var(--roadmap-current-text-color);
+  font-size:var(--roadmap-current-text-font-size);
+  font-weight:var(--roadmap-current-text-font-weight);
+  line-height:var(--roadmap-current-text-line-height);
+  letter-spacing:var(--roadmap-current-text-letter-spacing);
+}
+
+.roadmap-current-date{
+  display:block;
+  margin-top:var(--roadmap-current-date-margin-top);
+  color:var(--roadmap-current-date-color);
+  font-size:var(--roadmap-current-date-font-size);
+  font-weight:var(--roadmap-current-date-font-weight);
+  letter-spacing:var(--roadmap-current-date-letter-spacing);
+}
+
+@media(max-width:760px){
+  .roadmap-main{padding-top:var(--roadmap-main-padding-top)}
+  .roadmap-wrap>h1{margin-bottom:var(--roadmap-wrap-h1-margin-bottom)}
+  .roadmap-list li{grid-template-columns:var(--roadmap-list-li-grid-template-columns-1);min-height:var(--roadmap-list-li-min-height-2)}
+  .roadmap-current{margin-top:var(--roadmap-current-margin-top-3);padding:var(--roadmap-current-padding-4)}
+}
+</style>

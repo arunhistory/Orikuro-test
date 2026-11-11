@@ -138,15 +138,17 @@ npm run compare        # 移したページを古いページと画素単位で�
 | トップ | `/` | 未 |
 | Original Createとは＋代表挨拶 | `/about/` | 未（文章の食い違いはユーザーが決める） |
 | 事業説明＋サービス一覧 | `/business/` | 未（同上） |
-| ロードマップ | `/roadmap/` | 未 |
+| ロードマップ | `/roadmap/` | 移行済み・確認待ち |
 | アルゴリズムテスト | `/algorithm-test/` | 未 |
 | 事前登録・登録完了 | `/preregister/`・`/preregister/complete/` | 未 |
-| クラウドファンディング | `/crowdfunding/` | 未 |
-| FAQ | `/faq/` | 未 |
+| クラウドファンディング | `/crowdfunding/` | 移行済み・確認待ち |
+| FAQ | `/faq/` | 移行済み・確認待ち |
 | お問い合わせ・チャット | `/contact/`・`/contact/chat/` | 未 |
 | 利用前の確認 | `/consent/` | 未 |
 | 事前登録メールの削除（3画面） | `/email-delete/` ほか | 未 |
-| プライバシーポリシー・Cookieポリシー・運営者情報 | `/legal/privacy/` ほか | 未（`DocumentLayout` で移せる） |
+| プライバシーポリシー | `/legal/privacy/` | ✅ 済み（2026-11-11 Claudeが確認：check 合格、compare は PC・スマホ・メニューを開いた状態で全て同じ） |
+| Cookieポリシー | `/legal/cookie/` | 移行済み・確認待ち |
+| 運営者情報 | `/legal/operator/` | 移行済み・確認待ち |
 | 体験版の画面 | `/live/` | 未（体験版の制作で作る。それまでメニューの「配信テスト」「視聴テスト」は仮置き） |
 
 `npm run check` の「行き先がまだ無いもの」は、この表の「未」と同じものです。全て済めば0件になります。

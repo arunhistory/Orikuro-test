@@ -1,0 +1,235 @@
+---
+// faq.html の20項目は内容・順番を保持。開閉は標準 details に任せる。
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { href } from '../data/url';
+---
+<BaseLayout title="FAQ" description="Original Create Project FAQ">
+  <main class="faq-main">
+    <article class="faq-wrap">
+      <h1>FAQ</h1>
+
+      <div class="faq-list" aria-label="よくあるお問い合わせ">
+        <details class="faq-item">
+          <summary>Original Createでは何ができますか？</summary>
+          <div class="faq-answer"><p>創作活動ができます。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>簡易的なサービス内容を教えてください。</summary>
+          <div class="faq-answer"><p>配信、イラスト投稿、小説投稿、物販、ファン鯖、ポイント、ファンレベルを予定しています。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>活動する条件はありますか？</summary>
+          <div class="faq-answer"><p>活動する条件は15歳以上（中学生を除く）となります。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>利用に年齢制限はありますか？</summary>
+          <div class="faq-answer"><p>利用に年齢制限はございません。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>利用するのに料金はかかりますか？</summary>
+          <div class="faq-answer"><p>利用料はありません。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>収益を得ることはできますか？</summary>
+          <div class="faq-answer"><p>換金サービスを経由することで可能です。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>換金はできますか？</summary>
+          <div class="faq-answer"><p>一定条件を満たしたユーザー様がご利用できます。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>本名を公開する必要はありますか？</summary>
+          <div class="faq-answer"><p>本サービスは匿名で活動することができます。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>リアグは匿名で送れますか？</summary>
+          <div class="faq-answer"><p>現在、その対応は予定しておりません。ですが、サービス拡大とともに実現いたします。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>配信では何ができますか？</summary>
+          <div class="faq-answer">
+            <p>スマホ・パソコンから、アプリ配信からWeb配信まで幅広く行えます。</p>
+            <p>例：ラジオ配信、立ち絵配信、Live2D配信、3Dモデル配信、ゲーム配信（キャプチャー配信）</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>作品投稿では何ができますか？</summary>
+          <div class="faq-answer"><p>現時点では、イラストと小説を予定しております。サービス拡大とともに、音楽、ゲーム、アニメなど多数取り扱うことを実現いたします。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>作品を販売できますか？</summary>
+          <div class="faq-answer"><p>可能です。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>二次創作はできますか？</summary>
+          <div class="faq-answer"><p>二次創作・パロディガイドラインを守れば可能です。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>AIを使用した作品は投稿できますか？</summary>
+          <div class="faq-answer"><p>Original CreateのAI使用作品規定に準ずるものは投稿できます。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>他のサービスと併用して活動できますか？</summary>
+          <div class="faq-answer"><p>可能です。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>セキュリティはどうなっていますか？</summary>
+          <div class="faq-answer"><p>法令やセキュリティ規格などをしっかりと精査し、安全にご利用いただけるサービスの実現に向けて設計を進めています。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>進捗を知ることはできますか？</summary>
+          <div class="faq-answer"><p><a href={href('/roadmap/')}>こちらよりご覧いただけます。</a></p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>複数のアカウントを作れますか？</summary>
+          <div class="faq-answer"><p>作れません。1人1アカウントとなります。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>退会できますか？</summary>
+          <div class="faq-answer"><p>可能です。</p></div>
+        </details>
+
+        <details class="faq-item">
+          <summary>困った場合はどこに問い合わせればいいですか？</summary>
+          <div class="faq-answer"><p><a href={href('/contact/')}>こちらよりお問い合わせください。</a></p></div>
+        </details>
+      </div>
+    </article>
+  </main>
+</BaseLayout>
+<style>
+.faq-main{
+  width:var(--faq-main-width);
+  margin:var(--faq-main-margin);
+  padding:var(--faq-main-padding);
+}
+
+.faq-wrap{width:var(--faq-wrap-width);margin:var(--faq-wrap-margin)}
+
+.faq-wrap>h1{
+  margin:var(--faq-wrap-h1-margin);
+  font-size:var(--faq-wrap-h1-font-size);
+  line-height:var(--faq-wrap-h1-line-height);
+  letter-spacing:var(--faq-wrap-h1-letter-spacing);
+}
+
+.faq-list{
+  border-top:var(--faq-list-border-top);
+}
+
+.faq-item{
+  border-bottom:var(--faq-item-border-bottom);
+}
+
+.faq-item summary{
+  position:relative;
+  display:flex;
+  align-items:center;
+  min-height:var(--faq-item-summary-min-height);
+  padding:var(--faq-item-summary-padding);
+  color:var(--faq-item-summary-color);
+  font-size:var(--faq-item-summary-font-size);
+  font-weight:var(--faq-item-summary-font-weight);
+  line-height:var(--faq-item-summary-line-height);
+  letter-spacing:var(--faq-item-summary-letter-spacing);
+  cursor:pointer;
+  list-style:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.faq-item summary::-webkit-details-marker{display:none}
+
+.faq-item summary::before,
+.faq-item summary::after{
+  content:"";
+  position:absolute;
+  right:var(--faq-item-summary-before-right);
+  top:var(--faq-item-summary-before-top);
+  width:var(--faq-item-summary-before-width);
+  height:var(--faq-item-summary-before-height);
+  border-radius:var(--faq-item-summary-before-border-radius);
+  background:var(--faq-item-summary-before-background);
+  transform:var(--faq-item-summary-before-transform);
+  transition:var(--faq-item-summary-before-transition);
+}
+
+.faq-item summary::after{
+  transform:var(--faq-item-summary-after-transform);
+}
+
+.faq-item[open] summary::after{
+  transform:var(--faq-item-open-summary-after-transform);
+  opacity:var(--faq-item-open-summary-after-opacity);
+}
+
+.faq-item summary:focus-visible{
+  outline:var(--faq-item-summary-focus-visible-outline);
+  outline-offset:var(--faq-item-summary-focus-visible-outline-offset);
+  border-radius:var(--faq-item-summary-focus-visible-border-radius);
+}
+
+.faq-answer{
+  padding:var(--faq-answer-padding);
+  color:var(--faq-answer-color);
+  font-size:var(--faq-answer-font-size);
+  font-weight:var(--faq-answer-font-weight);
+  line-height:var(--faq-answer-line-height);
+  letter-spacing:var(--faq-answer-letter-spacing);
+}
+
+.faq-answer p{
+  margin:var(--faq-answer-p-margin);
+}
+
+.faq-answer p+p{
+  margin-top:var(--faq-answer-p-p-margin-top);
+}
+
+.faq-answer a{
+  color:var(--faq-answer-a-color);
+  font-weight:var(--faq-answer-a-font-weight);
+  text-decoration:underline;
+  text-decoration-thickness:var(--faq-answer-a-text-decoration-thickness);
+  text-underline-offset:var(--faq-answer-a-text-underline-offset);
+}
+
+@media(hover:hover){
+  .faq-item summary:hover{color:var(--faq-item-summary-hover-color)}
+  .faq-answer a:hover{opacity:var(--faq-answer-a-hover-opacity)}
+}
+
+@media(max-width:760px){
+  .faq-main{padding-top:var(--faq-main-padding-top)}
+  .faq-wrap>h1{margin-bottom:44px}
+  .faq-item summary{
+    min-height:var(--faq-item-summary-min-height-1);
+    padding:var(--faq-item-summary-padding-2);
+  }
+  .faq-item summary::before,
+  .faq-item summary::after{
+    right:var(--faq-item-summary-before-right-3);
+    width:var(--faq-item-summary-before-width-4);
+  }
+  .faq-answer{
+    padding:var(--faq-answer-padding-5);
+  }
+}
+</style>
