@@ -351,6 +351,11 @@
   --color-chat-main--chat-status-fill-45:#bf3d31;
   --color-chat-main--chat-closed-p-not-chat-eyebrow--fill-46:#687487;
 
+  /* ---- メール削除画面固有色 ---- */
+  --color-email-delete--email-delete-notice-fill-2:rgba(54,80,113,.17);
+  --color-email-delete-lete-notice-p-email-delete-limit-top-4:rgba(54,80,113,.12);
+  --color-email-delete--email-delete-button-fill-5:#b42318;
+
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
   --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */

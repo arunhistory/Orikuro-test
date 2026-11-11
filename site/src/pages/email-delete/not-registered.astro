@@ -1,0 +1,156 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { href } from '../../data/url';
+---
+<BaseLayout title="事前登録メールアドレスの確認" description="Original Create Project 事前登録メールアドレス確認">
+  <main class="email-delete-main">
+    <article class="email-delete-wrap email-delete-expired">
+      <p class="email-delete-status" role="status" aria-live="polite" data-not-registered-status>確認URLを確認しています。</p>
+
+      <section data-not-registered-panel hidden>
+        <p class="email-delete-kicker">PREREGISTRATION / DELETE</p>
+        <h1>事前登録されていません。</h1>
+
+        <div class="email-delete-message">
+          <p>あなた様のメールアドレスは、Original Create Projectの事前登録には登録されていません。</p>
+          <p>削除する事前登録データはありません。</p>
+          <p>登録した別のメールアドレスがある場合は、お問い合わせページからもう一度削除申請を行ってください。</p>
+          <p class="email-delete-limit"><strong>この確認URLの有効期限は、発行から30分です。</strong></p>
+        </div>
+
+        <a class="email-delete-home" href={href('/contact/')}>お問い合わせへ戻る</a>
+      </section>
+    </article>
+  </main>
+  <script is:inline type="module" src={href('/assets/js/email-delete-not-registered.js')}></script>
+</BaseLayout>
+<style>
+.email-delete-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  min-height:calc(100vh - var(--header));
+  margin:0 auto;
+  display:grid;
+  align-items:center;
+  padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
+}
+
+.email-delete-wrap{
+  width:min(760px,100%);
+  margin:0 auto;
+  text-align:center;
+}
+
+.email-delete-kicker{
+  margin:0 0 18px;
+  color:var(--color-menu-label);
+  font-size:11px;
+  font-weight:850;
+  letter-spacing:.18em;
+}
+
+.email-delete-wrap h1{
+  margin:0 0 clamp(40px,6vw,62px);
+  font-size:clamp(34px,5vw,58px);
+  line-height:1.22;
+  letter-spacing:-.045em;
+}
+
+.email-delete-notice,
+.email-delete-message{
+  width:min(640px,100%);
+  margin:0 auto;
+  font-size:clamp(15px,1.55vw,18px);
+  line-height:1.9;
+}
+
+.email-delete-notice{
+  padding:26px 28px;
+  border:1px solid var(--color-email-delete--email-delete-notice-fill-2);
+  border-radius:14px;
+  background:var(--crowdfunding-stat-background);
+  text-align:left;
+}
+
+.email-delete-notice p,
+.email-delete-message p{margin:0 0 14px}
+.email-delete-notice p:last-child,
+.email-delete-message p:last-child{margin-bottom:0}
+
+.email-delete-notice p.email-delete-limit,
+.email-delete-message p.email-delete-limit{
+  padding-top:20px;
+  margin-top:20px;
+  border-top:1px solid var(--color-email-delete-lete-notice-p-email-delete-limit-top-4);
+}
+
+.email-delete-button,
+.email-delete-home{
+  width:min(360px,100%);
+  min-height:58px;
+  margin-top:clamp(38px,5vw,52px);
+  border-radius:10px;
+  font-size:16px;
+  font-weight:850;
+}
+
+.email-delete-button{
+  border:0;
+  background:var(--color-email-delete--email-delete-button-fill-5);
+  color:var(--crowdfunding-button-color);
+  cursor:pointer;
+}
+
+.email-delete-button:disabled{
+  cursor:not-allowed;
+  opacity:.48;
+}
+
+.email-delete-button:not(:disabled):active,
+.email-delete-home:active{transform:translateY(1px)}
+
+.email-delete-status{
+  min-height:1.6em;
+  margin:18px 0 0;
+  color:var(--color-muted);
+  font-size:14px;
+  line-height:1.6;
+}
+
+.email-delete-status.is-error{color:var(--color-email-delete--email-delete-button-fill-5)}
+
+.email-delete-complete[hidden]{display:none}
+
+.email-delete-home{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 24px;
+  background:var(--color-ink);
+  color:var(--crowdfunding-button-color);
+  text-decoration:none;
+}
+
+.email-delete-expired .email-delete-message{
+  padding:28px 30px;
+  border-top:1px solid var(--color-preregister-main-preregister-feature-grid-div-color-20);
+  border-bottom:1px solid var(--color-preregister-main-preregister-feature-grid-div-color-20);
+}
+
+@media(max-width:760px){
+  .email-delete-main{
+    min-height:auto;
+    padding-top:56px;
+  }
+  .email-delete-wrap h1{
+    font-size:clamp(30px,9vw,42px);
+    margin-bottom:34px;
+  }
+  .email-delete-notice{
+    padding:22px 20px;
+  }
+}
+
+:global(body:has(.email-delete-main) .menu-button),
+:global(body:has(.email-delete-main) .mobile-menu),
+:global(body:has(.email-delete-main) .footer-links){display:none}
+</style>
