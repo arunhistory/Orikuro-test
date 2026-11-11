@@ -56,6 +56,7 @@
   --font-sans:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;
   --font-serif:'Noto Serif JP','Yu Mincho','Hiragino Mincho ProN',serif;      /* 代表挨拶だけで使う */
   --font-document:"Yu Mincho","YuMincho","Hiragino Mincho ProN","Hiragino Mincho Pro","MS PMincho",serif; /* 規約類 */
+  --font-system-ui: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif; /* 旧アルゴリズムテストで実効していたシステムフォント */
 
   /* ---- 移行ページで使う色（1つの値につき1つの役割名） ---- */
   --color-header-shadow:rgba(33,53,84,.05);
