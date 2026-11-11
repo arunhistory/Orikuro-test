@@ -9,6 +9,8 @@
 //   ・撮った画像は dist/compare/ に置く（old-*.png と new-*.png、違いがあれば diff-*.png）
 //
 // まとめたページ（新しいURLに # がつくもの。about＋代表挨拶 など）は形が変わるので比べない。
+// 本番のサーバーへは一切送らない（手元とフォント以外の通信は止める）。自動でトップへ戻る動きも止めて撮る。
+// そのため、利用の流れやDiscord認証が無いと中身が出ないページ（チャットなど）は、出る前の画面で比べる。
 // 一覧に「目で確認」と出るので、画像を見て確かめる。
 //
 // 初めて使うときは、ブラウザを入れる: npx playwright install chromium
@@ -33,8 +35,9 @@ function serve(root, prefix, port) {
       if (!file.startsWith(root)) { res.writeHead(403); return res.end(); }
       try {
         if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
+        const body = await readFile(file);
         res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' });
-        res.end(await readFile(file));
+        res.end(body);
       } catch { res.writeHead(404); res.end(); }
     }).listen(port, () => resolve(server));
   });
@@ -87,14 +90,26 @@ async function countDiff(a, b, diffPath) {
 
 async function shoot(url, width, height, name) {
   const ctx = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
+  // 本番のサーバー（Supabase・Cloudflare など）へは送らない。手元とフォントだけ通す。
+  await ctx.route('**/*', (route) => {
+    const host = new URL(route.request().url()).hostname;
+    if (host === 'localhost' || host.endsWith('fonts.googleapis.com') || host.endsWith('fonts.gstatic.com')) return route.continue();
+    return route.abort();
+  });
   const page = await ctx.newPage();
+  // 古いページ・新しいページのどちらでも、自動でトップへ移る動き（利用の流れの確認など）を止める
+  await page.addInitScript(() => {
+    const noop = () => {};
+    try { Object.defineProperty(window.location, 'replace', { value: noop }); } catch {}
+    try { Object.defineProperty(window.location, 'assign', { value: noop }); } catch {}
+  });
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   const full = await page.screenshot({ fullPage: true });
   await writeFile(join(outDir, `${name}.png`), full);
   let menu = null;
-  if (await page.$('[data-menu-button]')) {
-    await page.click('[data-menu-button]');
+  if (await page.isVisible('[data-menu-button]').catch(() => false)) {
+    await page.click('[data-menu-button]', { timeout: 5000 });
     await page.waitForTimeout(400);
     menu = await page.screenshot();
     await writeFile(join(outDir, `${name}-menu.png`), menu);
@@ -118,7 +133,7 @@ for (const r of pairs) {
       else { bad++; results.push(d.count < 0 ? `${w}${label}:大きさが違う(${d.size})` : `${w}${label}:${d.count}画素違う`); }
     }
   }
-  const ok = results.every((x) => x.endsWith('同じ'));
+  const ok = results.every((x) => x.endsWith('同じ') || x.endsWith('メニュー無し'));
   console.log(`  ${ok ? '✔' : '✘'} ${r.from} → ${r.to}  ${results.join(' / ')}`);
 }
 for (const r of skipped) console.log(`  👀 ${r.from} → ${r.to}  まとめたページなので目で確認（dist/compare/ ではなく、npm run preview で見比べる）`);
