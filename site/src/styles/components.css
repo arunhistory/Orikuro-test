@@ -296,3 +296,42 @@
   .doc-intro{line-height:1.95}
   .doc-section p,.doc-section li{line-height:1.9}
 }
+
+/* =========================================================
+   Privacy (privacy.html) — 文書見出し・小見出し・本文リンク
+   ========================================================= */
+.doc--privacy .doc-title-block h1{
+  font-size:clamp(25px,6vw,58px);
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+.doc--privacy .doc-section h3{
+  margin:26px 0 10px;
+  font-size:clamp(16px,2vw,19px);
+  line-height:1.6;
+  font-weight:600;
+}
+.doc--privacy .doc-section a{
+  display:inline;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  color:var(--color-doc-link);
+  font-weight:400;
+  text-decoration:underline;
+  text-underline-offset:0;
+  line-height:inherit;
+}
+.doc--privacy .doc-section a::before,
+.doc--privacy .doc-section a::after{
+  content:none;
+  display:none;
+}
+.doc--privacy .doc-section a:visited{color:var(--color-doc-link-visited)}
+.doc--privacy .doc-section a:hover,
+.doc--privacy .doc-section a:focus-visible{
+  color:var(--color-doc-link);
+  text-decoration:underline;
+}
