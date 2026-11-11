@@ -10,13 +10,15 @@ import BaseLayout from './BaseLayout.astro';
 interface Props {
   title: string;
   description: string;
+  /** 文書ごとの旧サイト固有の見た目（省略時は利用規約と同じ）。 */
+  kind?: 'privacy' | 'cookie' | 'operator';
 }
 
-const { title, description } = Astro.props;
+const { title, description, kind } = Astro.props;
 ---
 <BaseLayout title={title} description={description}>
   <main class="doc-main">
-    <article class="doc">
+    <article class={kind ? `doc doc--${kind}` : 'doc'}>
       <header class="doc-title-block">
         <p class="doc-kicker">Original Create Project</p>
         <h1>{title}</h1>
