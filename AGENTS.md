@@ -28,7 +28,7 @@
 | 5 | 2つのページの文章が食い違うとき、どちらかを勝手に選ぶ | ユーザーが決める。両方を並べて報告する |
 | 6 | 同意の確認を省く・自動で同意済みにする・チェックを最初から入れておく | 下の「4. 同意の記録」を読むこと |
 | 7 | フォームの送る中身・送り先・順番を変える | サーバー側の確認が通らなくなる |
-| 8 | `assets/wasm/` と `assets/js/` のファイル、`.sha256` を作り直す・書き換える | 署名とハッシュの確認が壊れる。そのままコピーするだけ |
+| 8 | ビルド済みのファイル（`.wasm`・`assets/wasm/*.js`・`assets/js/*.js`・`.sha256`）を自分で作る・書き換える | 作り直しは Claude が行う。ソース（`wasm-signature/src/lib.rs`・`src/client/*.ts`）は「フォームのページ」の決まりの範囲でだけ変えてよい |
 | 9 | 秘密の鍵・パスワード・サーバーのソース・体験版のソースを置く | 公開リポジトリなので全世界から読める |
 | 10 | 一番上の階層の古いファイル（`about.html` など）を消す | 移行が全部終わった「片付け」の段階まで残す |
 | 11 | 公開（pages-preview への反映）をする | ユーザーの指示があったときだけ。AIは行わない |
@@ -151,23 +151,52 @@ site/
 | --- | --- |
 | about＋greeting、business＋services | 2ページを1ページにまとめる。**文章が食い違うところは選ばずに報告**。代表挨拶だけは明朝体（`--font-serif`）を使う決まり。`npm run compare` では比べられないので、`npm run preview` で古いページと見比べる |
 | index（トップ） | アニメーションとXの投稿の表示があり、一番複雑。最後のほうに移す。お知らせ・Xの投稿は `src/data/` のJSONにする |
-| test（利用前の確認）・preregister・contact・contact-chat・email-delete の3つ | **フォームのページ。下の「フォームのページ」を必ず読む** |
+| test（利用前の確認）・preregister・preregister-complete・contact・contact-chat・email-delete の3つ・algorithm-test | **フォームと利用の流れのページ。下の「フォームのページ」を必ず読む** |
 | stream-test・watch-test | 移さない。体験版の画面（`/live/`）は別の作業で作る |
 
-### フォームのページ（URLを変えると壊れるおそれがある）
+### フォームのページ（URLが仕組みの一部になっている）
 
-フォームの仕組み（`src/client/*.ts` → `assets/js/*.js`、`assets/wasm/`）は、**ページのファイル名やURLを使って** 動いています。
+フォームと「利用の流れ」は、ページのURL（ファイル名）で **どのページか** を見分けています。
+仕組み（署名・サーバーの確認・送る中身）はそのまま使えるので、**見分けに使っているURLの部分だけ** を新しいURLに書き換えます。
+2026-11-11 に Claude が調べた、変える場所の全てです。ここに無い場所は変えません。
 
-- `input-router.ts` は `location.pathname` からページの種類を決め、`createPageSignature(pathname)` で **URLを元にした電子署名** を作ってサーバーへ送っています。URLが変わると、サーバー側の確認が通らなくなるおそれがあります。
-- `service-destination.ts` はファイル名を使っています。
-- `email-delete.ts`・`email-delete-not-registered.ts`・`response-router.ts` は `./email-delete-expired.html` や `./index.html` のような **古いファイル名へ移動** します。
-- 事前登録メールの削除のURLは、**既に送ったメールに入っています**。古いURL（`email-delete.html?token=…`）でも削除が最後までできなければいけません。
+#### A. このリポジトリの中（AIが書き換える）
 
-そのため、フォームのページは次のとおりにします。
+| ファイル | 今 | 変えること |
+| --- | --- | --- |
+| `wasm-signature/src/lib.rs` の `signature_for_page` | パスの最後の `/` の後ろ（`test.html` など）で署名を選ぶ | パスを `/` で区切って **空でない最後の部分** を見る。`consent`→TEST、`preregister`→PREREGISTER、`contact`→CONTACT にする。**署名の値（`TEST_SIGNATURE` などの中身）は1バイトも変えない** |
+| `wasm-signature/src/lib.rs` の `page_for_signature` | 署名からページ名を返す | 返す名前を上と同じ新しい名前にそろえる（署名の値は変えない） |
+| `src/client/input-router.ts` の `pageKindFromPath` | `preregister.html`・`test.html` で見分ける | 空でない最後の部分が `preregister`・`consent` で見分ける |
+| `src/client/input-router.ts`・`response-router.ts`・`service-destination.ts` の `./index.html` | 失敗・時間切れでトップへ戻る | サイトの一番上へ戻す（公開側なら `/Orikuro-test/`、テスト側なら `/Orikuro-test/staging/`。下の「サイトの一番上の求め方」） |
+| `src/client/response-router.ts` の `SUCCESS_PAGE` | `./preregister-complete.html`・`./contact-complete.html` | `preregister/complete/`（サイトの一番上から）。`contact-complete.html` は今も存在しないページなので、そのまま報告に書く（作らない） |
+| `src/client/response-router.ts` の `safeServiceDestination` | サーバーから来た `./algorithm-test.html` を今のページから見た場所として開く | サーバーから来た行き先を **サイトの一番上から** 見た場所として開く（`algorithm-test/` → `/Orikuro-test/algorithm-test/`）。同じオリジン・クエリ無し・`#`無しの確認はそのまま残す |
+| `src/client/service-destination.ts` の `currentRelativePath` | `./algorithm-test.html` のようにファイル名を作ってサーバーへ送る | **サイトの一番上からの道のり** を送る（`/Orikuro-test/staging/algorithm-test/` なら `algorithm-test/`）。公開側とテスト側で同じ値になること |
+| `src/client/email-delete.ts`・`email-delete-not-registered.ts` | `./email-delete-expired.html` などへ移る、`history.replaceState(…, './email-delete.html')` | `email-delete/expired/`・`email-delete/not-registered/`・`email-delete/` へ（サイトの一番上から）。`?token=` の付け方・送る中身は変えない |
+| `contact.js`・`contact-chat.js`（新しい構成では `site/src/scripts/` へ移す） | `./contact-chat.html`・`./contact.html?discord=invalid` | `href('/contact/chat/')`・`href('/contact/')` + `?discord=invalid`。Discord認証の処理・送る中身は変えない |
+| `preregister.js` | リンクの書き換え（8〜15行） | 移さない（リンクは最初から正しく書く）。Discordへの登録の処理は変えずに移す |
 
-1. 移す前に、URLやファイル名を使っている場所を全部書き出して報告する（`src/client/` の全ファイル、`assets/wasm/` の呼び出し方）。
-2. **WASM・サーバー・送る中身を変えないと移せない場合は、移さずに報告して止まる。** どう移すかはユーザーとClaudeが決める。
-3. `assets/js/`・`assets/wasm/` のファイルは、移すときも中身を1バイトも変えずに `site/public/` へコピーする。`.sha256` も一緒にコピーする。
+**サイトの一番上の求め方**：ページの `<html>` か `<body>` に `data-site-base={import.meta.env.BASE_URL}` を Astro で書き出し、スクリプトはそれを読む。`/Orikuro-test/` をスクリプトに直接書かない。
+
+#### B. サーバー側（AIは触らない。公開するときにユーザーが行う）
+
+次はこのリポジトリの外にあります。**新しいサイトを公開するのと同時に** 変える必要があります（先に変えると、今公開中のサイトが壊れる）。報告ではこの表を「公開のときに必要な作業」として載せるだけにして、自分では変えないこと。
+
+| 場所 | 今の値 | 新しい値 |
+| --- | --- | --- |
+| Supabase の表 `oc_service_routes` の `destination_path` | `./algorithm-test.html`・`./stream-test.html`・`./watch-test.html` | `algorithm-test/`（配信・視聴は体験版の画面ができてから決める） |
+| Supabase の関数 `mail-system` の `service-flow.ts`・`submission.ts` | `./stream-test.html`・`./watch-test.html` を直接比べている | 上の表と同じ書き方にそろえる |
+| Supabase の関数 `discord-system` の `a-support.ts` の `CHAT_URL` / `CALLBACK_URL` | `…/Orikuro-test/contact.html` | `…/Orikuro-test/contact/` |
+| Discord の開発者画面に登録した戻り先URL | `…/contact.html` | `…/contact/`（上と同じ値） |
+| Supabase の関数 `discord-system` の `b-information.ts` の `PREREG` | `…/preregister.html` | `…/preregister/`（古いURLも移動ページがあるので壊れはしない） |
+| Supabase の関数 `discord-system` の `c-manager.ts` のページ一覧 | 一番上の `index.html`・`contact.html` など | 新しい構成に合わせる（状況の報告が「無い」と出るだけで、サイトは壊れない） |
+| Supabase の関数 `mail-system` の `stage2-staging-control.ts` | このリポジトリの `cloudflare/oc-stage2-staging.mjs` を読みに来る | **`cloudflare/` を片付けで消す前に** 読みに行く先を変える |
+
+#### C. 作り方の決まり
+
+1. 署名の値・送る中身・送り先・送る順番・同意の手順は変えない。変えるのは「URLでページを見分ける部分」と「移る先のURL」だけ。
+2. `.wasm`・`assets/js/*.js`（難読化してある）・`.sha256` は自分で作らない。ソースだけ変えて、報告に「Claude のビルド待ち」と書く。Claude がビルドして、送信の流れを確かめる。
+3. 古いURL（`test.html`・`preregister.html`・`contact.html`・`email-delete.html?token=…` など）から来ても、移動ページで新しいURLへ移り、最後まで使えること（`?token=` と `#…` は移動ページが引き継ぐ）。
+4. 公開側（`/Orikuro-test/`）とテスト側（`/Orikuro-test/staging/`）のどちらでも同じように動くこと。サーバーへ送るページの道のりは、どちらでも同じ値になること。
 
 ---
 
