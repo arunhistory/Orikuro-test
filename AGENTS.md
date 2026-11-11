@@ -164,8 +164,8 @@ site/
 
 | ファイル | 今 | 変えること |
 | --- | --- | --- |
-| `wasm-signature/src/lib.rs` の `signature_for_page` | パスの最後の `/` の後ろ（`test.html` など）で署名を選ぶ | パスを `/` で区切って **空でない最後の部分** を見る。`consent`→TEST、`preregister`→PREREGISTER、`contact`→CONTACT にする。**署名の値（`TEST_SIGNATURE` などの中身）は1バイトも変えない** |
-| `wasm-signature/src/lib.rs` の `page_for_signature` | 署名からページ名を返す | 返す名前を上と同じ新しい名前にそろえる（署名の値は変えない） |
+| `wasm-signature/src/lib.rs` | — | **変えない**（2026-11-11 ユーザー決定）。WASMは今のものをそのまま使う |
+| `src/client/input-router.ts` の `createPageSignature(pathname)` を呼ぶ2か所 | 今のページのURLを渡している | ページの種類から **古いファイル名** を渡す（`test`→`/test.html`、`preregister`→`/preregister.html`）。WASMは古い名前で今と同じ署名を返す |
 | `src/client/input-router.ts` の `pageKindFromPath` | `preregister.html`・`test.html` で見分ける | 空でない最後の部分が `preregister`・`consent` で見分ける |
 | `src/client/input-router.ts`・`response-router.ts`・`service-destination.ts` の `./index.html` | 失敗・時間切れでトップへ戻る | サイトの一番上へ戻す（公開側なら `/Orikuro-test/`、テスト側なら `/Orikuro-test/staging/`。下の「サイトの一番上の求め方」） |
 | `src/client/response-router.ts` の `SUCCESS_PAGE` | `./preregister-complete.html`・`./contact-complete.html` | `preregister/complete/`（サイトの一番上から）。`contact-complete.html` は今も存在しないページなので、そのまま報告に書く（作らない） |
@@ -194,7 +194,7 @@ site/
 #### C. 作り方の決まり
 
 1. 署名の値・送る中身・送り先・送る順番・同意の手順は変えない。変えるのは「URLでページを見分ける部分」と「移る先のURL」だけ。
-2. `.wasm`・`assets/js/*.js`（難読化してある）・`.sha256` は自分で作らない。ソースだけ変えて、報告に「Claude のビルド待ち」と書く。Claude がビルドして、送信の流れを確かめる。
+2. `.wasm` と `.sha256` は今のものをそのまま使う（作り直さない）。`assets/js/*.js`（難読化してある）は自分で作らない。ソースだけ変えて、報告に「Claude のビルド待ち」と書く。Claude がビルドして、送信の流れを確かめる。
 3. 古いURL（`test.html`・`preregister.html`・`contact.html`・`email-delete.html?token=…` など）から来ても、移動ページで新しいURLへ移り、最後まで使えること（`?token=` と `#…` は移動ページが引き継ぐ）。
 4. 公開側（`/Orikuro-test/`）とテスト側（`/Orikuro-test/staging/`）のどちらでも同じように動くこと。サーバーへ送るページの道のりは、どちらでも同じ値になること。
 
