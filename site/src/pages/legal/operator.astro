@@ -27,3 +27,39 @@ import DocumentLayout from '../../layouts/DocumentLayout.astro';
         </div>
       </dl>
 </DocumentLayout>
+<style>
+/* =========================================================
+   Operator（operator.html）— 旧サイトと同じ見出し・情報一覧
+   ========================================================= */
+:global(.doc--operator .doc-title-block h1){
+  font-size:clamp(30px,6vw,58px);
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+:global(.doc-operator-list){
+  margin:0;
+  border-top:1px solid var(--color-doc-rule-soft);
+}
+:global(.doc-operator-row){
+  display:grid;
+  grid-template-columns:minmax(140px,220px) 1fr;
+  gap:28px;
+  padding:22px 0;
+  border-bottom:1px solid var(--color-doc-rule-soft);
+}
+:global(.doc-operator-row dt),
+:global(.doc-operator-row dd){
+  margin:0;
+  font-size:clamp(15px,1.7vw,17px);
+  line-height:1.9;
+}
+:global(.doc-operator-row dt){font-weight:600}
+:global(.doc-operator-row dd){font-weight:400}
+@media(max-width:760px){
+  :global(.doc-operator-row){
+    grid-template-columns:1fr;
+    gap:6px;
+    padding:20px 0;
+  }
+}
+</style>

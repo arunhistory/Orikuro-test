@@ -71,3 +71,43 @@ import { href } from '../../data/url';
         <p>Cookieおよび外部サービスのCookieの詳細な取扱いについては、<a href={href('/legal/cookie/')}>Cookieポリシー</a>に準ずるものとします。</p>
       </section>
     </DocumentLayout>
+<style>
+/* =========================================================
+   Privacy (privacy.html) — 文書見出し・小見出し・本文リンク
+   ========================================================= */
+:global(.doc--privacy .doc-title-block h1){
+  font-size:clamp(25px,6vw,58px);
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+:global(.doc--privacy .doc-section h3){
+  margin:26px 0 10px;
+  font-size:clamp(16px,2vw,19px);
+  line-height:1.6;
+  font-weight:600;
+}
+:global(.doc--privacy .doc-section a){
+  display:inline;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  color:var(--color-doc-link);
+  font-weight:400;
+  text-decoration:underline;
+  text-underline-offset:0;
+  line-height:inherit;
+}
+:global(.doc--privacy .doc-section a::before),
+:global(.doc--privacy .doc-section a::after){
+  content:none;
+  display:none;
+}
+:global(.doc--privacy .doc-section a:visited){color:var(--color-doc-link-visited)}
+:global(.doc--privacy .doc-section a:hover),
+:global(.doc--privacy .doc-section a:focus-visible){
+  color:var(--color-doc-link);
+  text-decoration:underline;
+}
+</style>
