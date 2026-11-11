@@ -69,6 +69,12 @@
   --doc-privacy-link-weight:400;
   --doc-privacy-link-underline-offset:0;
 
+  /* ---- Cookie ポリシー固有の旧サイト実効値 ---- */
+  --doc-cookie-title-size:clamp(30px,6vw,58px);
+  --doc-cookie-title-tracking:.02em;
+  --doc-cookie-link-weight:400;
+  --doc-cookie-link-underline-offset:0;
+
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
   --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */

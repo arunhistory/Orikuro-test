@@ -335,3 +335,36 @@
   color:var(--color-doc-link);
   text-decoration:underline;
 }
+
+/* =========================================================
+   Cookie（cookie.html）— 元のページ固有の文字とリンク
+   ========================================================= */
+.doc--cookie .doc-title-block h1{
+  font-size:var(--doc-cookie-title-size);
+  letter-spacing:var(--doc-cookie-title-tracking);
+  white-space:nowrap;
+}
+.doc--cookie .doc-section a{
+  display:inline;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  color:var(--color-doc-link);
+  font-weight:var(--doc-cookie-link-weight);
+  text-decoration:underline;
+  text-underline-offset:var(--doc-cookie-link-underline-offset);
+  line-height:inherit;
+}
+.doc--cookie .doc-section a::before,
+.doc--cookie .doc-section a::after{
+  content:none;
+  display:none;
+}
+.doc--cookie .doc-section a:visited{color:var(--color-doc-link-visited)}
+.doc--cookie .doc-section a:hover,
+.doc--cookie .doc-section a:focus-visible{
+  color:var(--color-doc-link);
+  text-decoration:underline;
+}

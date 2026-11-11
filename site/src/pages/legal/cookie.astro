@@ -1,0 +1,49 @@
+---
+// cookie.html から本文・見出し・改行を変えずに移行。
+import DocumentLayout from '../../layouts/DocumentLayout.astro';
+import { href } from '../../data/url';
+---
+<DocumentLayout title="Cookieポリシー" description="Original Create Project Cookieポリシー" kind="cookie">
+
+      <p class="doc-intro">本Cookieポリシーは、Original Createが運営する本ウェブサイトにおけるCookieの使用について定めるものです。</p>
+
+      <section class="doc-section">
+        <h2>1. Cookieについて</h2>
+        <p>本サイトでは、サイト機能の提供および外部サービスの表示・利用のため、Cookieを使用する場合があります。</p>
+      </section>
+
+      <section class="doc-section">
+        <h2>2. Original Createが使用するCookie</h2>
+        <p>Original Createでは、モデルテストを利用するためにCookieを使用します。</p>
+        <p>モデルテストに使用するCookieは、セッションの終了または無操作状態が30分継続した場合に無効となります。</p>
+      </section>
+
+      <section class="doc-section">
+        <h2>3. 外部サービスが使用するCookie</h2>
+        <p>本サイトでは、外部サービスを表示・利用するため、外部サービスがCookieを使用する場合があります。</p>
+        <p>現在、本サイトではXのタイムライン表示に外部サービスを使用しています。</p>
+        <p>外部サービスが使用するCookieについては、各外部サービスが定めるプライバシーポリシー、Cookieポリシーその他の規定に基づいて取り扱われます。</p>
+      </section>
+
+      <section class="doc-section">
+        <h2>4. Cookieの利用目的</h2>
+        <p>Original Createが使用するCookieは、モデルテストを正常に利用するために使用します。</p>
+        <p>外部サービスが使用するCookieは、各外部サービスが定める目的に基づいて使用される場合があります。</p>
+      </section>
+
+      <section class="doc-section">
+        <h2>5. Cookieの無効化</h2>
+        <p>Original Createが使用するCookieを無効にすると、モデルテストは利用できません。</p>
+        <p>外部サービスが使用するCookieを無効にした場合、当該外部サービスの全部または一部が正常に表示・利用できない場合があります。</p>
+      </section>
+
+      <section class="doc-section">
+        <h2>6. Cookieポリシーの変更</h2>
+        <p>本Cookieポリシーを変更する場合は、ホームページのお知らせよりご案内いたします。</p>
+      </section>
+
+      <section class="doc-section">
+        <h2>7. お問い合わせ</h2>
+        <p>本Cookieポリシーに関するお問い合わせは、<a class="doc-contact-link" href={href('/contact/')}>こちら</a>よりお問い合わせください。</p>
+      </section>
+</DocumentLayout>
