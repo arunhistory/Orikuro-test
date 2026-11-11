@@ -139,13 +139,13 @@ npm run compare        # 移したページを古いページと画素単位で�
 | Original Createとは＋代表挨拶 | `/about/` | 未（文章の食い違いはユーザーが決める） |
 | 事業説明＋サービス一覧 | `/business/` | 未（同上） |
 | ロードマップ | `/roadmap/` | 移行済み・確認待ち |
-| アルゴリズムテスト | `/algorithm-test/` | 未 |
-| 事前登録・登録完了 | `/preregister/`・`/preregister/complete/` | 未 |
+| アルゴリズムテスト | `/algorithm-test/` | 移行済み・確認待ち |
+| 事前登録・登録完了 | `/preregister/`・`/preregister/complete/` | 移行済み・確認待ち |
 | クラウドファンディング | `/crowdfunding/` | 移行済み・確認待ち |
 | FAQ | `/faq/` | 移行済み・確認待ち |
-| お問い合わせ・チャット | `/contact/`・`/contact/chat/` | 未 |
-| 利用前の確認 | `/consent/` | 未 |
-| 事前登録メールの削除（3画面） | `/email-delete/` ほか | 未 |
+| お問い合わせ・チャット | `/contact/`・`/contact/chat/` | 移行済み・確認待ち |
+| 利用前の確認 | `/consent/` | 移行済み・確認待ち |
+| 事前登録メールの削除（3画面） | `/email-delete/` ほか | 移行済み・確認待ち |
 | プライバシーポリシー | `/legal/privacy/` | ✅ 済み（2026-11-11 Claudeが確認：check 合格、compare は PC・スマホ・メニューを開いた状態で全て同じ） |
 | Cookieポリシー | `/legal/cookie/` | 移行済み・確認待ち |
 | 運営者情報 | `/legal/operator/` | 移行済み・確認待ち |
