@@ -294,6 +294,63 @@
   --color-preregister-main-preregister-field-input-focus-color-30:rgba(16,24,42,.62);
   --color-preregister-main-preregister-field-input-focus-color-32:rgba(16,24,42,.06);
 
+  /* ---- お問い合わせ・チャット固有色 ---- */
+  --color-contact-main--global-body-has-contact-main--fill-2:#101522;
+  --color-contact-main--contact-kicker-fill-3:#728096;
+  --color-contact-main--contact-lead-fill-4:#556173;
+  --color-contact-main--contact-chat-card-fill-5:#d9e0ea;
+  --color-contact-main--contact-chat-card-shadow-7:rgba(30,42,62,.08);
+  --color-contact-main--contact-chat-card-p-fill-10:#566174;
+  --color-contact-main--contact-chat-start-fill-11:#111827;
+  --color-contact-main--contact-status-fill-13:#c0392b;
+  --color-contact-main--contact-notes-fill-14:#e0e6ef;
+  --color-contact-main--contact-notes-fill-15:rgba(255,255,255,.65);
+  --color-contact-main--contact-notes-p-fill-16:#5f6978;
+  --color-contact-main--contact-resume-top-17:#e4e9ef;
+  --color-contact-main--contact-resume-form-label-fill-18:#3d4858;
+  --color-contact-main--contact-resume-row-input-fill-19:#cdd6e2;
+  --color-contact-main--contact-resume-row-input-focus-color-22:#7d8ba0;
+  --color-contact-main--contact-resume-row-input-focus-shadow-23:rgba(88,101,242,.08);
+  --color-contact-main--contact-resume-row-button-fill-24:#e9edf3;
+  --color-contact-main--contact-resume-row-button-fill-25:#1a2230;
+  --color-contact-main--contact-resume-help-fill-26:#7a8595;
+  --color-contact-main--contact-x-fill-28:#dbe1e9;
+  --color-contact-main--contact-x-fill-30:#111;
+  --color-contact-main--contact-x-note-fill-33:#6b7482;
+  --color-chat-main--global-body-has-chat-main--fill-1:#eef3f8;
+  --color-chat-main--chat-header-label-fill-3:#6e7b8e;
+  --color-chat-main--chat-shell-fill-5:#dce3ec;
+  --color-chat-main--chat-shell-shadow-6:rgba(20,34,56,.08);
+  --color-chat-main--chat-titlebar-bottom-7:#edf0f4;
+  --color-chat-main--chat-eyebrow-fill-8:#7c8798;
+  --color-chat-main--chat-ticket-fill-9:#f1f4f8;
+  --color-chat-main--chat-ticket-fill-10:#576476;
+  --color-chat-main--chat-ticket-notice-fill-11:#fff8e7;
+  --color-chat-main--chat-ticket-notice-bottom-12:#f0e2bb;
+  --color-chat-main--chat-ticket-notice-fill-13:#655321;
+  --color-chat-main-chat-ticket-notice-span-last-child-fill-14:#75673f;
+  --color-chat-main--chat-security-note-fill-15:#f8fafc;
+  --color-chat-main--chat-security-note-fill-17:#657184;
+  --color-chat-main--chat-log-fill-18:#f6f8fb;
+  --color-chat-main--chat-loading-fill-19:#7b8798;
+  --color-chat-main--chat-message-operator-chat-bubble-fill-23:#dce2ea;
+  --color-chat-main--chat-message-operator-chat-bubble-fill-24:#18202c;
+  --color-chat-main--chat-message-system-chat-bubble-fill-25:#edf2f7;
+  --color-chat-main--chat-message-system-chat-bubble-fill-26:#596575;
+  --color-chat-main--chat-message-discord-chat-bubble-fill-27:#fff3d8;
+  --color-chat-main--chat-message-discord-chat-bubble-fill-28:#6f5821;
+  --color-chat-main--chat-message-discord-chat-bubble-fill-29:#f0dba7;
+  --color-chat-main--resolution-panel-fill-31:#fffaf0;
+  --color-chat-main--resolution-yes-fill-32:#18884a;
+  --color-chat-main--resolution-no-fill-34:#d6dde6;
+  --color-chat-main--resolution-no-fill-36:#222;
+  --color-chat-main--chat-compose-top-37:#e5eaf0;
+  --color-chat-main--chat-compose-textarea-focus-color-40:#7f8da2;
+  --color-chat-main--chat-compose-textarea-focus-shadow-41:rgba(95,110,132,.1);
+  --color-chat-main--chat-compose-row-span-fill-42:#7b8796;
+  --color-chat-main--chat-status-fill-45:#bf3d31;
+  --color-chat-main--chat-closed-p-not-chat-eyebrow--fill-46:#687487;
+
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
   --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */
