@@ -7,6 +7,9 @@
   path … サイトの中の場所。頭と終わりに / をつける（例: '/legal/terms/'）。
          公開側・テスト側の頭の部分（/Orikuro-test/ など）は自動でつくので書かない。
   side … 'both'（両方に出す。省略時）か 'staging'（テスト側だけに出す）。
+  placeholder … true にすると「仮置き」のリンクになる。見た目は普通のリンクと同じで、
+         押しても移動しない（404 を出さないため）。行き先のページができたら、
+         この行から placeholder を消すだけで本物のリンクになる。
 */
 
 export type Side = 'public' | 'staging';
@@ -15,6 +18,7 @@ export interface NavLink {
   label: string;
   path: string;
   side?: 'both' | 'staging';
+  placeholder?: boolean;
 }
 
 export interface NavGroup {
@@ -37,8 +41,8 @@ export const menuGroups: NavGroup[] = [
   {
     label: '試す',
     links: [
-      { label: '配信テスト', path: '/live/' },
-      { label: '視聴テスト', path: '/live/' },
+      { label: '配信テスト', path: '/live/', placeholder: true }, // 仮置き：体験版の画面ができるまで
+      { label: '視聴テスト', path: '/live/', placeholder: true }, // 仮置き：体験版の画面ができるまで
       { label: 'アルゴリズムテスト', path: '/algorithm-test/' },
     ],
   },

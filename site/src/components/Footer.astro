@@ -9,7 +9,11 @@ const pathname = Astro.url.pathname;
   <div><p class="footer-brand">Original Create Project</p><p>2027 / START</p></div>
   <div class="footer-meta"><span>PROJECT SITE / PROTOTYPE</span></div>
   <nav class="footer-links" aria-label="フッターリンク">
-    {forSide(footerLinks, side).map((link) => <a href={href(link.path)} aria-current={isCurrent(link.path, pathname) ? 'page' : undefined}>{link.label}</a>)}
+    {forSide(footerLinks, side).map((link) =>
+      link.placeholder
+        ? <a href="#" aria-disabled="true" data-placeholder-link>{link.label}</a>
+        : <a href={href(link.path)} aria-current={isCurrent(link.path, pathname) ? 'page' : undefined}>{link.label}</a>
+    )}
   </nav>
   <p class="footer-license">©Original Create</p>
 </footer>

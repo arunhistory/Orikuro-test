@@ -62,6 +62,17 @@ else {
   for (const [path, froms] of [...missing].sort()) console.log(`    ${path}  ← ${[...froms].slice(0, 3).join(', ')}${froms.size > 3 ? ' ほか' : ''}`);
 }
 
+// 仮置きのリンク（navigation.ts の placeholder: true）の一覧
+{
+  const names = new Set();
+  for await (const file of walk(pagesRoot)) {
+    if (extname(file) !== '.html') continue;
+    const html = await readFile(file, 'utf8');
+    for (const m of html.matchAll(/<a href="#" aria-disabled="true" data-placeholder-link[^>]*>([^<]+)<\/a>/g)) names.add(m[1]);
+  }
+  console.log(names.size ? `  △ 仮置きのリンク: ${[...names].join('、')}（ページができたら navigation.ts の placeholder を消す）` : '  ✔ 仮置きのリンクはありません');
+}
+
 // 2. ソースが混ざっていないか
 console.log('2. 書き出したサイトにソースが無いか');
 const bad = ['.ts', '.astro', '.rs', '.mjs', '.toml', '.map'];

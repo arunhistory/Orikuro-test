@@ -1,5 +1,5 @@
 /*
-  menu.ts — メニューの開け閉めだけを行う。
+  menu.ts — メニューの開け閉めと、仮置きリンクを押しても移動しないようにすることだけを行う。
   リンク先やCSSを書き換える処理はここに書かない（リンクはHTMLの時点で正しい）。
 */
 const button = document.querySelector<HTMLButtonElement>('[data-menu-button]');
@@ -18,4 +18,9 @@ button?.addEventListener('click', () => setOpen(!menu?.classList.contains('is-op
 menu?.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setOpen(false)));
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') setOpen(false);
+});
+
+// 仮置きのリンク（navigation.ts で placeholder: true）は、押しても移動しない。
+document.querySelectorAll('[data-placeholder-link]').forEach((link) => {
+  link.addEventListener('click', (event) => event.preventDefault());
 });

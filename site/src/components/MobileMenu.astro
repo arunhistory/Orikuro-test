@@ -1,5 +1,6 @@
 ---
 // メニュー：項目は data/navigation.ts から作る。ここに項目を直接書かない。
+// placeholder の項目は「仮置き」として、押しても移動しないリンクで出す。
 import { menuGroups, forSide } from '../data/navigation';
 import { href, isCurrent, side } from '../data/url';
 
@@ -11,7 +12,9 @@ const pathname = Astro.url.pathname;
       <section class="menu-group">
         <p class="menu-group-label">{group.label}</p>
         {forSide(group.links, side).map((link) => (
-          <a href={href(link.path)} aria-current={isCurrent(link.path, pathname) ? 'page' : undefined}>{link.label}</a>
+          link.placeholder
+            ? <a href="#" aria-disabled="true" data-placeholder-link>{link.label}</a>
+            : <a href={href(link.path)} aria-current={isCurrent(link.path, pathname) ? 'page' : undefined}>{link.label}</a>
         ))}
       </section>
     ))}
