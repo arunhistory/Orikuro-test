@@ -103,5 +103,19 @@ for await (const file of walk(join(here, 'src'))) {
 }
 if (errors === before) console.log('  ✔ ありません');
 
+// 5. tokens.css に同じ色の値が2つの名前で入っていないか
+console.log('4. tokens.css の色の重複');
+{
+  const before5 = errors;
+  const tokens = (await readFile(join(here, 'src/styles/tokens.css'), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
+  const seen = new Map();
+  for (const m of tokens.matchAll(/(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g)) {
+    const v = m[2].toLowerCase();
+    if (seen.has(v)) fail(`tokens.css: ${m[1]} と ${seen.get(v)} が同じ色 ${v}（既にある ${seen.get(v)} を使う）`);
+    else seen.set(v, m[1]);
+  }
+  if (errors === before5) console.log('  ✔ ありません');
+}
+
 console.log(errors ? `\n✘ 決まりに反するものが ${errors} 件あります` : '\n✔ 決まりは守られています');
 process.exit(errors ? 1 : 0);
