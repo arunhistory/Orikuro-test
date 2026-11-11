@@ -258,6 +258,42 @@
   --crowdfunding-summary-grid-template-columns-1:1fr;
   --crowdfunding-stat-min-height-2:0;
 
+  /* ---- フォーム移行ページの固有色（旧CSSの色値） ---- */
+  --color-consent-main-html-has-consent-main-ink-1:#101723;
+  --color-consent-main-html-has-consent-main-muted-2:#677487;
+  --color-consent-main-html-has-consent-main-line-3:#d7dee8;
+  --color-consent-main-html-has-consent-main-bg-4:#f5f7fa;
+  --color-consent-main-html-has-consent-main-accent-6:#172033;
+  --color-consent-main-consent-kicker-color-7:#7a8697;
+  --color-consent-main-consent-card-color-8:rgba(29,43,67,.08);
+  --color-consent-main-consent-field-input-color-9:#cfd7e2;
+  --color-consent-main-consent-field-input-focus-color-11:#6e7d93;
+  --color-consent-main-consent-field-input-focus-color-12:rgba(80,101,132,.12);
+  --color-consent-main-consent-check-a-color-14:#153e84;
+  --color-consent-main-consent-status-color-16:#4c5a6d;
+  --color-consent-main-consent-timeout-color-17:#c8d0db;
+  --color-consent-main-consent-timeout-color-18:#667386;
+  --color-service-test-main-html-has-service-test-main-muted-3:#6c7889;
+  --color-service-test-main-html-has-service-test-main-line-4:#d8dee7;
+  --color-service-test-main-service-test-card-color-6:rgba(33,48,72,.08);
+  --color-service-test-main-service-test-kicker-color-7:#7a8798;
+  --color-service-test-main-service-test-home-color-8:#cbd3de;
+  --color-preregister-main-preregister-discord-card-color-3:rgba(54,80,113,.18);
+  --color-preregister-main-preregister-discord-card-color-4:rgba(255,255,255,.94);
+  --color-preregister-main-preregister-discord-card-color-5:rgba(244,247,251,.86);
+  --color-preregister-main-preregister-discord-card-color-6:rgba(16,24,42,.08);
+  --color-preregister-main-preregister-discord-mark-color-7:#5865f2;
+  --color-preregister-main-preregister-discord-mark-color-9:rgba(88,101,242,.22);
+  --color-preregister-main-preregister-steps-color-11:rgba(54,80,113,.14);
+  --color-preregister-main-preregister-discord-button-color-17:rgba(88,101,242,.24);
+  --color-preregister-main-preregister-discord-button-hover-color-18:rgba(88,101,242,.28);
+  --color-preregister-main-preregister-feature-grid-div-color-20:rgba(54,80,113,.16);
+  --color-preregister-main-preregister-footnote-color-25:rgba(88,101,242,.055);
+  --color-preregister-main-preregister-footnote-color-26:#526175;
+  --color-preregister-main-preregister-field-input-color-27:rgba(54,80,113,.22);
+  --color-preregister-main-preregister-field-input-focus-color-30:rgba(16,24,42,.62);
+  --color-preregister-main-preregister-field-input-focus-color-32:rgba(16,24,42,.06);
+
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
   --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */

@@ -1,0 +1,391 @@
+---
+// 旧 preregister.html の本文は変更せず、移動先リンクのみ href() に移行。
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { href } from '../../data/url';
+---
+<BaseLayout title="Discord事前予約登録" description="Original Create Project Discord事前予約登録">
+  <main class="preregister-main">
+    <article class="preregister-wrap preregister-discord-wrap">
+      <div class="preregister-eyebrow">DISCORD / OCI</div>
+      <h1>Discord事前予約登録</h1>
+
+      <p class="preregister-lead">
+        <strong>Original Create Information（OCI）</strong>をあなた自身のDiscordアカウントへ個人インストールすると、Original Createの事前予約登録が完了します。
+      </p>
+
+      <section class="preregister-discord-card" aria-labelledby="oci-register-title">
+        <div class="preregister-discord-head">
+          <span class="preregister-discord-mark" aria-hidden="true">OCI</span>
+          <div>
+            <p class="preregister-card-kicker">Original Create Information</p>
+            <h2 id="oci-register-title">OCIを個人インストールして登録</h2>
+          </div>
+        </div>
+
+        <div class="preregister-steps" aria-label="事前予約登録の流れ">
+          <div class="preregister-step">
+            <span>01</span>
+            <p>下のボタンからDiscordを開きます。</p>
+          </div>
+          <div class="preregister-step">
+            <span>02</span>
+            <p>OCIを<strong>あなたのアカウント</strong>に追加します。</p>
+          </div>
+          <div class="preregister-step">
+            <span>03</span>
+            <p>個人インストール完了と同時に事前予約登録され、OCIからウェルカム案内と使い方を送信します。</p>
+          </div>
+        </div>
+
+        <a
+          class="preregister-discord-button"
+          href="#"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-disabled="true"
+          data-discord-install
+        >Discordで事前予約登録する</a>
+
+        <p class="preregister-discord-note" data-discord-install-status>
+          Discord登録リンクを準備しています。
+        </p>
+        <p class="preregister-discord-note">
+          運営・管理用DiscordサーバーへのOCI設置は事前予約とは別です。事前予約として扱うのは、利用者本人のDiscordアカウントへの個人インストールのみです。ウェルカムDMを受信できない場合は、個人インストール後にDiscordで <strong>/oci</strong> を実行してください。
+        </p>
+      </section>
+
+      <section class="preregister-oci-section" aria-labelledby="oci-features-title">
+        <p class="preregister-section-kicker">OCI MENU</p>
+        <h2 id="oci-features-title">登録後、そのまま使えます</h2>
+        <div class="preregister-feature-grid">
+          <div><strong>進行状況</strong><span>Original Createの現在地を確認</span></div>
+          <div><strong>配信テスト</strong><span>公開前の配信テストへ移動</span></div>
+          <div><strong>視聴テスト</strong><span>公開前の視聴テストへ移動</span></div>
+          <div><strong>アルゴリズムテスト</strong><span>各種テストへ直接アクセス</span></div>
+          <div><strong>クラウドファンディング</strong><span>企画情報をOCIから確認</span></div>
+          <div><strong>事前予約解除</strong><span>OCIの個人インストールを認証解除して事前予約も解除</span></div>
+        </div>
+      </section>
+
+      <div class="preregister-footnote">
+        <p>事前予約を解除する場合は、Discordの「ユーザー設定」→「認証済みアプリ」→「Original Create Information」→「認証解除」を行います。</p>
+        <p>OCIの個人インストールが認証解除されると、Discordから解除イベントを受信し、Original Create側の事前予約登録も自動で削除されます。</p>
+        <p>再度事前予約する場合は、OCIをあなたのDiscordアカウントへもう一度個人インストールしてください。</p>
+      </div>
+    </article>
+  </main>
+  <script src="../../scripts/preregister.js"></script>
+</BaseLayout>
+<style>
+.preregister-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
+}
+
+.preregister-wrap{width:min(820px,100%);margin:0 auto}
+
+.preregister-wrap>h1{
+  margin:0 0 24px;
+  font-size:clamp(38px,5vw,64px);
+  line-height:1.08;
+  letter-spacing:-.05em;
+}
+
+.preregister-eyebrow,
+.preregister-section-kicker,
+.preregister-card-kicker{
+  margin:0;
+  color:var(--color-menu-label);
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.preregister-eyebrow{margin-bottom:18px}
+
+.preregister-lead{
+  max-width:700px;
+  margin:0 0 clamp(36px,5vw,52px);
+  color:var(--color-footer-link);
+  font-size:clamp(16px,1.8vw,20px);
+  line-height:1.9;
+}
+
+.preregister-discord-card{
+  padding:clamp(24px,4vw,42px);
+  border:1px solid var(--color-preregister-main-preregister-discord-card-color-3);
+  border-radius:22px;
+  background:linear-gradient(145deg,var(--color-preregister-main-preregister-discord-card-color-4),var(--color-preregister-main-preregister-discord-card-color-5));
+  box-shadow:0 20px 60px var(--color-preregister-main-preregister-discord-card-color-6);
+}
+
+.preregister-discord-head{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  margin-bottom:30px;
+}
+
+.preregister-discord-mark{
+  display:grid;
+  width:62px;
+  height:62px;
+  place-items:center;
+  flex:0 0 auto;
+  border-radius:18px;
+  background:var(--color-preregister-main-preregister-discord-mark-color-7);
+  color:var(--crowdfunding-button-color);
+  font-size:18px;
+  font-weight:950;
+  letter-spacing:.04em;
+  box-shadow:0 12px 28px var(--color-preregister-main-preregister-discord-mark-color-9);
+}
+
+.preregister-discord-head h2,
+.preregister-oci-section h2{
+  margin:6px 0 0;
+  color:var(--color-ink);
+  font-size:clamp(22px,3vw,30px);
+  line-height:1.25;
+  letter-spacing:-.035em;
+}
+
+.preregister-steps{
+  display:grid;
+  gap:0;
+  margin:0 0 30px;
+  border-top:1px solid var(--color-preregister-main-preregister-steps-color-11);
+}
+
+.preregister-step{
+  display:grid;
+  grid-template-columns:54px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:18px 0;
+  border-bottom:1px solid var(--color-preregister-main-preregister-steps-color-11);
+}
+
+.preregister-step>span{
+  color:var(--color-preregister-main-preregister-discord-mark-color-7);
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.12em;
+}
+
+.preregister-step p{
+  margin:0;
+  color:var(--color-footer-link);
+  font-size:15px;
+  line-height:1.75;
+}
+
+.preregister-discord-button{
+  display:flex;
+  width:100%;
+  min-height:60px;
+  align-items:center;
+  justify-content:center;
+  border-radius:13px;
+  background:var(--color-preregister-main-preregister-discord-mark-color-7);
+  color:var(--crowdfunding-button-color);
+  font-size:16px;
+  font-weight:900;
+  text-align:center;
+  text-decoration:none;
+  box-shadow:0 12px 30px var(--color-preregister-main-preregister-discord-button-color-17);
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease;
+}
+
+.preregister-discord-button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 16px 34px var(--color-preregister-main-preregister-discord-button-hover-color-18);
+  filter:brightness(1.02);
+}
+
+.preregister-discord-button:active{transform:translateY(1px)}
+
+.preregister-discord-note{
+  margin:16px 0 0;
+  color:var(--color-menu-label);
+  font-size:13px;
+  line-height:1.7;
+  text-align:center;
+}
+
+.preregister-oci-section{
+  margin-top:clamp(54px,8vw,78px);
+}
+
+.preregister-section-kicker{margin-bottom:8px}
+
+.preregister-feature-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  margin-top:24px;
+}
+
+.preregister-feature-grid>div{
+  display:grid;
+  gap:6px;
+  min-height:112px;
+  padding:20px;
+  border:1px solid var(--color-preregister-main-preregister-feature-grid-div-color-20);
+  border-radius:16px;
+  background:var(--crowdfunding-stat-background);
+}
+
+.preregister-feature-grid strong{
+  color:var(--color-ink);
+  font-size:15px;
+}
+
+.preregister-feature-grid span{
+  color:var(--color-menu-label);
+  font-size:13px;
+  line-height:1.65;
+}
+
+.preregister-footnote{
+  margin-top:30px;
+  padding:20px 22px;
+  border-left:3px solid var(--color-preregister-main-preregister-discord-mark-color-7);
+  background:var(--color-preregister-main-preregister-footnote-color-25);
+  color:var(--color-preregister-main-preregister-footnote-color-26);
+  font-size:13px;
+  line-height:1.75;
+}
+
+.preregister-footnote p{margin:0}
+.preregister-footnote p+p{margin-top:6px}
+
+.preregister-form{display:grid;gap:26px}
+.preregister-field{display:grid;gap:10px}
+.preregister-field label{font-size:15px;font-weight:800;letter-spacing:.01em}
+
+.preregister-field input{
+  width:100%;
+  border:1px solid var(--color-preregister-main-preregister-field-input-color-27);
+  border-radius:10px;
+  background:var(--color-doc-bg);
+  color:var(--color-ink);
+  font:inherit;
+  font-size:16px;
+  line-height:1.65;
+  padding:15px 16px;
+  outline:none;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+
+.preregister-field input:focus{
+  border-color:var(--color-preregister-main-preregister-field-input-focus-color-30);
+  background:var(--crowdfunding-button-color);
+  box-shadow:0 0 0 3px var(--color-preregister-main-preregister-field-input-focus-color-32);
+}
+
+.preregister-field-note{
+  margin:0;
+  color:var(--color-muted);
+  font-size:12px;
+  line-height:1.65;
+}
+
+.preregister-check{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  font-size:15px;
+  font-weight:700;
+  line-height:1.6;
+  cursor:pointer;
+}
+
+.preregister-check input{
+  width:18px;
+  height:18px;
+  margin:3px 0 0;
+  flex:0 0 auto;
+}
+
+.preregister-submit{
+  width:100%;
+  min-height:56px;
+  margin-top:4px;
+  border:0;
+  border-radius:10px;
+  background:var(--color-ink);
+  color:var(--crowdfunding-button-color);
+  font-size:16px;
+  font-weight:850;
+  cursor:pointer;
+}
+
+.preregister-submit:active{transform:translateY(1px)}
+
+.preregister-status{
+  min-height:1.6em;
+  margin:0;
+  color:var(--color-muted);
+  font-size:14px;
+  line-height:1.6;
+}
+
+.preregister-complete-main{
+  min-height:calc(100svh - var(--header));
+  display:flex;
+  align-items:center;
+}
+
+.preregister-complete-wrap{
+  padding:clamp(36px,5vw,56px) 0;
+}
+
+.preregister-complete-wrap>h1{
+  margin-bottom:clamp(28px,4vw,40px);
+}
+
+.preregister-complete-message{
+  margin:0 0 clamp(40px,6vw,56px);
+  font-size:clamp(15px,1.6vw,18px);
+  line-height:1.9;
+  color:var(--color-footer-link);
+}
+
+.preregister-complete-message p{
+  margin:0 0 14px;
+}
+
+.preregister-complete-message p:last-child{
+  margin-bottom:0;
+}
+
+.preregister-home{
+  display:flex;
+  width:100%;
+  min-height:56px;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  background:var(--color-ink);
+  color:var(--crowdfunding-button-color);
+  font-size:16px;
+  font-weight:850;
+  text-decoration:none;
+}
+
+.preregister-home:active{transform:translateY(1px)}
+
+@media(max-width:760px){
+  .preregister-main{padding-top:56px}
+  .preregister-wrap>h1{margin-bottom:20px}
+  .preregister-discord-card{border-radius:18px}
+  .preregister-feature-grid{grid-template-columns:1fr}
+  .preregister-discord-head{align-items:flex-start}
+  .preregister-discord-mark{width:54px;height:54px;border-radius:16px;font-size:16px}
+  .preregister-step{grid-template-columns:44px 1fr}
+  .preregister-complete-main{min-height:calc(100svh - var(--header));padding-top:32px}
+}
+
+</style>
