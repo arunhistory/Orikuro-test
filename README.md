@@ -146,7 +146,7 @@ npm run compare        # 移したページを古いページと画素単位で�
 | お問い合わせ・チャット | `/contact/`・`/contact/chat/` | 未 |
 | 利用前の確認 | `/consent/` | 未 |
 | 事前登録メールの削除（3画面） | `/email-delete/` ほか | 未 |
-| プライバシーポリシー | `/legal/privacy/` | 移行中（本文・見出し・リンクの移植済み。`build:pages`・`check`・`compare` 未実行） |
+| プライバシーポリシー | `/legal/privacy/` | ✅ 済み（2026-11-11 Claudeが確認：check 合格、compare は PC・スマホ・メニューを開いた状態で全て同じ） |
 | Cookieポリシー・運営者情報 | `/legal/cookie/`・`/legal/operator/` | 未（前ページの検証合格後に移行） |
 | 体験版の画面 | `/live/` | 未（体験版の制作で作る。それまでメニューの「配信テスト」「視聴テスト」は仮置き） |
 
