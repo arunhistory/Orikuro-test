@@ -138,7 +138,7 @@ npm run compare        # 移したページを古いページと画素単位で�
 | トップ | `/` | 未 |
 | Original Createとは＋代表挨拶 | `/about/` | 未（文章の食い違いはユーザーが決める） |
 | 事業説明＋サービス一覧 | `/business/` | 未（同上） |
-| ロードマップ | `/roadmap/` | 未 |
+| ロードマップ | `/roadmap/` | 移行済み・確認待ち |
 | アルゴリズムテスト | `/algorithm-test/` | 未 |
 | 事前登録・登録完了 | `/preregister/`・`/preregister/complete/` | 未 |
 | クラウドファンディング | `/crowdfunding/` | 未 |
