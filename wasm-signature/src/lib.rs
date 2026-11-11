@@ -6,7 +6,7 @@ const SIGNATURE_LEN: usize = 32;
 
 const PAGE_PREREGISTER: u32 = 1;
 const PAGE_CONTACT: u32 = 2;
-const PAGE_TEST: u32 = 3;
+const PAGE_CONSENT: u32 = 3;
 
 const PREREGISTER_SIGNATURE: [u8; SIGNATURE_LEN] = [
     149, 242, 234, 4, 116, 70, 202, 200, 187, 77, 202, 235, 241, 246, 220, 157,
@@ -53,11 +53,11 @@ pub unsafe extern "C" fn signature_for_page(input_ptr: u32, input_len: u32) -> u
         Err(_) => return return_buffer(error(2)),
     };
 
-    let file_name = page_path.rsplit('/').next().unwrap_or_default();
+    let file_name = page_path.rsplit('/').find(|part| !part.is_empty()).unwrap_or_default();
     let signature = match file_name {
-        "preregister.html" => &PREREGISTER_SIGNATURE,
-        "contact.html" => &CONTACT_SIGNATURE,
-        "test.html" => &TEST_SIGNATURE,
+        "preregister" => &PREREGISTER_SIGNATURE,
+        "contact" => &CONTACT_SIGNATURE,
+        "consent" => &TEST_SIGNATURE,
         _ => return return_buffer(error(3)),
     };
 
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn page_for_signature(input_ptr: u32, input_len: u32) -> u
     } else if fixed_eq(input, &CONTACT_SIGNATURE) {
         PAGE_CONTACT
     } else if fixed_eq(input, &TEST_SIGNATURE) {
-        PAGE_TEST
+        PAGE_CONSENT
     } else {
         0
     }

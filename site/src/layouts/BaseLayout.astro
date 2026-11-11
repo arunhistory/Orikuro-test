@@ -23,7 +23,7 @@ const { title, description } = Astro.props;
 // theme-color はCSSの変数を使えないため、tokens.css の --color-page と同じ値を下に直接書く（色の直書きの例外はここだけ）
 ---
 <!doctype html>
-<html lang="ja">
+<html lang="ja" data-site-base={import.meta.env.BASE_URL}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
