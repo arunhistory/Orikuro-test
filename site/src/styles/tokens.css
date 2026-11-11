@@ -146,6 +146,60 @@
   --roadmap-current-margin-top-3:72px;
   --roadmap-current-padding-4:24px 20px;
 
+  /* ---- FAQ 固有の旧サイト実効値 ---- */
+  --faq-main-width:min(1180px,calc(100% - var(--pad)*2));
+  --faq-main-margin:0 auto;
+  --faq-main-padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
+  --faq-wrap-width:min(860px,100%);
+  --faq-wrap-margin:0 auto;
+  --faq-wrap-h1-margin:0 0 clamp(48px,6vw,72px);
+  --faq-wrap-h1-font-size:clamp(38px,5vw,64px);
+  --faq-wrap-h1-line-height:1.1;
+  --faq-wrap-h1-letter-spacing:-.05em;
+  --faq-list-border-top:1px solid rgba(54,80,113,.18);
+  --faq-item-border-bottom:1px solid rgba(54,80,113,.18);
+  --faq-item-summary-min-height:clamp(74px,9vw,96px);
+  --faq-item-summary-padding:22px 58px 22px 0;
+  --faq-item-summary-color:#10182a;
+  --faq-item-summary-font-size:clamp(17px,2vw,22px);
+  --faq-item-summary-font-weight:850;
+  --faq-item-summary-line-height:1.55;
+  --faq-item-summary-letter-spacing:-.025em;
+  --faq-item-summary-before-right:8px;
+  --faq-item-summary-before-top:50%;
+  --faq-item-summary-before-width:20px;
+  --faq-item-summary-before-height:2px;
+  --faq-item-summary-before-border-radius:2px;
+  --faq-item-summary-before-background:#65758a;
+  --faq-item-summary-before-transform:translateY(-50%);
+  --faq-item-summary-before-transition:transform .22s ease,opacity .22s ease;
+  --faq-item-summary-after-transform:translateY(-50%) rotate(90deg);
+  --faq-item-open-summary-after-transform:translateY(-50%) rotate(0deg);
+  --faq-item-open-summary-after-opacity:0;
+  --faq-item-summary-focus-visible-outline:2px solid rgba(52,101,164,.65);
+  --faq-item-summary-focus-visible-outline-offset:6px;
+  --faq-item-summary-focus-visible-border-radius:4px;
+  --faq-answer-padding:0 58px 28px 0;
+  --faq-answer-color:#536176;
+  --faq-answer-font-size:clamp(15px,1.65vw,18px);
+  --faq-answer-font-weight:600;
+  --faq-answer-line-height:1.9;
+  --faq-answer-letter-spacing:-.01em;
+  --faq-answer-p-margin:0;
+  --faq-answer-p-p-margin-top:10px;
+  --faq-answer-a-color:#213f68;
+  --faq-answer-a-font-weight:800;
+  --faq-answer-a-text-decoration-thickness:1px;
+  --faq-answer-a-text-underline-offset:4px;
+  --faq-item-summary-hover-color:#345f97;
+  --faq-answer-a-hover-opacity:.72;
+  --faq-main-padding-top:56px;
+  --faq-item-summary-min-height-1:72px;
+  --faq-item-summary-padding-2:20px 44px 20px 0;
+  --faq-item-summary-before-right-3:4px;
+  --faq-item-summary-before-width-4:18px;
+  --faq-answer-padding-5:0 42px 24px 0;
+
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
   --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */
