@@ -1,0 +1,133 @@
+---
+// crowdfunding.html の表示と未設定リンクの無効状態を維持。
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="クラウドファンディング" description="Original Create Project クラウドファンディング">
+  <main class="crowdfunding-main">
+    <article class="crowdfunding-wrap">
+      <h1>クラウドファンディング</h1>
+
+      <div class="crowdfunding-summary">
+        <section class="crowdfunding-stat">
+          <p class="crowdfunding-label">目標金額</p>
+          <p class="crowdfunding-value">50万円以上</p>
+          <p class="crowdfunding-sub">最大500万円</p>
+        </section>
+        <section class="crowdfunding-stat">
+          <p class="crowdfunding-label">期間</p>
+          <p class="crowdfunding-value">12月31日まで</p>
+        </section>
+      </div>
+
+      <section class="crowdfunding-notice">
+        <h2>注意事項</h2>
+        <p>クラウドファンディングは外部サイトにて実施いたします。</p>
+        <p>支援条件、決済、キャンセル、リターンその他の事項については、外部サイトに記載された内容および規約に従ってください。</p>
+        <p>ご支援の前に、必ず外部サイトの内容をご確認ください。</p>
+        <p>当サイトでは、支援の受付および決済は行っておりません。</p>
+      </section>
+
+      <a class="crowdfunding-button is-pending" href="#" aria-disabled="true" data-placeholder-link>クラウドファンディングページへ ↗</a>
+    </article>
+  </main>
+</BaseLayout>
+<style>
+.crowdfunding-main{
+  width:var(--crowdfunding-main-width);
+  margin:var(--crowdfunding-main-margin);
+  padding:var(--crowdfunding-main-padding);
+}
+
+.crowdfunding-wrap{width:var(--crowdfunding-wrap-width);margin:var(--crowdfunding-wrap-margin)}
+
+.crowdfunding-wrap>h1{
+  margin:var(--crowdfunding-wrap-h1-margin);
+  font-size:var(--crowdfunding-wrap-h1-font-size);
+  line-height:var(--crowdfunding-wrap-h1-line-height);
+  letter-spacing:var(--crowdfunding-wrap-h1-letter-spacing);
+}
+
+.crowdfunding-summary{
+  display:grid;
+  grid-template-columns:var(--crowdfunding-summary-grid-template-columns);
+  gap:var(--crowdfunding-summary-gap);
+  margin-bottom:var(--crowdfunding-summary-margin-bottom);
+}
+
+.crowdfunding-stat{
+  min-height:var(--crowdfunding-stat-min-height);
+  padding:var(--crowdfunding-stat-padding);
+  border:var(--crowdfunding-stat-border);
+  border-radius:var(--crowdfunding-stat-border-radius);
+  background:var(--crowdfunding-stat-background);
+  backdrop-filter:var(--crowdfunding-stat-backdrop-filter);
+}
+
+.crowdfunding-label{
+  margin:var(--crowdfunding-label-margin);
+  color:var(--crowdfunding-label-color);
+  font-size:var(--crowdfunding-label-font-size);
+  font-weight:var(--crowdfunding-label-font-weight);
+  letter-spacing:var(--crowdfunding-label-letter-spacing);
+}
+
+.crowdfunding-value{
+  margin:var(--crowdfunding-value-margin);
+  font-size:var(--crowdfunding-value-font-size);
+  font-weight:var(--crowdfunding-value-font-weight);
+  line-height:var(--crowdfunding-value-line-height);
+  letter-spacing:var(--crowdfunding-value-letter-spacing);
+}
+
+.crowdfunding-sub{
+  margin:var(--crowdfunding-sub-margin);
+  color:var(--crowdfunding-sub-color);
+  font-size:var(--crowdfunding-sub-font-size);
+  font-weight:var(--crowdfunding-sub-font-weight);
+}
+
+.crowdfunding-notice{
+  margin-bottom:var(--crowdfunding-notice-margin-bottom);
+  padding-top:var(--crowdfunding-notice-padding-top);
+  border-top:var(--crowdfunding-notice-border-top);
+}
+
+.crowdfunding-notice h2{
+  margin:var(--crowdfunding-notice-h2-margin);
+  font-size:var(--crowdfunding-notice-h2-font-size);
+  line-height:var(--crowdfunding-notice-h2-line-height);
+  letter-spacing:var(--crowdfunding-notice-h2-letter-spacing);
+}
+
+.crowdfunding-notice p{
+  margin:var(--crowdfunding-notice-p-margin);
+  font-size:var(--crowdfunding-notice-p-font-size);
+  line-height:var(--crowdfunding-notice-p-line-height);
+}
+
+.crowdfunding-notice p:last-child{margin-bottom:var(--crowdfunding-notice-p-last-child-margin-bottom)}
+
+.crowdfunding-button{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  width:var(--crowdfunding-button-width);
+  min-height:var(--crowdfunding-button-min-height);
+  padding:var(--crowdfunding-button-padding);
+  border-radius:var(--crowdfunding-button-border-radius);
+  background:var(--crowdfunding-button-background);
+  color:var(--crowdfunding-button-color);
+  font-size:var(--crowdfunding-button-font-size);
+  font-weight:var(--crowdfunding-button-font-weight);
+  text-decoration:none;
+}
+
+.crowdfunding-button.is-pending{opacity:var(--crowdfunding-button-is-pending-opacity);cursor:default}
+
+@media(max-width:760px){
+  .crowdfunding-main{padding-top:var(--crowdfunding-main-padding-top)}
+  .crowdfunding-wrap>h1{margin-bottom:var(--crowdfunding-wrap-h1-margin-bottom)}
+  .crowdfunding-summary{grid-template-columns:var(--crowdfunding-summary-grid-template-columns-1)}
+  .crowdfunding-stat{min-height:var(--crowdfunding-stat-min-height-2)}
+}
+</style>

@@ -141,7 +141,7 @@ npm run compare        # 移したページを古いページと画素単位で�
 | ロードマップ | `/roadmap/` | 移行済み・確認待ち |
 | アルゴリズムテスト | `/algorithm-test/` | 未 |
 | 事前登録・登録完了 | `/preregister/`・`/preregister/complete/` | 未 |
-| クラウドファンディング | `/crowdfunding/` | 未 |
+| クラウドファンディング | `/crowdfunding/` | 移行済み・確認待ち |
 | FAQ | `/faq/` | 移行済み・確認待ち |
 | お問い合わせ・チャット | `/contact/`・`/contact/chat/` | 未 |
 | 利用前の確認 | `/consent/` | 未 |
