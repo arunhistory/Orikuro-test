@@ -12,9 +12,11 @@
     "build:staging": "node tools/build.mjs staging",
     "build:pages": "node tools/build.mjs public && node tools/build.mjs staging && node tools/assemble-pages.mjs",
     "check": "node tools/check-site.mjs",
-    "preview": "node tools/serve.mjs"
+    "preview": "node tools/serve.mjs",
+    "compare": "node tools/compare-shots.mjs"
   },
   "devDependencies": {
-    "astro": "7.3.8"
+    "astro": "7.3.8",
+    "playwright": "1.63.0"
   }
 }

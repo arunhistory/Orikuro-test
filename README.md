@@ -3,6 +3,7 @@
 このブランチは、今のサイトを **見た目はそのまま・中の構成だけ** 決まった形に作り直すためのものです。
 できあがったら、公開側（main）とテスト側（staging）に上書きしていきます。
 
+- **AIに作業させるときは、`AGENTS.md` を最初に読ませてください。** 作業の決まり・手順・確かめ方・報告の形が全部書いてあります（Codexは自動で読みます）。
 - 新しいサイトのソースは **`site/` の中だけ** です。
 - 一番上に並んでいる古いファイル（`about.html` など）は、移し終わるまで **触らずに残して** あります。
   移し終わったページから順に、最後の「片付け」でまとめて消します。
@@ -69,7 +70,8 @@ site/
    ├─ write-redirects.mjs ← 古いURLの移動ページを書き出す
    ├─ assemble-pages.mjs  ← 両側を pages-preview と同じ並びにまとめる
    ├─ serve.mjs           ← まとめたものを GitHub Pages と同じURLで手元に表示
-   └─ check-site.mjs      ← 決まりが守られているかを確かめる
+   ├─ check-site.mjs      ← 決まりが守られているかを確かめる
+   └─ compare-shots.mjs   ← 古いページと画素単位で比べる
 ```
 
 ---
@@ -88,6 +90,7 @@ npm run dev:staging    # テスト側を見ながら作る
 npm run build:pages    # 両側を書き出して dist/pages/ にまとめる
 npm run preview        # http://localhost:4321/Orikuro-test/ と /Orikuro-test/staging/ で確認
 npm run check          # 決まりの確認（リンクの行き先・ソースの混入・色の直書き・!important・?v=）
+npm run compare        # 移したページを古いページと画素単位で比べる（初回だけ npx playwright install chromium）
 ```
 
 ---
