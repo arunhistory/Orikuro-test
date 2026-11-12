@@ -1622,4 +1622,8 @@ main{background:linear-gradient(180deg,var(--color-home-link-zone-head-backgroun
   opacity:.38;
   background:linear-gradient(90deg,var(--accent),transparent 38%);
 }
+
+/* 旧トップでは下線はスクロール後のみ表示。共通Headerの常時1px線を抑える。 */
+:global(body:has(.home-page) .page-header){border-bottom-style:none}
+:global(body:has(.home-page) .page-header.is-scrolled){border-bottom-style:solid}
 </style>
