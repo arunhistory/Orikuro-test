@@ -47,3 +47,37 @@ import { href } from '../../data/url';
         <p>本Cookieポリシーに関するお問い合わせは、<a class="doc-contact-link" href={href('/contact/')}>こちら</a>よりお問い合わせください。</p>
       </section>
 </DocumentLayout>
+<style>
+/* =========================================================
+   Cookie（cookie.html）— 元のページ固有の文字とリンク
+   ========================================================= */
+:global(.doc--cookie .doc-title-block h1){
+  font-size:clamp(30px,6vw,58px);
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+:global(.doc--cookie .doc-section a){
+  display:inline;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  color:var(--color-doc-link);
+  font-weight:400;
+  text-decoration:underline;
+  text-underline-offset:0;
+  line-height:inherit;
+}
+:global(.doc--cookie .doc-section a::before),
+:global(.doc--cookie .doc-section a::after){
+  content:none;
+  display:none;
+}
+:global(.doc--cookie .doc-section a:visited){color:var(--color-doc-link-visited)}
+:global(.doc--cookie .doc-section a:hover),
+:global(.doc--cookie .doc-section a:focus-visible){
+  color:var(--color-doc-link);
+  text-decoration:underline;
+}
+</style>

@@ -4,7 +4,7 @@ import { identifyPageSignature } from '../../assets/wasm/page-signature.js';
 type PageKind = 'preregister' | 'contact' | 'test';
 
 const SUCCESS_PAGE: Partial<Record<PageKind, string>> = {
-  preregister: './preregister-complete.html',
+  preregister: 'preregister/complete/',
   contact: './contact-complete.html',
 };
 
@@ -36,20 +36,21 @@ function setStatus(target: HTMLElement | null | undefined, message: string): voi
 }
 
 function safeServiceDestination(value: unknown): string {
-  if (typeof value !== 'string' || !/^\.\/[A-Za-z0-9._/-]+$/.test(value) || value.includes('..')) {
+  if (typeof value !== 'string' || !/^(?:\.\/)?[A-Za-z0-9._/-]+$/.test(value) || value.includes('..')) {
     throw new Error('サービスの移動先を確認できません。');
   }
-  const target = new URL(value, location.href);
-  if (target.origin !== location.origin || target.search || target.hash) {
+  const base = new URL(document.documentElement.dataset.siteBase || '/', location.origin);
+  const target = new URL(value.replace(/^\.\//, ''), base);
+  if (target.origin !== location.origin || !target.pathname.startsWith(base.pathname) || target.search || target.hash) {
     throw new Error('サービスの移動先を確認できません。');
   }
-  return value;
+  return target.href;
 }
 
 function timeoutToHome(statusTarget?: HTMLElement | null): void {
   setStatus(statusTarget, 'タイムアウトしました。');
   clearServiceFlowToken();
-  setTimeout(() => location.replace('./index.html'), 1100);
+  setTimeout(() => location.replace(document.documentElement.dataset.siteBase || '/'), 1100);
 }
 
 export async function handleFinalResponse(
@@ -80,7 +81,7 @@ export async function handleFinalResponse(
     const destination = SUCCESS_PAGE[page];
     if (!destination) throw new Error('完了画面が定義されていません。');
     setStatus(statusTarget, '保存が完了しました。');
-    location.assign(destination);
+    location.assign(new URL(destination.replace(/^\.\//, ''), new URL(document.documentElement.dataset.siteBase || '/', location.origin)).href);
     return;
   }
 

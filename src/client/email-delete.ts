@@ -6,8 +6,8 @@ type DeletePayload = {
 };
 
 const DELETE_API = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/preregister-delete';
-const EXPIRED_PAGE = './email-delete-expired.html';
-const NOT_REGISTERED_PAGE = './email-delete-not-registered.html';
+const EXPIRED_PAGE = `${document.documentElement.dataset.siteBase || '/'}email-delete/expired/`;
+const NOT_REGISTERED_PAGE = `${document.documentElement.dataset.siteBase || '/'}email-delete/not-registered/`;
 const REQUEST_TIMEOUT_MS = 12000;
 
 const button = document.querySelector<HTMLButtonElement>('[data-email-delete-button]');
@@ -86,7 +86,7 @@ if (button && status && panel && complete) {
         panel.hidden = true;
         complete.hidden = false;
         document.title = '削除完了 | Original Create Project';
-        history.replaceState(null, '', './email-delete.html');
+        history.replaceState(null, '', `${document.documentElement.dataset.siteBase || '/'}email-delete/`);
       } catch (error) {
         if (error instanceof Error && error.message === 'expired') return;
         setStatus(error instanceof DOMException && error.name === 'AbortError'

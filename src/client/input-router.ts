@@ -35,8 +35,8 @@ const PAGE_CONFIG: Record<PageKind, {
 
 function pageKindFromPath(pathname: string): PageKind {
   const file = pathname.split('/').filter(Boolean).at(-1) || '';
-  if (file === 'preregister.html') return 'preregister';
-  if (file === 'test.html') return 'test';
+  if (file === 'preregister') return 'preregister';
+  if (file === 'consent') return 'test';
   throw new Error('このページからの送信には対応していません。');
 }
 
@@ -85,7 +85,7 @@ function collectConsent(form: HTMLFormElement, kind: PageKind): ConsentInput {
 function returnHome(status: HTMLElement | null, message: string): void {
   if (status) status.textContent = message;
   clearServiceFlowToken();
-  setTimeout(() => location.replace('./index.html'), 1100);
+  setTimeout(() => location.replace(document.documentElement.dataset.siteBase || '/'), 1100);
 }
 
 async function prepareTestInput(form: HTMLFormElement, pathname: string): Promise<PreparedSubmission> {
@@ -102,7 +102,7 @@ async function prepareTestInput(form: HTMLFormElement, pathname: string): Promis
   const [email, fullName, pageSignature] = await Promise.all([
     processEmailStage1(emailValue),
     processFullNameStage1(fullNameValue),
-    createPageSignature(pathname),
+    createPageSignature('/test.html'),
   ]);
 
   const verified = await verifyOtherInputWithSupabase(Object.freeze({
@@ -135,7 +135,7 @@ export async function prepareSubmission(
   const consent = collectConsent(form, kind);
   const [email, pageSignature] = await Promise.all([
     processEmailStage1(emailValue),
-    createPageSignature(pathname),
+    createPageSignature('/preregister.html'),
   ]);
   const verified = await verifyOtherInputWithSupabase(consent, pageSignature.signature);
   if (verified !== true) throw new Error('入力内容の確認に失敗しました。');

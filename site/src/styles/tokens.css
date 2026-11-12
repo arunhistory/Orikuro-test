@@ -1,11 +1,11 @@
 /*
-  tokens.css — 色・文字・余白の正本
+  tokens.css — 色・文字の種類・共通寸法の正本
   ------------------------------------------------------------
-  サイトで使う値は、すべてここに名前をつけて置きます。
+  ページ固有の数値は、そのページの .astro に直接書きます。
   部品（components.css）とページは、ここの変数だけを使います。
   値は 2026-11-10 時点の公開サイト（about.css / navigation.css /
   footer.css / typography.css / terms.css）で「実際に効いていた値」を
-  そのまま写したものです。見た目を変えるときは、ここだけを直します。
+  そのまま写したものです。ページ固有の寸法・余白をここに作らない決まりです。
 */
 :root{
   /* ---- 文字の色 ---- */
@@ -39,8 +39,6 @@
   --color-doc-rule-strong:rgba(24,28,35,.22);
   --color-doc-rule:rgba(24,28,35,.18);
   --color-doc-rule-soft:rgba(24,28,35,.12);
-  --shadow-header:0 10px 35px rgba(33,53,84,.05);
-  --shadow-doc:0 24px 72px rgba(35,48,66,.08);
 
   /* ---- 虹色（メニューの線・背景のスペクトル） ---- */
   --rainbow-1:#ff4d5d;
@@ -58,205 +56,113 @@
   --font-sans:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;
   --font-serif:'Noto Serif JP','Yu Mincho','Hiragino Mincho ProN',serif;      /* 代表挨拶だけで使う */
   --font-document:"Yu Mincho","YuMincho","Hiragino Mincho ProN","Hiragino Mincho Pro","MS PMincho",serif; /* 規約類 */
+  --font-system-ui: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif; /* 旧アルゴリズムテストで実効していたシステムフォント */
 
-  /* ---- プライバシーポリシー固有の旧サイト実効値 ---- */
-  --doc-privacy-title-size:clamp(25px,6vw,58px);
-  --doc-privacy-title-tracking:.02em;
-  --doc-privacy-h3-margin:26px 0 10px;
-  --doc-privacy-h3-size:clamp(16px,2vw,19px);
-  --doc-privacy-h3-leading:1.6;
-  --doc-privacy-h3-weight:600;
-  --doc-privacy-link-weight:400;
-  --doc-privacy-link-underline-offset:0;
-
-  /* ---- Cookie ポリシー固有の旧サイト実効値 ---- */
-  --doc-cookie-title-size:clamp(30px,6vw,58px);
-  --doc-cookie-title-tracking:.02em;
-  --doc-cookie-link-weight:400;
-  --doc-cookie-link-underline-offset:0;
-
-  /* ---- 運営者情報固有の旧サイト実効値 ---- */
-  --doc-operator-title-size:clamp(30px,6vw,58px);
-  --doc-operator-title-tracking:.02em;
-  --doc-operator-row-columns:minmax(140px,220px) 1fr;
-  --doc-operator-row-gap:28px;
-  --doc-operator-row-padding:22px 0;
-  --doc-operator-cell-font-size:clamp(15px,1.7vw,17px);
-  --doc-operator-cell-leading:1.9;
-  --doc-operator-dt-weight:600;
-  --doc-operator-dd-weight:400;
-  --doc-operator-mobile-columns:1fr;
-  --doc-operator-mobile-gap:6px;
-  --doc-operator-mobile-padding:20px 0;
-
-  /* ---- ロードマップ固有の旧サイト実効値 ---- */
-  --roadmap-main-width:min(1180px,calc(100% - var(--pad)*2));
-  --roadmap-main-margin:0 auto;
-  --roadmap-main-padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
-  --roadmap-wrap-width:min(860px,100%);
-  --roadmap-wrap-margin:0 auto;
-  --roadmap-wrap-h1-margin:0 0 clamp(48px,6vw,72px);
-  --roadmap-wrap-h1-font-size:clamp(38px,5vw,64px);
-  --roadmap-wrap-h1-line-height:1.1;
-  --roadmap-wrap-h1-letter-spacing:-.05em;
-  --roadmap-list-margin:0;
-  --roadmap-list-padding:0;
-  --roadmap-list-border-top:1px solid rgba(54,80,113,.18);
-  --roadmap-list-li-grid-template-columns:clamp(48px,7vw,76px) 1fr;
-  --roadmap-list-li-gap:clamp(12px,2vw,24px);
-  --roadmap-list-li-min-height:clamp(82px,10vw,112px);
-  --roadmap-list-li-padding:18px 0;
-  --roadmap-list-li-border-bottom:1px solid rgba(54,80,113,.18);
-  --roadmap-number-color:#748195;
-  --roadmap-number-font-size:12px;
-  --roadmap-number-font-weight:850;
-  --roadmap-number-letter-spacing:.12em;
-  --roadmap-title-color:#10182a;
-  --roadmap-title-font-size:clamp(24px,3.2vw,38px);
-  --roadmap-title-font-weight:900;
-  --roadmap-title-line-height:1.2;
-  --roadmap-title-letter-spacing:-.04em;
-  --roadmap-current-margin-top:clamp(84px,11vw,132px);
-  --roadmap-current-padding:clamp(28px,4vw,42px);
-  --roadmap-current-border:1px solid rgba(54,80,113,.18);
-  --roadmap-current-border-radius:14px;
-  --roadmap-current-background:rgba(255,255,255,.70);
-  --roadmap-current-box-shadow:0 18px 56px rgba(44,67,99,.07);
-  --roadmap-current-backdrop-filter:blur(18px);
-  --roadmap-current-label-margin:0 0 18px;
-  --roadmap-current-label-color:#617084;
-  --roadmap-current-label-font-size:12px;
-  --roadmap-current-label-font-weight:850;
-  --roadmap-current-label-letter-spacing:.10em;
-  --roadmap-current-text-margin:0;
-  --roadmap-current-text-color:#10182a;
-  --roadmap-current-text-font-size:clamp(20px,2.6vw,30px);
-  --roadmap-current-text-font-weight:850;
-  --roadmap-current-text-line-height:1.55;
-  --roadmap-current-text-letter-spacing:-.03em;
-  --roadmap-current-date-margin-top:22px;
-  --roadmap-current-date-color:#748195;
-  --roadmap-current-date-font-size:12px;
-  --roadmap-current-date-font-weight:700;
-  --roadmap-current-date-letter-spacing:.04em;
-  --roadmap-main-padding-top:56px;
-  --roadmap-wrap-h1-margin-bottom:44px;
-  --roadmap-list-li-grid-template-columns-1:46px 1fr;
-  --roadmap-list-li-min-height-2:78px;
-  --roadmap-current-margin-top-3:72px;
-  --roadmap-current-padding-4:24px 20px;
-
-  /* ---- FAQ 固有の旧サイト実効値 ---- */
-  --faq-main-width:min(1180px,calc(100% - var(--pad)*2));
-  --faq-main-margin:0 auto;
-  --faq-main-padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
-  --faq-wrap-width:min(860px,100%);
-  --faq-wrap-margin:0 auto;
-  --faq-wrap-h1-margin:0 0 clamp(48px,6vw,72px);
-  --faq-wrap-h1-font-size:clamp(38px,5vw,64px);
-  --faq-wrap-h1-line-height:1.1;
-  --faq-wrap-h1-letter-spacing:-.05em;
-  --faq-list-border-top:1px solid rgba(54,80,113,.18);
-  --faq-item-border-bottom:1px solid rgba(54,80,113,.18);
-  --faq-item-summary-min-height:clamp(74px,9vw,96px);
-  --faq-item-summary-padding:22px 58px 22px 0;
-  --faq-item-summary-color:#10182a;
-  --faq-item-summary-font-size:clamp(17px,2vw,22px);
-  --faq-item-summary-font-weight:850;
-  --faq-item-summary-line-height:1.55;
-  --faq-item-summary-letter-spacing:-.025em;
-  --faq-item-summary-before-right:8px;
-  --faq-item-summary-before-top:50%;
-  --faq-item-summary-before-width:20px;
-  --faq-item-summary-before-height:2px;
-  --faq-item-summary-before-border-radius:2px;
-  --faq-item-summary-before-background:#65758a;
-  --faq-item-summary-before-transform:translateY(-50%);
-  --faq-item-summary-before-transition:transform .22s ease,opacity .22s ease;
-  --faq-item-summary-after-transform:translateY(-50%) rotate(90deg);
-  --faq-item-open-summary-after-transform:translateY(-50%) rotate(0deg);
-  --faq-item-open-summary-after-opacity:0;
-  --faq-item-summary-focus-visible-outline:2px solid rgba(52,101,164,.65);
-  --faq-item-summary-focus-visible-outline-offset:6px;
-  --faq-item-summary-focus-visible-border-radius:4px;
-  --faq-answer-padding:0 58px 28px 0;
-  --faq-answer-color:#536176;
-  --faq-answer-font-size:clamp(15px,1.65vw,18px);
-  --faq-answer-font-weight:600;
-  --faq-answer-line-height:1.9;
-  --faq-answer-letter-spacing:-.01em;
-  --faq-answer-p-margin:0;
-  --faq-answer-p-p-margin-top:10px;
-  --faq-answer-a-color:#213f68;
-  --faq-answer-a-font-weight:800;
-  --faq-answer-a-text-decoration-thickness:1px;
-  --faq-answer-a-text-underline-offset:4px;
-  --faq-item-summary-hover-color:#345f97;
-  --faq-answer-a-hover-opacity:.72;
-  --faq-main-padding-top:56px;
-  --faq-item-summary-min-height-1:72px;
-  --faq-item-summary-padding-2:20px 44px 20px 0;
-  --faq-item-summary-before-right-3:4px;
-  --faq-item-summary-before-width-4:18px;
-  --faq-answer-padding-5:0 42px 24px 0;
-
-  /* ---- クラウドファンディング固有の旧サイト実効値 ---- */
-  --crowdfunding-main-width:min(1180px,calc(100% - var(--pad)*2));
-  --crowdfunding-main-margin:0 auto;
-  --crowdfunding-main-padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
-  --crowdfunding-wrap-width:min(760px,100%);
-  --crowdfunding-wrap-margin:0 auto;
-  --crowdfunding-wrap-h1-margin:0 0 clamp(48px,6vw,72px);
-  --crowdfunding-wrap-h1-font-size:clamp(38px,5vw,64px);
-  --crowdfunding-wrap-h1-line-height:1.1;
-  --crowdfunding-wrap-h1-letter-spacing:-.05em;
-  --crowdfunding-summary-grid-template-columns:repeat(2,minmax(0,1fr));
-  --crowdfunding-summary-gap:18px;
-  --crowdfunding-summary-margin-bottom:clamp(56px,8vw,88px);
-  --crowdfunding-stat-min-height:190px;
-  --crowdfunding-stat-padding:26px;
-  --crowdfunding-stat-border:1px solid rgba(54,80,113,.16);
-  --crowdfunding-stat-border-radius:14px;
-  --crowdfunding-stat-background:rgba(255,255,255,.72);
-  --crowdfunding-stat-backdrop-filter:blur(16px);
-  --crowdfunding-label-margin:0 0 26px;
-  --crowdfunding-label-color:#617084;
-  --crowdfunding-label-font-size:12px;
-  --crowdfunding-label-font-weight:800;
-  --crowdfunding-label-letter-spacing:.08em;
-  --crowdfunding-value-margin:0;
-  --crowdfunding-value-font-size:clamp(28px,4vw,44px);
-  --crowdfunding-value-font-weight:900;
-  --crowdfunding-value-line-height:1.15;
-  --crowdfunding-value-letter-spacing:-.045em;
-  --crowdfunding-sub-margin:12px 0 0;
-  --crowdfunding-sub-color:#617084;
-  --crowdfunding-sub-font-size:15px;
-  --crowdfunding-sub-font-weight:700;
-  --crowdfunding-notice-margin-bottom:clamp(44px,7vw,70px);
-  --crowdfunding-notice-padding-top:36px;
-  --crowdfunding-notice-border-top:1px solid rgba(54,80,113,.16);
-  --crowdfunding-notice-h2-margin:0 0 28px;
-  --crowdfunding-notice-h2-font-size:clamp(24px,3vw,34px);
-  --crowdfunding-notice-h2-line-height:1.2;
-  --crowdfunding-notice-h2-letter-spacing:-.04em;
-  --crowdfunding-notice-p-margin:0 0 16px;
-  --crowdfunding-notice-p-font-size:clamp(15px,1.55vw,18px);
-  --crowdfunding-notice-p-line-height:1.9;
-  --crowdfunding-notice-p-last-child-margin-bottom:0;
-  --crowdfunding-button-width:100%;
-  --crowdfunding-button-min-height:62px;
-  --crowdfunding-button-padding:18px 22px;
-  --crowdfunding-button-border-radius:12px;
-  --crowdfunding-button-background:#10182a;
-  --crowdfunding-button-color:#fff;
-  --crowdfunding-button-font-size:16px;
-  --crowdfunding-button-font-weight:850;
-  --crowdfunding-button-is-pending-opacity:.72;
-  --crowdfunding-main-padding-top:56px;
-  --crowdfunding-wrap-h1-margin-bottom:42px;
-  --crowdfunding-summary-grid-template-columns-1:1fr;
-  --crowdfunding-stat-min-height-2:0;
+  /* ---- 移行ページで使う色（1つの値につき1つの役割名） ---- */
+  --color-header-shadow:rgba(33,53,84,.05);
+  --color-document-shadow:rgba(35,48,66,.08);
+  --color-section-divider:rgba(54,80,113,.18);
+  --color-roadmap-meta:#748195;
+  --color-roadmap-current-background:rgba(255,255,255,.70);
+  --color-roadmap-shadow:rgba(44,67,99,.07);
+  --color-faq-toggle:#65758a;
+  --color-faq-focus-outline:rgba(52,101,164,.65);
+  --color-faq-answer:#536176;
+  --color-faq-answer-link:#213f68;
+  --color-faq-question-hover:#345f97;
+  --color-card-border:rgba(54,80,113,.16);
+  --color-card-frosted:rgba(255,255,255,.72);
+  --color-white:#fff;
+  --color-form-ink:#101723;
+  --color-consent-muted:#677487;
+  --color-consent-form-border:#d7dee8;
+  --color-form-background:#f5f7fa;
+  --color-consent-accent:#172033;
+  --color-consent-kicker:#7a8697;
+  --color-consent-card-shadow:rgba(29,43,67,.08);
+  --color-form-field-border:#cfd7e2;
+  --color-consent-input-focus-border:#6e7d93;
+  --color-consent-input-focus-ring:rgba(80,101,132,.12);
+  --color-consent-policy-link:#153e84;
+  --color-consent-status-text:#4c5a6d;
+  --color-consent-timeout-border:#c8d0db;
+  --color-consent-timeout-text:#667386;
+  --color-algorithm-muted:#6c7889;
+  --color-algorithm-card-border:#d8dee7;
+  --color-algorithm-card-shadow:rgba(33,48,72,.08);
+  --color-algorithm-kicker:#7a8798;
+  --color-algorithm-home-border:#cbd3de;
+  --color-preregister-card-gradient-light:rgba(255,255,255,.94);
+  --color-preregister-card-gradient-tint:rgba(244,247,251,.86);
+  --color-preregister-card-shadow:rgba(16,24,42,.08);
+  --color-discord-primary:#5865f2;
+  --color-discord-mark-shadow:rgba(88,101,242,.22);
+  --color-preregister-step-rule:rgba(54,80,113,.14);
+  --color-discord-button-shadow:rgba(88,101,242,.24);
+  --color-discord-button-hover-shadow:rgba(88,101,242,.28);
+  --color-discord-note:rgba(88,101,242,.055);
+  --color-preregister-footnote-text:#526175;
+  --color-preregister-field-border:rgba(54,80,113,.22);
+  --color-preregister-field-focus-border:rgba(16,24,42,.62);
+  --color-preregister-field-focus-ring:rgba(16,24,42,.06);
+  --color-contact-ink:#101522;
+  --color-contact-kicker:#728096;
+  --color-contact-lead:#556173;
+  --color-contact-chat-border:#d9e0ea;
+  --color-contact-chat-shadow:rgba(30,42,62,.08);
+  --color-contact-chat-body:#566174;
+  --color-support-ink:#111827;
+  --color-contact-error:#c0392b;
+  --color-contact-notice-border:#e0e6ef;
+  --color-contact-notice-background:rgba(255,255,255,.65);
+  --color-contact-notice-body:#5f6978;
+  --color-contact-resume-divider:#e4e9ef;
+  --color-contact-resume-label:#3d4858;
+  --color-contact-resume-input-border:#cdd6e2;
+  --color-contact-resume-focus-border:#7d8ba0;
+  --color-discord-focus:rgba(88,101,242,.08);
+  --color-contact-resume-button-background:#e9edf3;
+  --color-contact-resume-button-text:#1a2230;
+  --color-contact-resume-help-text:#7a8595;
+  --color-contact-x-border:#dbe1e9;
+  --color-soft-black:#111;
+  --color-contact-x-subtitle:#6b7482;
+  --color-chat-background:#eef3f8;
+  --color-chat-header-label:#6e7b8e;
+  --color-chat-shell-border:#dce3ec;
+  --color-chat-shell-shadow:rgba(20,34,56,.08);
+  --color-chat-titlebar-divider:#edf0f4;
+  --color-chat-eyebrow-text:#7c8798;
+  --color-chat-ticket-background:#f1f4f8;
+  --color-chat-ticket-text:#576476;
+  --color-chat-ticket-notice-background:#fff8e7;
+  --color-chat-ticket-notice-border:#f0e2bb;
+  --color-chat-ticket-notice-text:#655321;
+  --color-chat-ticket-help-text:#75673f;
+  --color-chat-security-surface:#f8fafc;
+  --color-chat-security-text:#657184;
+  --color-chat-log-background:#f6f8fb;
+  --color-chat-loading-text:#7b8798;
+  --color-chat-operator-border:#dce2ea;
+  --color-chat-operator-text:#18202c;
+  --color-chat-system-background:#edf2f7;
+  --color-chat-system-text:#596575;
+  --color-chat-discord-background:#fff3d8;
+  --color-chat-discord-text:#6f5821;
+  --color-chat-discord-border:#f0dba7;
+  --color-chat-resolution-background:#fffaf0;
+  --color-chat-resolution-confirm-background:#18884a;
+  --color-chat-resolution-reject-border:#d6dde6;
+  --color-chat-resolution-reject-text:#222;
+  --color-chat-compose-divider:#e5eaf0;
+  --color-chat-compose-focus-border:#7f8da2;
+  --color-chat-compose-focus-ring:rgba(95,110,132,.1);
+  --color-chat-character-count:#7b8796;
+  --color-chat-status-text:#bf3d31;
+  --color-chat-closed-description:#687487;
+  --color-email-delete-notice-border:rgba(54,80,113,.17);
+  --color-email-delete-rule:rgba(54,80,113,.12);
+  --color-email-delete-danger:#b42318;
 
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */

@@ -1,8 +1,9 @@
 import { clearServiceFlowToken, consumeServiceFlow, isFlowTimeout } from './service-flow.js';
 
 function currentRelativePath(): string {
-  const file = location.pathname.split('/').filter(Boolean).at(-1) || '';
-  return `./${file}`;
+  const base = document.documentElement.dataset.siteBase || '/';
+  if (!location.pathname.startsWith(base)) throw new Error('サービスの場所を確認できません。');
+  return location.pathname.slice(base.length);
 }
 
 function statusTarget(): HTMLElement | null {
@@ -19,7 +20,7 @@ function returnHome(message: string): void {
   const content = contentTarget();
   if (content) content.hidden = true;
   clearServiceFlowToken();
-  setTimeout(() => location.replace('./index.html'), 1100);
+  setTimeout(() => location.replace(document.documentElement.dataset.siteBase || '/'), 1100);
 }
 
 async function authorize(): Promise<void> {

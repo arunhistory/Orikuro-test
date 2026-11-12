@@ -6,8 +6,8 @@ type InspectPayload = {
 };
 
 const DELETE_API = 'https://mpuhgfbdkxmhynytwhzu.supabase.co/functions/v1/preregister-delete';
-const EXPIRED_PAGE = './email-delete-expired.html';
-const DELETE_PAGE = './email-delete.html';
+const EXPIRED_PAGE = `${document.documentElement.dataset.siteBase || '/'}email-delete/expired/`;
+const DELETE_PAGE = `${document.documentElement.dataset.siteBase || '/'}email-delete/`;
 const REQUEST_TIMEOUT_MS = 12000;
 
 const panel = document.querySelector<HTMLElement>('[data-not-registered-panel]');
