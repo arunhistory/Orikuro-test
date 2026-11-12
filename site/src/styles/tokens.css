@@ -172,6 +172,9 @@
 
   --color-representative-empty:rgba(255,255,255,.48);
 
+  --color-toast-background:rgba(12,12,15,.92);
+  --color-toast-border:rgba(255,255,255,.16);
+
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */
   --header:74px;                  /* ヘッダーの高さ（スマホは下で 66px） */
