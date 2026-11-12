@@ -31,7 +31,7 @@ const { title, description } = Astro.props;
   <meta name="theme-color" content="#f4f7fb" />
   <meta name="description" content={description} />
   {side === 'staging' && <meta name="robots" content="noindex,nofollow" />}
-  <title>{title} | Original Create Project</title>
+  <title>{title === "Original Create Project" ? title : `${title} | Original Create Project`}</title>
   <slot name="head" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
