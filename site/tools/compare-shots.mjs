@@ -47,7 +47,8 @@ const exists = async (p) => { try { await stat(p); return true; } catch { return
 // 比べる組を決める
 const pairs = [];
 const skipped = [];
-for (const r of redirects) {
+// トップは移動ページを作らない（新しいトップがそのまま index.html になる）ので、ここで比べる組に足す
+for (const r of [{ from: 'index.html', to: '/' }, ...redirects]) {
   const newFile = join(pagesRoot, r.to.split('#')[0], 'index.html');
   if (!(await exists(newFile))) continue; // まだ移していない
   if (!(await exists(join(repoRoot, r.from)))) continue; // 古いファイルが既に無い
