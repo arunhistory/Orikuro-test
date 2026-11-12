@@ -11,7 +11,7 @@
   side … 'both'（省略時）か 'staging'（テスト側だけ）
   compare … false にすると npm run compare で比べない（2ページをまとめて形が変わるページ用）
 */
-/** @type {{ from: string, to: string, side?: 'both' | 'staging', compare?: boolean, compare?: boolean }[]} */
+/** @type {{ from: string, to: string, side?: 'both' | 'staging', compare?: boolean }[]} */
 export const redirects = [
   { from: 'about.html', to: '/about/', compare: false },
   { from: 'greeting.html', to: '/about/#greeting' },
@@ -33,7 +33,6 @@ export const redirects = [
   { from: 'privacy.html', to: '/legal/privacy/' },
   { from: 'cookie.html', to: '/legal/cookie/' },
   { from: 'operator.html', to: '/legal/operator/' },
-  // 仮：/live/（体験版の画面）ができるまではトップへ移す。できたら to を '/live/' に変える。
-  { from: 'stream-test.html', to: '/' },
-  { from: 'watch-test.html', to: '/' },
+  { from: 'stream-test.html', to: '/stream-test/' },
+  { from: 'watch-test.html', to: '/watch-test/' },
 ];
