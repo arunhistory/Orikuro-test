@@ -702,7 +702,7 @@ import announcements from '../data/announcements.json';
   letter-spacing:.08em;
   line-height:1.4;
 }@media(max-width:820px){
-  .footer-links{
+  :global(body:has(.home-page) .footer-links){
     justify-content:flex-start;
     margin-top:20px;
     padding-top:18px;
