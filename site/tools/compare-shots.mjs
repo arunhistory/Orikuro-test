@@ -92,8 +92,15 @@ async function countDiff(a, b, diffPath) {
 async function shoot(url, width, height, name) {
   const ctx = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
   // 本番のサーバー（Supabase・Cloudflare など）へは送らない。手元とフォントだけ通す。
+  let firstNavigation = true;
   await ctx.route('**/*', (route) => {
-    const host = new URL(route.request().url()).hostname;
+    const req = route.request();
+    // 開いたあとの自動の移動（利用の流れが無いときにトップへ戻る など）は止めて、開いたページのまま撮る
+    if (req.isNavigationRequest() && req.frame() === req.frame().page().mainFrame()) {
+      if (firstNavigation) { firstNavigation = false; return route.continue(); }
+      return route.fulfill({ status: 204 });
+    }
+    const host = new URL(req.url()).hostname;
     if (host === 'localhost' || host.endsWith('fonts.googleapis.com') || host.endsWith('fonts.gstatic.com')) return route.continue();
     return route.abort();
   });
