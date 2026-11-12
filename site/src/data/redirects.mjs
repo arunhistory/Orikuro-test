@@ -9,8 +9,9 @@
   from … 古いファイル名（一番上の階層からの名前）
   to   … 新しい path（navigation.ts と同じ書き方）
   side … 'both'（省略時）か 'staging'（テスト側だけ）
+  compare … false にすると npm run compare で比べない（2ページをまとめて形が変わるページ用）
 */
-/** @type {{ from: string, to: string, side?: 'both' | 'staging' }[]} */
+/** @type {{ from: string, to: string, side?: 'both' | 'staging', compare?: boolean }[]} */
 export const redirects = [
   { from: 'about.html', to: '/about/' },
   { from: 'greeting.html', to: '/about/#greeting' },

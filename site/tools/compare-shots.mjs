@@ -8,7 +8,7 @@
 //   ・PC幅 1440px とスマホ幅 390px で、ページ全体とメニューを開いた画面を撮って比べる
 //   ・撮った画像は dist/compare/ に置く（old-*.png と new-*.png、違いがあれば diff-*.png）
 //
-// まとめたページ（新しいURLに # がつくもの。about＋代表挨拶 など）は形が変わるので比べない。
+// まとめたページ（新しいURLに # がつくもの、または redirects.mjs で compare: false のもの）は形が変わるので比べない。
 // 本番のサーバーへは一切送らない（手元とフォント以外の通信は止める）。自動でトップへ戻る動きも止めて撮る。
 // そのため、利用の流れやDiscord認証が無いと中身が出ないページ（チャットなど）は、出る前の画面で比べる。
 // 一覧に「目で確認」と出るので、画像を見て確かめる。
@@ -51,7 +51,7 @@ for (const r of redirects) {
   const newFile = join(pagesRoot, r.to.split('#')[0], 'index.html');
   if (!(await exists(newFile))) continue; // まだ移していない
   if (!(await exists(join(repoRoot, r.from)))) continue; // 古いファイルが既に無い
-  if (r.to.includes('#')) { skipped.push(r); continue; }
+  if (r.to.includes('#') || r.compare === false) { skipped.push(r); continue; }
   pairs.push(r);
 }
 if (pairs.length === 0 && skipped.length === 0) {
