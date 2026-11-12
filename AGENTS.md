@@ -272,3 +272,62 @@ npm やブラウザが使えず、`build:pages`・`check`・`compare` を自分�
 | `npm run compare` で数画素だけ違う | 0にする。0にできない理由が分かったら、報告に書く |
 | 作業を main にマージしたい / 公開したい | しない。ユーザーの指示を待つ |
 | このファイルと README.md が食い違う | このファイルに従い、食い違いを報告する |
+
+---
+
+## 10. 残りのページの設計（2026-11-12 確定）
+
+ユーザーが決めたことと、Claude が古いページを読んで決めた作り方です。ここに書いてあるとおりに作ります。
+
+### 10-1. 事業説明（/business/）
+
+- 文章は **事業説明（business.html）の文をそのまま使う**（ユーザー決定。サービス一覧だけにある文は使わない）。
+- 見た目も business.html と同じ。`id="services"` は business.html と同じ場所（サービスの一覧）に置く。
+- services.html は `/business/#services` へ移す（redirects.mjs は設定済み）。
+- `npm run compare` で business.html と画素単位で同じになること。
+
+### 10-2. Original Createとは＋代表挨拶（/about/）
+
+- 上に about.html の本文、その下に greeting.html の本文を `<section id="greeting">` として続ける。文章は両方とも1文字も変えない。
+- 上半分は about.html と同じ見た目、`#greeting` の部分は greeting.html の `<main>` と同じ見た目にする。代表挨拶の部分だけ `--font-serif` を使う。
+- 代表の写真（`assets/representative-message.jpg`）は今も存在せず、古いページでは読み込みに失敗して `is-empty` の見た目になっている。新しいページでは **最初から `is-empty` の見た目で出し、画像は読み込まない**。写真が用意できたら `public/images/` に置いて `<img>` を足す（報告に書く）。
+- redirects.mjs の about.html の行に `compare: false` をつける（形が変わるので画素では比べない）。Claude が目で確かめる。
+
+### 10-3. 「試す」の3つ（配信テスト・視聴テスト・アルゴリズムテスト）
+
+公開中のトップでは、この3つは **利用の流れの入口** として動いています（押す → サーバーから利用の札をもらう → 利用前の確認 → 各テスト画面）。ほかのページではダミーでした。新しい構成では **全ページのメニューとトップのカードで、入口として動く** ようにします（ユーザー決定）。
+
+- `navigation.ts` の `NavLink` に `serviceEntry?: 'stream' | 'watch' | 'algorithm'` を足す。3つとも `path: '/consent/'`・`serviceEntry` を持たせ、`placeholder` は外す。
+- MobileMenu は `serviceEntry` がある項目を `<a href={href('/consent/')} data-service-entry="…">` で出す。
+- 押したときの動きは `src/scripts/service-entry.ts` に1つだけ書き、BaseLayout で全ページに読み込む。中身は古い main.js の105〜127行と同じ：
+  1. 既定の移動を止める。押している最中なら何もしない。
+  2. `href('/assets/js/service-flow.js')` を読み込み、`startServiceFlow(entry)` を呼ぶ。
+  3. 成功したら `href('/consent/')` へ移る。
+  4. 失敗したらトースト（下）に文を出し、1.6秒で消す。
+- トーストは `src/components/Toast.astro` にして BaseLayout に置く。見た目はトップの `.toast` の「最後に効いていた値」を写す。ふだんは見えない。
+- JavaScript が動かないときは `/consent/` へ移るだけ（札が無いのでトップへ戻る）。これは今と同じ。
+
+### 10-4. 配信テスト・視聴テスト（/stream-test/・/watch-test/）
+
+- main ブランチの stream-test.html・watch-test.html（入口の確認だけの小さなページ）を、algorithm-test と同じ作りで移す。
+- redirects.mjs の stream-test.html・watch-test.html の移動先を `/stream-test/`・`/watch-test/` に変える（今は仮にトップ）。
+- staging ブランチにある本物の配信・視聴テストの画面は、この作業では移さない（テスト側を上書きする前に、別の作業として行う）。
+- 表 B（サーバー側）の `oc_service_routes` の新しい値は `stream-test/`・`watch-test/`・`algorithm-test/`。
+
+### 10-5. トップ（/）
+
+古いトップは CSS 10枚（`override.css` の `!important` を含む）と、HTML を後から書き換える main.js でできています。次のとおりに分けます。
+
+| 古いもの | 新しい場所 |
+| --- | --- |
+| main.js がメニューを丸ごと書き換える（6〜36行） | 消す。メニューは共通の MobileMenu |
+| main.js がリンク先を書き換える（38〜103行） | 消す。カードとフッターのリンクは最初から `href()` で書く。「試す」の3枚のカードは 10-3 と同じ入口（`data-service-entry`） |
+| main.js が文字を書き換える（128〜134行：「自由をカタチに未来をつくる」「乞うご期待」） | 消す。**書き換えた後の文字** を HTML に直接書く |
+| main.js が2027年の場面を作る（136〜151行） | 消す。その HTML を `.astro` に直接書く |
+| スクロール位置を一番上に戻す・ヘッダーの影・表示の演出・情報の嵐・2027年の演出（153〜301行） | `src/scripts/home.ts` に移す。**時間・順番・数値は1つも変えない** |
+| 仮置きリンクを押すとトーストを0.9秒出す（303〜308行） | `home.ts` に移す（トップだけの動き） |
+| x-feed.js | `src/scripts/x-feed.ts` に移す。読み込む先は `href('/data/x-posts.json')`。x-posts.json は `site/public/data/` に置く（更新はこのファイルを書き換える） |
+| CSS 10枚 | 「最後に効いていた値」を、トップの `.astro` の `<style>` に写す。共通部品と同じものは共通部品を使う |
+
+- カードは `src/data/home-routes.ts` に「見出し・説明・行き先（path か serviceEntry）・左右」を並べ、そこから作る。
+- 見た目は、`npm run compare`（動きを止めた状態）で index.html と画素単位で同じになること。動きの確認は Claude が行う。
