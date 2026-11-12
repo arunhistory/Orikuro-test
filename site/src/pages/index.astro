@@ -1626,4 +1626,7 @@ main{background:linear-gradient(180deg,var(--color-home-link-zone-head-backgroun
 /* 旧トップでは下線はスクロール後のみ表示。共通Headerの常時1px線を抑える。 */
 :global(body:has(.home-page) .page-header){border-bottom-style:none}
 :global(body:has(.home-page) .page-header.is-scrolled){border-bottom-style:solid}
+/* 旧トップのToastは色指定を持たず、spectrum.css の本文文字色を継承する。
+   共通Toastの明示色はトップだけ旧実効色に戻す。 */
+:global(body:has(.home-page) [data-toast]){color:var(--color-ink)}
 </style>
