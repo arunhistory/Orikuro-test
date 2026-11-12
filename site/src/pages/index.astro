@@ -886,7 +886,7 @@ import announcements from '../data/announcements.json';
   padding:0;
   background:var(--color-home-x-timeline-slot-background);
   scrollbar-width:thin;
-}.x-feed-state{
+}:global(.home-page .x-feed-state){
   min-height:420px;
   display:flex;
   flex-direction:column;
@@ -895,37 +895,37 @@ import announcements from '../data/announcements.json';
   gap:9px;
   padding:28px;
   color:var(--color-home-updates-label-color);
-}.x-feed-state-title{
+}:global(.home-page .x-feed-state-title){
   margin:0;
   color:var(--color-ink);
   font-size:18px;
   font-weight:850;
   line-height:1.4;
   letter-spacing:-.02em;
-}.x-feed-state-text{
+}:global(.home-page .x-feed-state-text){
   margin:0;
   color:var(--color-home-x-feed-state-text-color);
   font-size:11px;
   font-weight:650;
   line-height:1.7;
-}.x-embed-list{
+}:global(.home-page .x-embed-list){
   display:flex;
   flex-direction:column;
   align-items:stretch;
   gap:0;
-}.x-embed-item{
+}:global(.home-page .x-embed-item){
   min-width:0;
   padding:18px clamp(14px,2vw,20px);
   border-bottom:1px solid var(--color-home-updates-stream-head-border-bottom);
-}.x-embed-item:last-child{border-bottom:0}.x-embed-item .twitter-tweet{
+}:global(.home-page .x-embed-item:last-child){border-bottom:0}:global(.home-page .x-embed-item .twitter-tweet){
   margin:0 auto;
   width:100%;
   max-width:550px;
-}.x-embed-item>iframe,.x-embed-item .twitter-tweet-rendered{
+}:global(.home-page .x-embed-item>iframe),:global(.home-page :global(.home-page .x-embed-item .twitter-tweet)-rendered){
   margin-left:auto;
   margin-right:auto;
 }@media(max-width:620px){
-  .x-timeline-slot{min-height:390px;max-height:500px}.x-feed-state{min-height:390px;padding:24px 20px}.x-embed-item{padding:14px 10px}
+  .x-timeline-slot{min-height:390px;max-height:500px}:global(.home-page .x-feed-state){min-height:390px;padding:24px 20px}:global(.home-page .x-embed-item){padding:14px 10px}
 }:global(body:has(.home-page)){
   
   
@@ -1543,8 +1543,8 @@ main{background:linear-gradient(180deg,var(--color-home-link-zone-head-backgroun
 .x-profile-link{color:var(--color-footer-links-base);}
 @media(max-width:620px){.mobile-menu{padding-top:18px;}}
 @media(max-width:620px){.mobile-menu .menu-group a{font-size:19px;padding-top:10px;padding-bottom:10px;}}
-.x-embed-item .twitter-tweet{margin:0 auto;width:100%;max-width:550px;}
-.x-embed-item>iframe,.x-embed-item .twitter-tweet-rendered{margin-left:auto;margin-right:auto;}
+:global(.home-page .x-embed-item .twitter-tweet){margin:0 auto;width:100%;max-width:550px;}
+:global(.home-page .x-embed-item>iframe),:global(.home-page :global(.home-page .x-embed-item .twitter-tweet)-rendered){margin-left:auto;margin-right:auto;}
 :global(html:has(.home-page)),:global(body:has(.home-page)),button,input,textarea,select{font-family:var(--font-sans);}
 .hero-title,.pressure-question h2,.pressure-close h3,.launch-year-lock,.launch-start{font-family:var(--font-sans);font-weight:900;}
 .link-zone-title,.route-card h3,.about-wrap>h1,.business-wrap>h1{font-family:var(--font-sans);font-weight:700;letter-spacing:-.045em;}
@@ -1599,4 +1599,27 @@ main{background:linear-gradient(180deg,var(--color-home-link-zone-head-backgroun
 @media(prefers-reduced-motion:reduce){:global(body:has(.home-page)) .pressure-close::before{animation:none;opacity:.08;}}
 @media(prefers-reduced-motion:reduce){:global(body:has(.home-page)) .pressure-close .reveal,:global(body:has(.home-page)) .pressure-close .reveal.is-visible{opacity:1;transform:none;filter:none;clip-path:none;transition:none;}}
 
+
+/* Claude差分1：旧 navigation.css の最終的な全画面メニューを共通部品に適用 */
+:global(body:has(.home-page) .mobile-menu){
+  position:fixed;
+  inset:var(--header) 0 0 0;
+  z-index:45;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+:global(body:has(.home-page) .mobile-menu.is-open){display:block}
+
+/* Claude差分2：旧 spectrum.css の優先された色付きグラデーションを各カードへ適用。
+   旧 style.css の nth-child 背景より詳細度が低くならない指定とする。 */
+.route-card:nth-child(1)::before,
+.route-card:nth-child(2)::before,
+.route-card:nth-child(3)::before,
+.route-card:nth-child(4)::before,
+.route-card:nth-child(5)::before,
+.route-card:nth-child(6)::before,
+.route-card:nth-child(7)::before{
+  opacity:.38;
+  background:linear-gradient(90deg,var(--accent),transparent 38%);
+}
 </style>
