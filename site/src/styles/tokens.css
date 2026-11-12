@@ -161,8 +161,16 @@
   --color-chat-status-text:#bf3d31;
   --color-chat-closed-description:#687487;
   --color-email-delete-notice-border:rgba(54,80,113,.17);
-  --color-email-delete-rule:rgba(54,80,113,.12);
+  --color-neutral-rule:rgba(54,80,113,.12);
   --color-email-delete-danger:#b42318;
+
+  --color-representative-border:rgba(76,111,151,.14);
+
+  --color-representative-background:rgba(255,255,255,.58);
+
+  --color-representative-shadow:rgba(40,64,94,.06);
+
+  --color-representative-empty:rgba(255,255,255,.48);
 
   /* ---- 寸法 ---- */
   --pad:clamp(18px,4vw,64px);     /* 画面の左右の余白 */

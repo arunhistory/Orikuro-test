@@ -11,9 +11,9 @@
   side … 'both'（省略時）か 'staging'（テスト側だけ）
   compare … false にすると npm run compare で比べない（2ページをまとめて形が変わるページ用）
 */
-/** @type {{ from: string, to: string, side?: 'both' | 'staging', compare?: boolean }[]} */
+/** @type {{ from: string, to: string, side?: 'both' | 'staging', compare?: boolean, compare?: boolean }[]} */
 export const redirects = [
-  { from: 'about.html', to: '/about/' },
+  { from: 'about.html', to: '/about/', compare: false },
   { from: 'greeting.html', to: '/about/#greeting' },
   { from: 'business.html', to: '/business/' },
   { from: 'services.html', to: '/business/#services' },
