@@ -1,5 +1,8 @@
 import { clearServiceFlowToken } from './service-flow.js';
+import { clearStreamRealtimeGrant, storeStreamRealtimeGrant } from './realtime-grant.js';
+import { clearWatchRealtimeGrant, storeWatchRealtimeGrant } from './watch-grant.js';
 import { identifyPageSignature } from '../../assets/wasm/page-signature.js';
+import { siteBase, siteUrl, urlForLegacyPath } from './site-paths.js';
 
 type PageKind = 'preregister' | 'contact' | 'test';
 
@@ -35,22 +38,12 @@ function setStatus(target: HTMLElement | null | undefined, message: string): voi
   if (target) target.textContent = message;
 }
 
-function safeServiceDestination(value: unknown): string {
-  if (typeof value !== 'string' || !/^(?:\.\/)?[A-Za-z0-9._/-]+$/.test(value) || value.includes('..')) {
-    throw new Error('サービスの移動先を確認できません。');
-  }
-  const base = new URL(document.documentElement.dataset.siteBase || '/', location.origin);
-  const target = new URL(value.replace(/^\.\//, ''), base);
-  if (target.origin !== location.origin || !target.pathname.startsWith(base.pathname) || target.search || target.hash) {
-    throw new Error('サービスの移動先を確認できません。');
-  }
-  return target.href;
-}
-
 function timeoutToHome(statusTarget?: HTMLElement | null): void {
   setStatus(statusTarget, 'タイムアウトしました。');
+  clearStreamRealtimeGrant();
+  clearWatchRealtimeGrant();
   clearServiceFlowToken();
-  setTimeout(() => location.replace(document.documentElement.dataset.siteBase || '/'), 1100);
+  setTimeout(() => location.replace(siteBase()), 1100);
 }
 
 export async function handleFinalResponse(
@@ -73,18 +66,42 @@ export async function handleFinalResponse(
 
   if (status === 'saved') {
     if (page === 'test') {
-      const destination = safeServiceDestination(payload.destination);
+      // サーバーは行き先を古いファイル名で返す。照合は古い名前で行い、移動は新しいURLへ（site-paths.ts）
+      const destination = payload.destination;
+      const destinationUrl = urlForLegacyPath(destination);
+      try {
+        if (destination === './stream-test.html') {
+          clearWatchRealtimeGrant();
+          storeStreamRealtimeGrant(payload.realtimeGrant);
+          clearServiceFlowToken();
+        } else if (destination === './watch-test.html') {
+          clearStreamRealtimeGrant();
+          storeWatchRealtimeGrant(payload.watchGrant);
+          clearServiceFlowToken();
+        } else {
+          clearStreamRealtimeGrant();
+          clearWatchRealtimeGrant();
+        }
+      } catch {
+        clearStreamRealtimeGrant();
+        clearWatchRealtimeGrant();
+        throw new Error('サービス接続情報を確認できません。');
+      }
       setStatus(statusTarget, '同意を確認しました。移動します。');
-      location.assign(destination);
+      location.assign(destinationUrl);
       return;
     }
     const destination = SUCCESS_PAGE[page];
     if (!destination) throw new Error('完了画面が定義されていません。');
     setStatus(statusTarget, '保存が完了しました。');
-    location.assign(new URL(destination.replace(/^\.\//, ''), new URL(document.documentElement.dataset.siteBase || '/', location.origin)).href);
+    location.assign(siteUrl(destination));
     return;
   }
 
+  if (page === 'test') {
+    clearStreamRealtimeGrant();
+    clearWatchRealtimeGrant();
+  }
   if (page === 'test' && payload.code === 'FLOW_TIMEOUT') {
     timeoutToHome(statusTarget);
     return;

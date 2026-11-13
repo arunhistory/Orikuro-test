@@ -117,5 +117,18 @@ console.log('4. tokens.css の色の重複');
   if (errors === before5) console.log('  ✔ ありません');
 }
 
+// 6. src/client/site-paths.ts の「古いファイル名 ⇔ 新しいURL」が redirects.mjs と同じか
+console.log('5. サーバー用の古いファイル名の対応');
+{
+  const before6 = errors;
+  const { redirects } = await import('../src/data/redirects.mjs');
+  const ts = await readFile(join(here, '../src/client/site-paths.ts'), 'utf8');
+  for (const m of ts.matchAll(/'\.\/([a-z0-9-]+\.html)':\s*'([a-z0-9/-]+)'/g)) {
+    const r = redirects.find((x) => x.from === m[1]);
+    if (!r || r.to !== '/' + m[2]) fail(`site-paths.ts の ${m[1]} → ${m[2]} が redirects.mjs（${r ? r.to : '無し'}）と違う`);
+  }
+  if (errors === before6) console.log('  ✔ 同じです');
+}
+
 console.log(errors ? `\n✘ 決まりに反するものが ${errors} 件あります` : '\n✔ 決まりは守られています');
 process.exit(errors ? 1 : 0);

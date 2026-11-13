@@ -35,4 +35,9 @@ export const redirects = [
   { from: 'operator.html', to: '/legal/operator/' },
   { from: 'stream-test.html', to: '/stream-test/' },
   { from: 'watch-test.html', to: '/watch-test/' },
+  // テスト側だけのテスト画面（site/apps-staging/）
+  { from: 'stream-ended.html', to: '/stream-ended/', side: 'staging' },
+  { from: 'system-stream-test.html', to: '/system-stream-test/', side: 'staging' },
+  { from: 'system-stage-check.html', to: '/system-stage-check/', side: 'staging' },
+  { from: 'standing-visual-test.html', to: '/standing-visual-test/', side: 'staging' },
 ];

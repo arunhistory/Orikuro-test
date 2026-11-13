@@ -13,10 +13,15 @@
     "build:pages": "node tools/build.mjs public && node tools/build.mjs staging && node tools/assemble-pages.mjs",
     "check": "node tools/check-site.mjs",
     "preview": "node tools/serve.mjs",
-    "compare": "node tools/compare-shots.mjs"
+    "compare": "node tools/compare-shots.mjs",
+    "build:client": "node tools/build-client.mjs",
+    "publish:staging": "node tools/publish-pages.mjs staging",
+    "publish:public": "node tools/publish-pages.mjs public"
   },
   "devDependencies": {
     "astro": "7.3.8",
+    "esbuild": "0.28.2",
+    "javascript-obfuscator": "5.5.0",
     "playwright": "1.63.0"
   }
 }

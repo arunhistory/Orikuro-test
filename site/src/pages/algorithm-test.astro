@@ -4,7 +4,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { href } from '../data/url';
 ---
 <BaseLayout title="アルゴリズムテスト" description="">
-  <main class="service-test-main"><section class="service-test-wrap"><p class="service-gate-status" role="status" aria-live="polite" data-service-gate-status>利用準備を確認しています。</p><article class="service-test-card" data-service-content hidden><p class="service-test-kicker">ALGORITHM TEST</p><h1>アルゴリズムテスト</h1><p>同意確認と内部配送が完了しました。<br/>ここからアルゴリズムテスト本体を実装します。</p><a class="service-test-home" href={href('/')}>ホームへ戻る</a></article></section></main>
+  <main class="service-test-main"><section class="service-test-wrap"><p class="service-gate-status" role="status" aria-live="polite" data-service-gate-status>利用準備を確認しています。</p><article class="service-test-card" data-service-content hidden><p class="service-test-kicker">ALGORITHM TEST</p><h1>アルゴリズムテスト</h1><p>コメントに対する禁止コメントの伏字や、一定基準以上での停止など、コメント処理の挙動を体験するテストです。</p><p>判定ルールとアルゴリズム本体は後工程で実装します。未確定の条件はこの段階では固定しません。</p><a class="service-test-home" href={href('/')}>ホームへ戻る</a></article></section></main>
   <script is:inline type="module" src={href('/assets/js/service-destination.js')}></script>
 </BaseLayout>
 <style>

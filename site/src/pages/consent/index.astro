@@ -35,6 +35,19 @@ import { href } from '../../data/url';
       </form>
     </section>
   </main>
+  <!-- 戻る・進むで利用前の確認へ戻ってきたときは、利用の札を消してトップへ戻す（元の staging の test.html と同じ） -->
+  <script is:inline>
+    (()=>{
+      const flowKey='oc_service_flow_token_v1';
+      const rejectHistoryReentry=(event)=>{
+        const nav=performance.getEntriesByType('navigation')[0];
+        if(!event.persisted&&nav?.type!=='back_forward') return;
+        sessionStorage.removeItem(flowKey);
+        location.replace(document.documentElement.dataset.siteBase||'/');
+      };
+      window.addEventListener('pageshow',rejectHistoryReentry);
+    })();
+  </script>
   <script is:inline type="module" src={href('/assets/js/input-router.js')}></script>
 </BaseLayout>
 <style>

@@ -7,14 +7,16 @@ import { SIDES, SITE_ORIGIN, currentSide } from './site.config.mjs';
 const side = currentSide();
 const conf = SIDES[side];
 
-// src/pages-staging/ のページは、テスト側のビルドにだけ入れる。
-function stagingOnlyPages() {
+// 片側だけに出すページ：
+//   src/pages-public/  … 公開側のビルドにだけ入れる
+//   src/pages-staging/ … テスト側のビルドにだけ入れる
+// 同じURLのページを両方に置くと、公開側とテスト側で中身を変えられる（例: /stream-test/）。
+function sideOnlyPages() {
   return {
-    name: 'staging-only-pages',
+    name: 'side-only-pages',
     hooks: {
       'astro:config:setup': ({ injectRoute }) => {
-        if (side !== 'staging') return;
-        const dir = new URL('./src/pages-staging/', import.meta.url);
+        const dir = new URL(side === 'staging' ? './src/pages-staging/' : './src/pages-public/', import.meta.url);
         const walk = (rel) => {
           for (const ent of readdirSync(new URL(rel, dir), { withFileTypes: true })) {
             const path = rel + ent.name;
@@ -37,7 +39,7 @@ export default defineConfig({
   outDir: conf.outDir,
   trailingSlash: 'always',
   build: { format: 'directory' },
-  integrations: [stagingOnlyPages()],
+  integrations: [sideOnlyPages()],
   vite: {
     define: { 'import.meta.env.SITE_SIDE': JSON.stringify(side) },
   },

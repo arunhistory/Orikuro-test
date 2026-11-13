@@ -68,10 +68,10 @@ export async function touchServiceFlow(): Promise<void> {
   if (!token) throw new ServiceFlowError('FLOW_MISSING', '利用準備を確認できません。');
   await post({ action: 'touch', token });
 }
-export async function consumeServiceFlow(path: string): Promise<void> {
+export async function consumeServiceFlow(path: string): Promise<Record<string, unknown>> {
   const token = getServiceFlowToken();
   if (!token) throw new ServiceFlowError('FLOW_MISSING', 'このサービスを直接開くことはできません。');
-  await post({ action: 'consume', token, path });
+  return await post({ action: 'consume', token, path });
 }
 export function isFlowTimeout(error: unknown): boolean {
   return error instanceof ServiceFlowError && (error.code === 'FLOW_TIMEOUT' || error.code === 'FLOW_MISSING');

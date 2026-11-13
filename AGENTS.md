@@ -51,6 +51,21 @@ GitHub Pages は **`pages-preview` ブランチ** を公開しています。中
   - `npm run build:pages` → 両方を書き出し、`site/dist/pages/` に **pages-preview と同じ並び** でまとめる
 - この違いは `site/site.config.mjs` だけで決まっています。ページの中で `/Orikuro-test/` や `/staging/` を直接書いてはいけません。リンクは必ず `href()` で作ります（下の「5. 書き方」）。
 - `site/dist/` はリポジトリに入れません（`.gitignore` 済み）。
+- **pages-preview へ置く（画面に出す）のは `npm run publish:staging`（テスト側）と `npm run publish:public`（公開側）だけ。** GitHub Actions は使わないので、staging や main に push しただけでは画面は変わりません。置くのはユーザーの指示があったときだけで、AIは行いません（上の表1の11番）。
+  - テスト側は staging ブランチから、公開側は main ブランチから置く。違うブランチからは置けないようにしてある。
+  - テスト側を置くときは pages-preview の `staging/` の中だけ、公開側を置くときは一番上だけが変わる（もう片方は残る）。
+
+### 片側だけのもの
+
+| 置き場所 | 出る側 | 例 |
+| --- | --- | --- |
+| `site/src/pages/` | 両方 | ほとんどのページ |
+| `site/src/pages-public/` | 公開側だけ | `/stream-test/`・`/watch-test/` の入口だけのページ |
+| `site/src/pages-staging/` | テスト側だけ | テスト側だけのサイトのページ |
+| `site/apps-staging/` | テスト側だけ | 本物の配信テスト・視聴テスト・システム配信テスト・立ち絵の目視テスト・0%ステージ確認・配信終了の画面 |
+
+- 同じURLを `pages-public` と `pages-staging`（または `apps-staging`）の両方に置くと、公開側とテスト側で中身を変えられる（`/stream-test/` は公開側が入口だけ、テスト側が本物）。
+- `apps-staging/` は **元の staging のテスト画面を、HTMLとCSS・JSのまま置いた場所** です。開発中のテスト道具なので、共通部品・tokens.css の決まりの対象外。中身を直すときは元の書き方のまま直す。参照は画面のフォルダから見た `../apps/…`・`../assets/js/…` で書く。
 
 ---
 
@@ -169,32 +184,30 @@ site/
 | `src/client/input-router.ts` の `pageKindFromPath` | `preregister.html`・`test.html` で見分ける | 空でない最後の部分が `preregister`・`consent` で見分ける |
 | `src/client/input-router.ts`・`response-router.ts`・`service-destination.ts` の `./index.html` | 失敗・時間切れでトップへ戻る | サイトの一番上へ戻す（公開側なら `/Orikuro-test/`、テスト側なら `/Orikuro-test/staging/`。下の「サイトの一番上の求め方」） |
 | `src/client/response-router.ts` の `SUCCESS_PAGE` | `./preregister-complete.html`・`./contact-complete.html` | `preregister/complete/`（サイトの一番上から）。`contact-complete.html` は今も存在しないページなので、そのまま報告に書く（作らない） |
-| `src/client/response-router.ts` の `safeServiceDestination` | サーバーから来た `./algorithm-test.html` を今のページから見た場所として開く | サーバーから来た行き先を **サイトの一番上から** 見た場所として開く（`algorithm-test/` → `/Orikuro-test/algorithm-test/`）。同じオリジン・クエリ無し・`#`無しの確認はそのまま残す |
-| `src/client/service-destination.ts` の `currentRelativePath` | `./algorithm-test.html` のようにファイル名を作ってサーバーへ送る | **サイトの一番上からの道のり** を送る（`/Orikuro-test/staging/algorithm-test/` なら `algorithm-test/`）。公開側とテスト側で同じ値になること |
+| `src/client/response-router.ts` | サーバーから来た `./algorithm-test.html` を今のページから見た場所として開く | サーバーから来た古いファイル名を `site-paths.ts` の `urlForLegacyPath` で新しいURLにして開く（済み） |
+| `src/client/service-destination.ts` | ファイル名を作ってサーバーへ送る | `site-paths.ts` の `legacyPathForCurrentPage` で **古いファイル名** を送る（公開側・テスト側とも同じ値。済み） |
 | `src/client/email-delete.ts`・`email-delete-not-registered.ts` | `./email-delete-expired.html` などへ移る、`history.replaceState(…, './email-delete.html')` | `email-delete/expired/`・`email-delete/not-registered/`・`email-delete/` へ（サイトの一番上から）。`?token=` の付け方・送る中身は変えない |
 | `contact.js`・`contact-chat.js`（新しい構成では `site/src/scripts/` へ移す） | `./contact-chat.html`・`./contact.html?discord=invalid` | `href('/contact/chat/')`・`href('/contact/')` + `?discord=invalid`。Discord認証の処理・送る中身は変えない |
 | `preregister.js` | リンクの書き換え（8〜15行） | 移さない（リンクは最初から正しく書く）。Discordへの登録の処理は変えずに移す |
 
 **サイトの一番上の求め方**：ページの `<html>` か `<body>` に `data-site-base={import.meta.env.BASE_URL}` を Astro で書き出し、スクリプトはそれを読む。`/Orikuro-test/` をスクリプトに直接書かない。
 
-#### B. サーバー側（AIは触らない。公開するときにユーザーが行う）
+#### B. サーバー側（変えなくてよい）
 
-次はこのリポジトリの外にあります。**新しいサイトを公開するのと同時に** 変える必要があります（先に変えると、今公開中のサイトが壊れる）。報告ではこの表を「公開のときに必要な作業」として載せるだけにして、自分では変えないこと。
+サーバーは古いファイル名（`./algorithm-test.html`・`./stream-test.html`・`./watch-test.html`、`/test.html`・`/preregister.html`）でページを見分けています。
+**ブラウザの側で「古いファイル名 ⇔ 新しいURL」を読み替える** ので、サーバーは今のまま使えます（2026-11-13 Claude が作り替え）。
 
-| 場所 | 今の値 | 新しい値 |
-| --- | --- | --- |
-| Supabase の表 `oc_service_routes` の `destination_path` | `./algorithm-test.html`・`./stream-test.html`・`./watch-test.html` | `algorithm-test/`（配信・視聴は体験版の画面ができてから決める） |
-| Supabase の関数 `mail-system` の `service-flow.ts`・`submission.ts` | `./stream-test.html`・`./watch-test.html` を直接比べている | 上の表と同じ書き方にそろえる |
-| Supabase の関数 `discord-system` の `a-support.ts` の `CHAT_URL` / `CALLBACK_URL` | `…/Orikuro-test/contact.html` | `…/Orikuro-test/contact/` |
-| Discord の開発者画面に登録した戻り先URL | `…/contact.html` | `…/contact/`（上と同じ値） |
-| Supabase の関数 `discord-system` の `b-information.ts` の `PREREG` | `…/preregister.html` | `…/preregister/`（古いURLも移動ページがあるので壊れはしない） |
-| Supabase の関数 `discord-system` の `c-manager.ts` のページ一覧 | 一番上の `index.html`・`contact.html` など | 新しい構成に合わせる（状況の報告が「無い」と出るだけで、サイトは壊れない） |
-| Supabase の関数 `mail-system` の `stage2-staging-control.ts` | このリポジトリの `cloudflare/oc-stage2-staging.mjs` を読みに来る | **`cloudflare/` を片付けで消す前に** 読みに行く先を変える |
+- 読み替えの表は `src/client/site-paths.ts` の1か所だけ。`site/src/data/redirects.mjs` と同じであることを `npm run check` が確かめる。
+- 署名は `input-router.ts` が古いファイル名を渡して作る（WASMは変えない）。
+- お問い合わせのDiscord認証は、サーバーが戻り先を `contact.html` にしているので、古いURLの移動ページを通って `/contact/` に着く（`#…` は引き継ぐ）。
+- 次の2つは、変えなくても壊れないが、いつか直すとよいもの：
+  - Supabase の `discord-system` の `c-manager.ts` が見に行くページの一覧（一番上の `index.html` など）。状況の報告に「無い」と出るだけ。
+  - Supabase の `mail-system` の `stage2-staging-control.ts` は、このリポジトリの `cloudflare/oc-stage2-staging.mjs` を読みに来る。**`cloudflare/` を片付けで消さないこと。**
 
 #### C. 作り方の決まり
 
 1. 署名の値・送る中身・送り先・送る順番・同意の手順は変えない。変えるのは「URLでページを見分ける部分」と「移る先のURL」だけ。
-2. `.wasm` と `.sha256` は今のものをそのまま使う（作り直さない）。`assets/js/*.js`（難読化してある）は自分で作らない。ソースだけ変えて、報告に「Claude のビルド待ち」と書く。Claude がビルドして、送信の流れを確かめる。
+2. `.wasm` と `.sha256` は今のものをそのまま使う（作り直さない）。`assets/js/*.js` は `npm run build:client` で作る（元の staging の自動処理と同じ道具・同じ設定。esbuild 0.28.2 と javascript-obfuscator 5.5.0）。実行できない環境ではソースだけ変えて、報告に「Claude のビルド待ち」と書く。Claude がビルドして、送信の流れを確かめる。
 3. 古いURL（`test.html`・`preregister.html`・`contact.html`・`email-delete.html?token=…` など）から来ても、移動ページで新しいURLへ移り、最後まで使えること（`?token=` と `#…` は移動ページが引き継ぐ）。
 4. 公開側（`/Orikuro-test/`）とテスト側（`/Orikuro-test/staging/`）のどちらでも同じように動くこと。サーバーへ送るページの道のりは、どちらでも同じ値になること。
 

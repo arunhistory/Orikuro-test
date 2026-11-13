@@ -4,7 +4,8 @@
 できあがったら、公開側（main）とテスト側（staging）に上書きしていきます。
 
 - **AIに作業させるときは、`AGENTS.md` を最初に読ませてください。** 作業の決まり・手順・確かめ方・報告の形が全部書いてあります（Codexは自動で読みます）。
-- 新しいサイトのソースは **`site/` の中だけ** です。
+- 新しいサイトのソースは **`site/` の中だけ** です（フォームなどのJSの元は、今までどおり一番上の `src/client/`）。
+- テスト側だけの本物の配信・視聴テストなどは `site/apps-staging/` にあります（元の staging から移したもの）。
 - 一番上に並んでいる古いファイル（`about.html` など）は、移し終わるまで **触らずに残して** あります。
   移し終わったページから順に、最後の「片付け」でまとめて消します。
 
@@ -91,6 +92,10 @@ npm run build:pages    # 両側を書き出して dist/pages/ にまとめる
 npm run preview        # http://localhost:4321/Orikuro-test/ と /Orikuro-test/staging/ で確認
 npm run check          # 決まりの確認（リンクの行き先・ソースの混入・色の直書き・!important・?v=）
 npm run compare        # 移したページを古いページと画素単位で比べる（初回だけ npx playwright install chromium）
+npm run build:client   # src/client/*.ts から site/public/assets/js/ のJSを作る（元の自動処理と同じ設定）
+
+npm run publish:staging  # テスト側を pages-preview の staging/ に置く（staging ブランチから。ユーザーの指示があるときだけ）
+npm run publish:public   # 公開側を pages-preview の一番上に置く（main ブランチから。ユーザーの指示があるときだけ）
 ```
 
 ---
