@@ -1,0 +1,1 @@
+function e(e){return`/Orikuro-test/staging/`.replace(/\/$/,``)+(e.startsWith(`/`)?e:`/`+e)}export{e as t};
