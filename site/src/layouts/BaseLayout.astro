@@ -10,6 +10,7 @@ import '../styles/components.css';
 import Header from '../components/Header.astro';
 import MobileMenu from '../components/MobileMenu.astro';
 import Footer from '../components/Footer.astro';
+import Toast from '../components/Toast.astro';
 import { side } from '../data/url';
 
 interface Props {
@@ -30,7 +31,7 @@ const { title, description } = Astro.props;
   <meta name="theme-color" content="#f4f7fb" />
   <meta name="description" content={description} />
   {side === 'staging' && <meta name="robots" content="noindex,nofollow" />}
-  <title>{title} | Original Create Project</title>
+  <title>{title === "Original Create Project" ? title : `${title} | Original Create Project`}</title>
   <slot name="head" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,6 +42,8 @@ const { title, description } = Astro.props;
   <MobileMenu />
   <slot />
   <Footer />
+  <Toast />
   <script src="../scripts/menu.ts"></script>
+  <script src="../scripts/service-entry.ts"></script>
 </body>
 </html>

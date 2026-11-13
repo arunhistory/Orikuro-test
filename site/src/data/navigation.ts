@@ -19,6 +19,7 @@ export interface NavLink {
   path: string;
   side?: 'both' | 'staging';
   placeholder?: boolean;
+  serviceEntry?: 'stream' | 'watch' | 'algorithm';
 }
 
 export interface NavGroup {
@@ -41,9 +42,9 @@ export const menuGroups: NavGroup[] = [
   {
     label: '試す',
     links: [
-      { label: '配信テスト', path: '/live/', placeholder: true }, // 仮置き：体験版の画面ができるまで
-      { label: '視聴テスト', path: '/live/', placeholder: true }, // 仮置き：体験版の画面ができるまで
-      { label: 'アルゴリズムテスト', path: '/algorithm-test/' },
+      { label: '配信テスト', path: '/consent/', serviceEntry: 'stream' },
+      { label: '視聴テスト', path: '/consent/', serviceEntry: 'watch' },
+      { label: 'アルゴリズムテスト', path: '/consent/', serviceEntry: 'algorithm' },
     ],
   },
   {

@@ -14,7 +14,7 @@ const pathname = Astro.url.pathname;
         {forSide(group.links, side).map((link) => (
           link.placeholder
             ? <a href="#" aria-disabled="true" data-placeholder-link>{link.label}</a>
-            : <a href={href(link.path)} aria-current={isCurrent(link.path, pathname) ? 'page' : undefined}>{link.label}</a>
+            : <a href={href(link.path)} data-service-entry={link.serviceEntry} aria-current={isCurrent(link.path, pathname) ? 'page' : undefined}>{link.label}</a>
         ))}
       </section>
     ))}

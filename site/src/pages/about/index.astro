@@ -1,0 +1,119 @@
+---
+// 10-2: about.html と greeting.html の本文を順番に結合。写真なしの旧空枠を再現。
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+<BaseLayout title="Original Createとは" description="Original Createとは">
+  <main class="about-main">
+    <article class="about-wrap">
+      <h1>Original Createとは</h1>
+
+      <div class="about-body">
+        <p><strong>「自由をカタチに」</strong><br />を理念とする、プロジェクトです。</p>
+
+        <p>Original Createは、総合創作プラットフォームを提供します。</p>
+
+        <p>クリエイターに新たな自由の場を提供し、これまで以上に自由な創作活動を行える環境をつくることを目的としています。</p>
+      </div>
+    </article>
+  </main>
+  <section class="greeting-main" id="greeting">
+    <figure class="representative-visual is-empty"></figure>
+
+    <article class="message-wrap">
+      <h1>代表挨拶</h1>
+
+      <header class="representative-head">
+        <p>Original Create Project</p>
+        <h2>代表責任者 ある〜ん</h2>
+      </header>
+
+      <div class="message-body">
+        <p>こちらのサイトをご覧いただき、誠にありがとうございます。<br />私、代表責任者のある〜んと申します。</p>
+
+        <p>昨今、クリエイターと呼ばれる方々が多くご活躍しております。<br />しかしその一方で、挑戦しながらも活動を続けることができなかった方々が数多くいることも現状です。<br />また、やりたくても始めることすらできない方々も多数おります。</p>
+
+        <p>そういった状況を私が変えるしかない。<br />そう考え、Original Create Projectを発足しました。</p>
+
+        <p>私は、クリエイターとはエンターテインメントを創造する方々だと考えております。<br />しかし、一度にその全てを実現することはできません。<br />そのためにまずは、バーチャルや二次元の創作活動から順に実現していきます。</p>
+
+        <p>まずは、配信・視聴・アルゴリズムのテストをお試しください。<br />そして、Original Createが目指す未来の一部を実際に体験していただければと思います。</p>
+
+        <p>私は、クリエイターの未来のその先をつくります。</p>
+      </div>
+    </article>
+  </section>
+</BaseLayout>
+<style>
+.about-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(72px,9vw,118px) 0 clamp(110px,13vw,160px);
+}
+.about-wrap{width:min(860px,100%);margin:0 auto}
+.about-wrap>h1{
+  margin:0 0 clamp(48px,6vw,72px);
+  font-size:clamp(38px,5vw,64px);
+  line-height:1.1;
+  letter-spacing:-.05em;
+}
+.about-body{
+  font-size:clamp(16px,1.7vw,19px);
+  line-height:2;
+  letter-spacing:.01em;
+}
+.about-body p{margin:0 0 clamp(30px,4vw,46px)}
+.about-body p:last-child{margin-bottom:0}
+.about-body strong{font-size:1.18em;font-weight:800}
+
+
+@media(max-width:760px){.about-main{padding-top:56px}.about-wrap>h1{margin-bottom:44px}.about-body{line-height:1.9}}
+.greeting-main{
+  width:min(1180px,calc(100% - var(--pad)*2));
+  margin:0 auto;
+  padding:clamp(34px,5vw,64px) 0 clamp(90px,11vw,140px);
+  background:transparent;
+}
+.representative-visual{
+  margin:0 0 clamp(56px,8vw,96px);
+  width:100%;
+  height:clamp(280px,48vw,620px);
+  overflow:hidden;
+  border:1px solid var(--color-representative-border);
+  background:var(--color-representative-background);
+  box-shadow:0 20px 55px var(--color-representative-shadow);
+  backdrop-filter:blur(12px);
+}
+.representative-visual img{width:100%;height:100%;display:block;object-fit:cover;object-position:center}
+.representative-visual.is-empty{background:var(--color-representative-empty)}
+.message-wrap{width:min(860px,100%);margin:0 auto}
+.message-wrap>h1{
+  margin:0 0 clamp(42px,6vw,68px);
+  font-size:clamp(38px,5vw,64px);
+  line-height:1.1;
+  letter-spacing:-.05em;
+}
+.representative-head{
+  padding:0 0 28px;
+  margin-bottom:clamp(38px,5vw,56px);
+  border-bottom:1px solid var(--color-neutral-rule);
+}
+.representative-head p{margin:0 0 8px;color:var(--color-muted);font-size:12px;font-weight:700;letter-spacing:.04em}
+.representative-head h2{margin:0;font-size:clamp(24px,3vw,36px);line-height:1.35;letter-spacing:-.03em}
+.message-body{font-size:clamp(16px,1.7vw,19px);line-height:2;letter-spacing:.01em}
+.message-body p{margin:0 0 clamp(30px,4vw,46px)}
+.message-body p:last-child{margin-bottom:0}
+
+
+@media(max-width:760px){.greeting-main{padding-top:22px}.representative-visual{height:46svh;min-height:300px;margin-bottom:56px}.message-wrap>h1{margin-bottom:42px}.message-body{line-height:1.9}.message-body p br{display:none}}
+
+.about-wrap>h1{font-weight:700;letter-spacing:-.045em}
+.about-body strong{font-weight:700}
+.greeting-main,.greeting-main .message-wrap,.greeting-main .message-wrap>h1,
+.greeting-main .representative-head,.greeting-main .representative-head p,
+.greeting-main .representative-head h2,.greeting-main .message-body,
+.greeting-main .message-body p{font-family:var(--font-serif)}
+.greeting-main .message-wrap>h1{font-weight:700;letter-spacing:.01em}
+.greeting-main .representative-head h2{font-weight:600;letter-spacing:.01em}
+.greeting-main .message-body{font-weight:400;letter-spacing:.02em}
+
+</style>
