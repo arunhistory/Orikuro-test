@@ -62,6 +62,7 @@ GitHub Pages は **`pages-preview` ブランチ** を公開しています。中
 | `site/src/pages/` | 両方 | ほとんどのページ |
 | `site/src/pages-public/` | 公開側だけ | `/stream-test/`・`/watch-test/` の入口だけのページ |
 | `site/src/pages-staging/` | テスト側だけ | テスト側だけのサイトのページ |
+| `site/live-dist/` | `site.config.mjs` の `LIVE.sides` で決める（今はテスト側だけ） | 体験版（立ち絵・ラジオ）のビルド済み画面。`/live/` に出る。ソースは非公開の Orikuro |
 | `site/apps-staging/` | テスト側だけ | 本物の配信テスト・視聴テスト・システム配信テスト・立ち絵の目視テスト・0%ステージ確認・配信終了の画面 |
 
 - 同じURLを `pages-public` と `pages-staging`（または `apps-staging`）の両方に置くと、公開側とテスト側で中身を変えられる（`/stream-test/` は公開側が入口だけ、テスト側が本物）。

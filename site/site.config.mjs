@@ -34,3 +34,17 @@ export function currentSide() {
   }
   return side;
 }
+
+/*
+  体験版（立ち絵・ラジオ）の画面
+  ------------------------------------------------------------
+  ソースは非公開の arunhistory/Orikuro の live/ にあり、Vite でビルドした結果だけを
+  site/live-dist/ に置く（base: './' でビルドするので、公開側でもテスト側でもそのまま動く）。
+  sides に入っている側のビルドにだけ /live/ として入る。
+    作っている間 … ['staging']（テスト側 /Orikuro-test/staging/live/ だけ）
+    公開するとき … ['staging', 'public'] にする（公開側 /Orikuro-test/live/ にも出る）
+*/
+export const LIVE = {
+  dir: 'live-dist',
+  sides: ['staging'],
+};

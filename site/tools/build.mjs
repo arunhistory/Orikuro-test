@@ -1,6 +1,7 @@
 // build.mjs — 片側をビルドする。 使い方: node tools/build.mjs public | staging
 // （Windowsでも動くように、環境変数の指定をここで行う）
-import { SIDES } from '../site.config.mjs';
+import { SIDES, LIVE } from '../site.config.mjs';
+import { copyLive } from './copy-live.mjs';
 import { writeRedirects } from './write-redirects.mjs';
 import { copyStagingApps } from './copy-staging-apps.mjs';
 
@@ -13,5 +14,6 @@ process.env.SITE_SIDE = side;
 const { build } = await import('astro');
 await build({ root: new URL('..', import.meta.url) });
 if (side === 'staging') await copyStagingApps();
+if (LIVE.sides.includes(side)) await copyLive(side);
 await writeRedirects(side);
 console.log(`\n✔ ${SIDES[side].label}（${side}）を ${SIDES[side].outDir}/ に書き出しました`);
